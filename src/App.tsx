@@ -137,7 +137,24 @@ export default function App() {
     const next = resetCustomTopicsToDefault();
     setCustomTopics(next);
   }, []);
+  useEffect(() => {
+  const path = window.location.pathname;
+  if (path === '/history') {
+    setPlaylistTab('history');
+  } else if (path === '/bookmarked' || path === '/favorites') {
+    setPlaylistTab('favorites');
+  } else if (path.startsWith('/tags/')) {
+    const tagSlug = path.replace('/tags/', '');
+    // Tự động tìm tag tương ứng và kích hoạt filter
+    const found = customTopics.find((t) => t.toLowerCase().replace(/\s+/g, '-') === tagSlug);
+    if (found) setActiveCategory(found);
+  }
+}, [customTopics]);
 
+// Khi người dùng bấm tab hoặc tag, cập nhật URL không cần reload:
+const navigateSlug = (slugPath: string) => {
+  window.history.pushState({}, '', slugPath);
+};
   // Load videos from Supabase (with automatic fallback to mockVideos.ts)
   useEffect(() => {
     let isMounted = true;
