@@ -108,10 +108,10 @@ const SETTING_LUCIDE_HTML = renderToStaticMarkup(
 );
 
 const PLAY_CENTER_HTML = renderToStaticMarkup(
-  React.createElement(Play, { size: 32, fill: 'currentColor' })
+  React.createElement(Play, { size: 34, fill: 'currentColor', style: { marginLeft: '3px' } })
 );
 const PAUSE_CENTER_HTML = renderToStaticMarkup(
-  React.createElement(Pause, { size: 32, fill: 'currentColor' })
+  React.createElement(Pause, { size: 34, fill: 'currentColor' })
 );
 const PREV_BTN_HTML = renderToStaticMarkup(
   React.createElement(SkipBack, { size: 24, fill: 'currentColor' })
@@ -415,10 +415,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
       },
 
+      // CẤU HÌNH CỐT TỬ CHO TRÌNH DUYỆT DI ĐỘNG (IOS / ANDROID)
       moreVideoAttr: {
         crossOrigin: 'anonymous',
-        preload: 'metadata',
-        playsInline: true,
+        preload: 'auto',
+        playsinline: 'true',
+        'webkit-playsinline': 'true',
+        'x5-playsinline': 'true',
       },
 
       layers: [
@@ -443,7 +446,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           },
         },
 
-        // TẦNG CỬ CHỈ TRONG SUỐT VỚI 3 VÙNG: 30% TRÁI | 40% GIỮA | 30% PHẢI
+        // TẦNG CỬ CHỈ CÓ SẴN CỤM NÚT (KHÔNG BỊ TÀNG HÌNH TRÊN DI ĐỘNG)
         {
           name: 'youtube-touch-engine',
           html: `
@@ -454,17 +457,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">-10s</div>
               </div>
 
-              <!-- Cụm nút trung tâm (CHỈ HIỆN KHI TẠM DỪNG HOẶC CLICK MỞ ĐIỀU KHIỂN) -->
-              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 32px; background: transparent; transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
-                <button type="button" class="art-yt-btn-prev" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4);" title="Tập trước đó">
+              <!-- Cụm nút trung tâm (LUÔN SẴN SÀNG ĐỂ CHẠM PHÁT NGAY LẬP TỨC TRÊN DI ĐỘNG) -->
+              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 32px; background: transparent; transition: opacity 0.25s ease; opacity: 1; pointer-events: auto;">
+                <button type="button" class="art-yt-btn-prev" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4); cursor: pointer;" title="Tập trước đó">
                   ${PREV_BTN_HTML}
                 </button>
 
-                <button type="button" class="art-yt-btn-play" style="width: 64px; height: 64px; border-radius: 50%; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.35); backdrop-filter: blur(8px); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transition: transform 0.15s;" title="Phát / Tạm dừng">
+                <button type="button" class="art-yt-btn-play" style="width: 68px; height: 68px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); backdrop-filter: blur(8px); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 24px rgba(0,0,0,0.6); transition: transform 0.15s;" title="Phát / Tạm dừng">
                   ${PLAY_CENTER_HTML}
                 </button>
 
-                <button type="button" class="art-yt-btn-next" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4);" title="Tập kế tiếp">
+                <button type="button" class="art-yt-btn-next" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4); cursor: pointer;" title="Tập kế tiếp">
                   ${NEXT_BTN_HTML}
                 </button>
               </div>
@@ -617,7 +620,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
     // ==============================================================
-    // KÍCH HOẠT VÀ ĐỒNG BỘ CHUẨN XÁC TẠI "READY"
+    // KHÓA ĐỒNG BỘ CHUẨN CẢ DI ĐỘNG & MÁY TÍNH
     // ==============================================================
     art.on('ready', () => {
       try {
@@ -653,7 +656,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
-      // CSS CỐT TỬ: ĐẨY BẢNG CÀI ĐẶT LÊN CAO NHẤT & TỰ ẨN LỚP PHỦ KHI MỞ
       const styleTag = document.createElement('style');
       styleTag.innerHTML = `
         .art-video-player .art-settings {
@@ -669,7 +671,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player .art-setting-panel {
           pointer-events: auto !important;
         }
-        /* Hễ mở cài đặt là giấu hẳn lớp phủ cảm ứng */
         .art-video-player.art-setting-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
@@ -702,16 +703,25 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnNext.style.pointerEvents = hasNext ? 'auto' : 'none';
         btnNext.style.cursor = hasNext ? 'pointer' : 'not-allowed';
 
-        // ==============================================================
-        // QUY TẮC 1: KHI DI CHUỘT CHỈ HIỆN THANH ĐÁY, KHÔNG HIỆN 3 NÚT GIỮA
-        // ==============================================================
+        // Tự động ẩn 3 nút sau 3.5 giây khi video đang phát
+        let autoHideTimer: any = null;
+        const resetHideTimer = () => {
+          if (autoHideTimer) clearTimeout(autoHideTimer);
+          if (art.playing) {
+            autoHideTimer = setTimeout(() => {
+              if (art.playing) {
+                centerControls.style.opacity = '0';
+                centerControls.style.pointerEvents = 'none';
+              }
+            }, 3500);
+          }
+        };
+
         art.on('control', (state: boolean) => {
-          // Nếu video đang phát: Di chuột CHỈ hiện thanh đáy, 3 nút giữa LUÔN ẨN!
           if (art.playing) {
             centerControls.style.opacity = '0';
             centerControls.style.pointerEvents = 'none';
           } else {
-            // Chỉ khi video đang TẠM DỪNG thì mới cho hiện 3 nút giữa
             const isSettingOpen = art.setting && art.setting.show;
             if (state && !isSettingOpen) {
               centerControls.style.opacity = '1';
@@ -735,21 +745,42 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
         art.on('play', () => {
           btnPlay.innerHTML = PAUSE_CENTER_HTML;
-          centerControls.style.opacity = '0';
-          centerControls.style.pointerEvents = 'none';
+          resetHideTimer();
         });
 
         art.on('pause', () => {
           btnPlay.innerHTML = PLAY_CENTER_HTML;
-          // Tạm dừng: Hiện TẤT CẢ các nút điều khiển (cả thanh đáy lẫn 3 nút giữa)!
           art.controls.show = true;
           centerControls.style.opacity = '1';
           centerControls.style.pointerEvents = 'auto';
+          if (autoHideTimer) clearTimeout(autoHideTimer);
         });
 
+        // ==============================================================
+        // HÀM PHÁT VIDEO ĐỒNG THỜI (SYNCHRONOUS) ĐỂ VƯỢT CHỐNG AUTOPLAY CỦA DI ĐỘNG
+        // ==============================================================
+        const executeDirectPlay = () => {
+          if (art.template?.$video) {
+            const v = art.template.$video as HTMLVideoElement;
+            if (v.paused) {
+              const promise = v.play();
+              if (promise !== undefined) {
+                promise.catch(() => {
+                  art.play().catch(() => {});
+                });
+              }
+            } else {
+              v.pause();
+            }
+          } else {
+            art.toggle();
+          }
+        };
+
+        // Bấm trực tiếp nút Play: kích hoạt ngay tức thì
         btnPlay.addEventListener('click', (e) => {
           e.stopPropagation();
-          art.toggle();
+          executeDirectPlay();
         });
 
         btnPrev.addEventListener('click', (e) => {
@@ -762,9 +793,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           onNextVideoRef.current?.();
         });
 
-        // ==============================================================
-        // BỘ CẢM BIẾN NHẤP CHUỘT / CHẠM VÀ DOUBLE CLICK 3 VÙNG
-        // ==============================================================
+        // BỘ CẢM BIẾN CHẠM DI ĐỘNG & NHẤP CHUỘT
         let lastTapTime = 0;
         let lastTapSide: 'left' | 'right' | 'center' | null = null;
         let singleTapTimer: any = null;
@@ -787,26 +816,28 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return;
           }
 
+          // NẾU VIDEO ĐANG TẠM DỪNG (HOẶC MỚI VÀO): CHẠM MÀN HÌNH LÀ PHÁT NGAY LẬP TỨC (0MS)!
+          if (!art.playing) {
+            executeDirectPlay();
+            return;
+          }
+
           const rect = overlay.getBoundingClientRect();
           const offsetX = e.clientX - rect.left;
           const width = rect.width;
           const now = Date.now();
 
-          // PHÂN CHIA 3 VÙNG: 30% TRÁI | 40% GIỮA | 30% PHẢI
           let currentSide: 'left' | 'right' | 'center' = 'center';
           if (offsetX < width * 0.30) currentSide = 'left';
           else if (offsetX > width * 0.70) currentSide = 'right';
           else currentSide = 'center';
 
-          // ==============================================================
-          // QUY TẮC 3: DOUBLE CLICK TRÁI (-10S) | PHẢI (+10S) | GIỮA (FULLSCREEN)
-          // ==============================================================
+          // KIỂM TRA DOUBLE CLICK KHI VIDEO ĐANG CHẠY
           const isDoubleClick =
             now - lastTapTime < 280 &&
             lastTapSide === currentSide;
 
           if (isDoubleClick) {
-            // Hủy ngay lệnh click đơn để không bị tạm dừng phim!
             if (singleTapTimer) {
               clearTimeout(singleTapTimer);
               singleTapTimer = null;
@@ -825,33 +856,23 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 setTimeout(() => { rippleRight.style.display = 'none'; }, 450);
               }
             } else {
-              // BẤM 2 LẦN VÀO KHU VỰC GIỮA: BẬT / THOÁT TOÀN MÀN HÌNH!
               toggleFullscreen();
             }
 
             lastTapTime = 0;
             lastTapSide = null;
           } else {
-            // ==============================================================
-            // QUY TẮC 2: ẤN CHUỘT 1 LẦN THÌ DỪNG VÀ HIỂN THỊ TẤT CẢ NÚT ĐIỀU KHIỂN
-            // ==============================================================
+            // SINGLE CLICK KHI ĐANG PHÁT: DỪNG PHIM VÀ BẬT ĐIỀU KHIỂN
             lastTapTime = now;
             lastTapSide = currentSide;
 
             if (singleTapTimer) clearTimeout(singleTapTimer);
             singleTapTimer = setTimeout(() => {
               if (art.playing) {
-                // Đang phát ➔ Tạm dừng ngay và hiển thị TẤT CẢ nút điều khiển!
                 art.pause();
                 art.controls.show = true;
                 centerControls.style.opacity = '1';
                 centerControls.style.pointerEvents = 'auto';
-              } else {
-                // Đang dừng ➔ Bấm vào thì tiếp tục phát và ẩn điều khiển
-                art.play();
-                art.controls.show = false;
-                centerControls.style.opacity = '0';
-                centerControls.style.pointerEvents = 'none';
               }
               singleTapTimer = null;
             }, 260);
