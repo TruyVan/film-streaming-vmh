@@ -12,6 +12,7 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  FastForward,
 } from 'lucide-react';
 import Artplayer from 'artplayer';
 import {
@@ -43,7 +44,6 @@ interface CustomArtPlayerProps {
 
 const SUN_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
 
-// Lucide HTML Static Icons
 const REWIND_10_LUCIDE_HTML = renderToStaticMarkup(
   React.createElement(RotateCcw, {
     size: 20,
@@ -107,17 +107,30 @@ const SETTING_LUCIDE_HTML = renderToStaticMarkup(
   })
 );
 
+// ICONS TRUNG TÂM XUYÊN THẤU GLASSMORPHISM
 const PLAY_CENTER_HTML = renderToStaticMarkup(
-  React.createElement(Play, { size: 36, fill: 'currentColor' })
+  React.createElement(Play, { size: 32, fill: 'currentColor' })
 );
 const PAUSE_CENTER_HTML = renderToStaticMarkup(
-  React.createElement(Pause, { size: 36, fill: 'currentColor' })
+  React.createElement(Pause, { size: 32, fill: 'currentColor' })
 );
 const PREV_BTN_HTML = renderToStaticMarkup(
-  React.createElement(SkipBack, { size: 26, fill: 'currentColor' })
+  React.createElement(SkipBack, { size: 24, fill: 'currentColor' })
 );
 const NEXT_BTN_HTML = renderToStaticMarkup(
-  React.createElement(SkipForward, { size: 26, fill: 'currentColor' })
+  React.createElement(SkipForward, { size: 24, fill: 'currentColor' })
+);
+
+// ICON TUA SVG SẮC NÉT (DÙNG FAST-FORWARD VÀ XOAY 180 ĐỘ)
+const FAST_FORWARD_ICON_HTML = renderToStaticMarkup(
+  React.createElement(FastForward, { size: 34, fill: 'currentColor', style: { color: '#ffffff' } })
+);
+const REWIND_ICON_HTML = renderToStaticMarkup(
+  React.createElement(FastForward, {
+    size: 34,
+    fill: 'currentColor',
+    style: { transform: 'rotate(180deg)', color: '#ffffff' },
+  })
 );
 
 function parseHighlightsFromDescription(
@@ -172,7 +185,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     onNextVideoRef.current = onNextVideo;
   }, [onProgressUpdate, onEndedNext, onPrevVideo, onNextVideo]);
 
-  // Handle external seek requests
   useEffect(() => {
     if (externalSeekTime && artInstanceRef.current) {
       artInstanceRef.current.currentTime = externalSeekTime.time;
@@ -198,7 +210,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     }));
     const highlights = [...descHighlights, ...userHighlights];
 
-    // Chuẩn hóa danh sách đa phụ đề
     const subList: SubtitleTrack[] =
       video.subtitles && video.subtitles.length > 0
         ? video.subtitles
@@ -252,7 +263,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }
     };
 
-    // FULLSCREEN + XOAY NGANG GYROSCOPE CHO MOBILE
     const toggleFullscreen = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
@@ -300,6 +310,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           art.notice.show = 'Toàn màn hình (Web Fullscreen)';
         }
 
+        // TỰ ĐỘNG KHÓA XOAY NGANG THEO GYRO TRÊN MOBILE
         if (isMobile && screen.orientation && 'lock' in screen.orientation) {
           try {
             await (screen.orientation as any).lock('landscape');
@@ -396,7 +407,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       hotkey: false,
       highlight: highlights,
 
-      // LUÔN KHỞI TẠO SUBTITLE RỖNG ĐỂ TRÁNH LỖI NỘI BỘ ARTPLAYER
       subtitle: {
         url: defaultSub?.url || '',
         type: defaultSub?.url?.endsWith('.vtt') ? 'vtt' : 'srt',
@@ -436,33 +446,38 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           },
         },
 
-        // HTML LAYER TRUNG TÂM (KHÔNG GẮN LOGIC TRONG NÀY ĐỂ TRÁNH LỖI UNDEFINED)
+        // ==============================================================
+        // TẦNG CỬ CHỈ TRONG SUỐT XUYÊN THẤU (KHÔNG MỜ PHIM, NÚT KÍNH MỜ)
+        // ==============================================================
         {
           name: 'youtube-touch-engine',
           html: `
             <div class="art-yt-overlay" style="position: absolute; inset: 0; z-index: 15; user-select: none; -webkit-tap-highlight-color: transparent;">
-              <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
-                <div style="font-size: 32px;">⏪</div>
-                <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">-10s</div>
+              <!-- Sóng tua bên trái (SVG Lucide FastForward xoay 180 độ) -->
+              <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 35%; height: 100%; background: radial-gradient(circle at left center, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+                <div>${REWIND_ICON_HTML}</div>
+                <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">-10s</div>
               </div>
 
-              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
-                <button type="button" class="art-yt-btn-prev" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s;" title="Tập trước đó">
+              <!-- Cụm nút trung tâm kính mờ xuyên thấu (KHÔNG NỀN ĐEN, KHÔNG MỜ VIDEO) -->
+              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 32px; background: transparent; transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
+                <button type="button" class="art-yt-btn-prev" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" title="Tập trước đó">
                   ${PREV_BTN_HTML}
                 </button>
 
-                <button type="button" class="art-yt-btn-play" style="width: 72px; height: 72px; border-radius: 50%; background: #ff0033; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(255,0,51,0.5); transition: transform 0.15s;" title="Phát / Tạm dừng">
+                <button type="button" class="art-yt-btn-play" style="width: 64px; height: 64px; border-radius: 50%; background: rgba(0,0,0,0.55); border: 1.5px solid rgba(255,255,255,0.3); backdrop-filter: blur(8px); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: transform 0.15s;" title="Phát / Tạm dừng">
                   ${PLAY_CENTER_HTML}
                 </button>
 
-                <button type="button" class="art-yt-btn-next" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s;" title="Tập kế tiếp">
+                <button type="button" class="art-yt-btn-next" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.3);" title="Tập kế tiếp">
                   ${NEXT_BTN_HTML}
                 </button>
               </div>
 
-              <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
-                <div style="font-size: 32px;">⏩</div>
-                <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">+10s</div>
+              <!-- Sóng tua bên phải (SVG Lucide FastForward) -->
+              <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 35%; height: 100%; background: radial-gradient(circle at right center, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+                <div>${FAST_FORWARD_ICON_HTML}</div>
+                <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">+10s</div>
               </div>
             </div>
           `,
@@ -607,7 +622,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
     // ==============================================================
-    // TOÀN BỘ SỰ KIỆN GẮN TẠI "READY" (AN TOÀN TUYỆT ĐỐI, 0% CRASH)
+    // KÍCH HOẠT TẤT CẢ TẠI SỰ KIỆN READY (CHỐNG GHOST CLICK 100%)
     // ==============================================================
     art.on('ready', () => {
       try {
@@ -640,7 +655,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         window.setTimeout(() => setResumeBanner(null), 4500);
       }
 
-      // ĐẤU NỐI CỬ CHỈ CHẠM YOUTUBE TRONG READY
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
@@ -653,7 +667,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const rippleRight = containerEl.querySelector('.art-yt-ripple-right') as HTMLElement | null;
 
       if (overlay && centerControls && btnPlay && btnPrev && btnNext) {
-        // Cập nhật trạng thái disabled Prev / Next
         btnPrev.style.opacity = hasPrev ? '1' : '0.25';
         btnPrev.style.pointerEvents = hasPrev ? 'auto' : 'none';
         btnPrev.style.cursor = hasPrev ? 'pointer' : 'not-allowed';
@@ -709,22 +722,48 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           onNextVideoRef.current?.();
         });
 
+        // ==============================================================
+        // POINTERUP: BẮT CHUẨN XÁC CHẠM 1 LẦN VÀ CHẠM ĐÚP (CHỐNG GHOST CLICK)
+        // ==============================================================
         let lastTapTime = 0;
-        let lastTapX = 0;
+        let lastTapSide: 'left' | 'right' | null = null;
+        let singleTapTimer: any = null;
 
-        const handleTapInteraction = (clientX: number) => {
+        overlay.addEventListener('pointerup', (e: PointerEvent) => {
+          // Bỏ qua nếu bấm vào các nút điều khiển
+          if ((e.target as HTMLElement).closest('button')) return;
+
+          // Nếu bảng Cài đặt đang mở, đóng lại và không kích hoạt điều khiển
+          const settingPanel = containerEl.querySelector('.art-setting') as HTMLElement | null;
+          if (settingPanel && settingPanel.style.display !== 'none' && settingPanel.offsetWidth > 0) {
+            art.setting.show = false;
+            return;
+          }
+
           const rect = overlay.getBoundingClientRect();
-          const offsetX = clientX - rect.left;
+          const offsetX = e.clientX - rect.left;
           const width = rect.width;
           const now = Date.now();
 
-          const isDoubleTap = now - lastTapTime < 320;
-          const isSameSide =
-            (offsetX < width * 0.35 && lastTapX < width * 0.35) ||
-            (offsetX > width * 0.65 && lastTapX > width * 0.65);
+          let currentSide: 'left' | 'right' | 'center' = 'center';
+          if (offsetX < width * 0.35) currentSide = 'left';
+          else if (offsetX > width * 0.65) currentSide = 'right';
 
-          if (isDoubleTap && isSameSide) {
-            if (offsetX < width * 0.35) {
+          // KIỂM TRA CHẠM ĐÚP (DOUBLE TAP < 300ms) Ở CÙNG 1 MÉP
+          const isDoubleTap =
+            now - lastTapTime < 300 &&
+            currentSide !== 'center' &&
+            lastTapSide === currentSide;
+
+          if (isDoubleTap) {
+            // HỦY BỎ SỰ KIỆN SINGLE TAP ĐANG CHỜ
+            if (singleTapTimer) {
+              clearTimeout(singleTapTimer);
+              singleTapTimer = null;
+            }
+
+            // KÍCH HOẠT TUA VIDEO
+            if (currentSide === 'left') {
               seekRelative(-10);
               if (rippleLeft) {
                 rippleLeft.style.display = 'flex';
@@ -732,7 +771,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                   rippleLeft.style.display = 'none';
                 }, 500);
               }
-            } else if (offsetX > width * 0.65) {
+            } else if (currentSide === 'right') {
               seekRelative(10);
               if (rippleRight) {
                 rippleRight.style.display = 'flex';
@@ -741,34 +780,30 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 }, 500);
               }
             }
+
             lastTapTime = 0;
+            lastTapSide = null;
             hideControlsUI();
           } else {
+            // CHẠM 1 LẦN: ĐỢI 250ms XEM CÓ CHẠM LẦN 2 KHÔNG TRƯỚC KHI BẬT/TẮT NÚT
             lastTapTime = now;
-            lastTapX = offsetX;
-            if (centerControls.style.opacity === '1') {
-              hideControlsUI();
-            } else {
-              showControlsUI();
-            }
-          }
-        };
+            lastTapSide = currentSide === 'center' ? null : currentSide;
 
-        overlay.addEventListener('click', (e) => {
-          if ((e.target as HTMLElement).closest('button')) return;
-          handleTapInteraction(e.clientX);
-        });
-
-        overlay.addEventListener('touchend', (e) => {
-          if ((e.target as HTMLElement).closest('button')) return;
-          if (e.changedTouches && e.changedTouches[0]) {
-            handleTapInteraction(e.changedTouches[0].clientX);
+            if (singleTapTimer) clearTimeout(singleTapTimer);
+            singleTapTimer = setTimeout(() => {
+              if (centerControls.style.opacity === '1') {
+                hideControlsUI();
+              } else {
+                showControlsUI();
+              }
+              singleTapTimer = null;
+            }, 250);
           }
         });
       }
     });
 
-    // KÉO GIỮ CHẤM ĐỎ TIẾN TRÌNH (SCRUBBING)
+    // SCRUBBING TIẾN TRÌNH
     let cleanupScrubListeners: (() => void) | null = null;
     art.on('ready', () => {
       const containerEl = containerRef.current;
@@ -897,7 +932,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       onEndedNextRef.current?.();
     });
 
-    // BỘ PHÍM TẮT ĐIỀU KHIỂN
+    // PHÍM TẮT BÀN PHÍM
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       const isInputFocused =
