@@ -207,7 +207,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         : [];
 
     const defaultSub = subList.find((s) => s.default) || subList[0];
-    const hasConfiguredSubtitle = subList.length > 0;
+    const hasConfiguredSubtitle = subList.length > 0 && Boolean(defaultSub?.url);
 
     const togglePip = async () => {
       const art = artInstanceRef.current;
@@ -396,18 +396,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       hotkey: false,
       highlight: highlights,
 
-      subtitle: defaultSub
-        ? {
-            url: defaultSub.url,
-            type: defaultSub.url.endsWith('.vtt') ? 'vtt' : 'srt',
-            style: {
-              color: '#ffffff',
-              fontSize: '22px',
-              fontWeight: 'bold',
-              textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 4px #000',
-            },
-          }
-        : undefined,
+      // LUÔN KHỞI TẠO SUBTITLE RỖNG ĐỂ TRÁNH LỖI NỘI BỘ ARTPLAYER
+      subtitle: {
+        url: defaultSub?.url || '',
+        type: defaultSub?.url?.endsWith('.vtt') ? 'vtt' : 'srt',
+        style: {
+          color: '#ffffff',
+          fontSize: '22px',
+          fontWeight: 'bold',
+          textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 4px #000',
+        },
+      },
 
       moreVideoAttr: {
         crossOrigin: 'anonymous',
@@ -425,23 +424,19 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               </button>
             </div>
           `,
-          mounted($el, artPlayerInstance: Artplayer) {
+          mounted($el) {
             const btn = $el.querySelector('.art-top-setting-btn');
             if (btn) {
-              const handleOpenSetting = (ev: Event) => {
+              btn.addEventListener('click', (ev: Event) => {
                 ev.stopPropagation();
                 ev.preventDefault();
-                artPlayerInstance.setting.toggle();
-              };
-              btn.addEventListener('click', handleOpenSetting);
-              btn.addEventListener('touchend', handleOpenSetting);
+                artInstanceRef.current?.setting.toggle();
+              });
             }
           },
         },
 
-        // ==============================================================
-        // 2. YOUTUBE TOUCH ENGINE: SỬ DỤNG artPlayerInstance AN TOÀN TUYỆT ĐỐI
-        // ==============================================================
+        // HTML LAYER TRUNG TÂM (KHÔNG GẮN LOGIC TRONG NÀY ĐỂ TRÁNH LỖI UNDEFINED)
         {
           name: 'youtube-touch-engine',
           html: `
@@ -452,7 +447,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               </div>
 
               <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
-                <button type="button" class="art-yt-btn-prev" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s;" title="Tập trước đó">
+                <button type="button" class="art-yt-btn-prev" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s;" title="Tập trước đó">
                   ${PREV_BTN_HTML}
                 </button>
 
@@ -460,7 +455,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                   ${PLAY_CENTER_HTML}
                 </button>
 
-                <button type="button" class="art-yt-btn-next" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s;" title="Tập kế tiếp">
+                <button type="button" class="art-yt-btn-next" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s;" title="Tập kế tiếp">
                   ${NEXT_BTN_HTML}
                 </button>
               </div>
@@ -471,141 +466,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               </div>
             </div>
           `,
-          mounted($el, artPlayerInstance: Artplayer) {
-            const overlay = $el.querySelector('.art-yt-overlay') as HTMLElement | null;
-            const centerControls = $el.querySelector('.art-yt-center-controls') as HTMLElement | null;
-            const btnPlay = $el.querySelector('.art-yt-btn-play') as HTMLElement | null;
-            const btnPrev = $el.querySelector('.art-yt-btn-prev') as HTMLElement | null;
-            const btnNext = $el.querySelector('.art-yt-btn-next') as HTMLElement | null;
-            const rippleLeft = $el.querySelector('.art-yt-ripple-left') as HTMLElement | null;
-            const rippleRight = $el.querySelector('.art-yt-ripple-right') as HTMLElement | null;
-
-            if (!overlay || !centerControls || !btnPlay || !btnPrev || !btnNext) return;
-
-            if (hasPrev) {
-              btnPrev.style.opacity = '1';
-              btnPrev.style.cursor = 'pointer';
-              btnPrev.style.pointerEvents = 'auto';
-            } else {
-              btnPrev.style.opacity = '0.25';
-              btnPrev.style.cursor = 'not-allowed';
-              btnPrev.style.pointerEvents = 'none';
-            }
-
-            if (hasNext) {
-              btnNext.style.opacity = '1';
-              btnNext.style.cursor = 'pointer';
-              btnNext.style.pointerEvents = 'auto';
-            } else {
-              btnNext.style.opacity = '0.25';
-              btnNext.style.cursor = 'not-allowed';
-              btnNext.style.pointerEvents = 'none';
-            }
-
-            let autoHideTimer: any = null;
-            const showControlsUI = () => {
-              centerControls.style.opacity = '1';
-              centerControls.style.pointerEvents = 'auto';
-              if (autoHideTimer) clearTimeout(autoHideTimer);
-              autoHideTimer = setTimeout(() => {
-                if (artPlayerInstance.playing) {
-                  centerControls.style.opacity = '0';
-                  centerControls.style.pointerEvents = 'none';
-                }
-              }, 3500);
-            };
-
-            const hideControlsUI = () => {
-              if (artPlayerInstance.playing) {
-                centerControls.style.opacity = '0';
-                centerControls.style.pointerEvents = 'none';
-              }
-            };
-
-            artPlayerInstance.on('play', () => {
-              btnPlay.innerHTML = PAUSE_CENTER_HTML;
-              showControlsUI();
-            });
-
-            artPlayerInstance.on('pause', () => {
-              btnPlay.innerHTML = PLAY_CENTER_HTML;
-              centerControls.style.opacity = '1';
-              centerControls.style.pointerEvents = 'auto';
-              if (autoHideTimer) clearTimeout(autoHideTimer);
-            });
-
-            btnPlay.addEventListener('click', (e) => {
-              e.stopPropagation();
-              artPlayerInstance.toggle();
-            });
-
-            btnPrev.addEventListener('click', (e) => {
-              e.stopPropagation();
-              onPrevVideoRef.current?.();
-            });
-
-            btnNext.addEventListener('click', (e) => {
-              e.stopPropagation();
-              onNextVideoRef.current?.();
-            });
-
-            let lastTapTime = 0;
-            let lastTapX = 0;
-
-            const handleTapInteraction = (clientX: number) => {
-              const rect = overlay.getBoundingClientRect();
-              const offsetX = clientX - rect.left;
-              const width = rect.width;
-              const now = Date.now();
-
-              const isDoubleTap = now - lastTapTime < 320;
-              const isSameSide =
-                (offsetX < width * 0.35 && lastTapX < width * 0.35) ||
-                (offsetX > width * 0.65 && lastTapX > width * 0.65);
-
-              if (isDoubleTap && isSameSide) {
-                if (offsetX < width * 0.35) {
-                  seekRelative(-10);
-                  if (rippleLeft) {
-                    rippleLeft.style.display = 'flex';
-                    setTimeout(() => {
-                      rippleLeft.style.display = 'none';
-                    }, 500);
-                  }
-                } else if (offsetX > width * 0.65) {
-                  seekRelative(10);
-                  if (rippleRight) {
-                    rippleRight.style.display = 'flex';
-                    setTimeout(() => {
-                      rippleRight.style.display = 'none';
-                    }, 500);
-                  }
-                }
-                lastTapTime = 0;
-                hideControlsUI();
-              } else {
-                lastTapTime = now;
-                lastTapX = offsetX;
-                if (centerControls.style.opacity === '1') {
-                  hideControlsUI();
-                } else {
-                  showControlsUI();
-                }
-              }
-            };
-
-            overlay.addEventListener('click', (e) => {
-              if ((e.target as HTMLElement).closest('button')) return;
-              handleTapInteraction(e.clientX);
-            });
-
-            overlay.addEventListener('touchend', (e) => {
-              if ((e.target as HTMLElement).closest('button')) return;
-              if (e.changedTouches && e.changedTouches[0]) {
-                handleTapInteraction(e.changedTouches[0].clientX);
-              }
-            });
-          },
         },
       ],
 
@@ -706,7 +566,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 width: 250,
                 tooltip: defaultSub?.name || 'Tắt',
                 selector: [
-                  { html: 'Tắt phụ đề', url: '', default: !defaultSub },
+                  { html: 'Tắt phụ đề', url: '', default: !hasConfiguredSubtitle },
                   ...subList.map((s) => ({
                     html: s.name,
                     url: s.url,
@@ -714,7 +574,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                   })),
                 ],
                 onSelect: (item: any) => {
-                  if (!art.subtitle) return 'Chưa có phụ đề';
+                  if (!art.subtitle) return 'Chưa có';
                   if (!item.url) {
                     art.subtitle.show = false;
                     return 'Đã tắt';
@@ -746,6 +606,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
+    // ==============================================================
+    // TOÀN BỘ SỰ KIỆN GẮN TẠI "READY" (AN TOÀN TUYỆT ĐỐI, 0% CRASH)
+    // ==============================================================
     art.on('ready', () => {
       try {
         art.controls.remove('playAndPause');
@@ -762,8 +625,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.playbackRate = initialRate;
       }
 
-      // BẢO VỆ PHỤ ĐỀ: CHỈ BẬT KHI ĐỐI TƯỢNG SUBTITLE THỰC SỰ TỒN TẠI
-      if (hasConfiguredSubtitle && art.subtitle) {
+      if (hasConfiguredSubtitle && art.subtitle && defaultSub?.url) {
         art.subtitle.show = true;
       }
 
@@ -776,6 +638,133 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         setResumeBanner(saved.currentTime);
         art.notice.show = `Tiếp tục xem từ ${formatSeconds(saved.currentTime)}`;
         window.setTimeout(() => setResumeBanner(null), 4500);
+      }
+
+      // ĐẤU NỐI CỬ CHỈ CHẠM YOUTUBE TRONG READY
+      const containerEl = containerRef.current;
+      if (!containerEl) return;
+
+      const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
+      const centerControls = containerEl.querySelector('.art-yt-center-controls') as HTMLElement | null;
+      const btnPlay = containerEl.querySelector('.art-yt-btn-play') as HTMLElement | null;
+      const btnPrev = containerEl.querySelector('.art-yt-btn-prev') as HTMLElement | null;
+      const btnNext = containerEl.querySelector('.art-yt-btn-next') as HTMLElement | null;
+      const rippleLeft = containerEl.querySelector('.art-yt-ripple-left') as HTMLElement | null;
+      const rippleRight = containerEl.querySelector('.art-yt-ripple-right') as HTMLElement | null;
+
+      if (overlay && centerControls && btnPlay && btnPrev && btnNext) {
+        // Cập nhật trạng thái disabled Prev / Next
+        btnPrev.style.opacity = hasPrev ? '1' : '0.25';
+        btnPrev.style.pointerEvents = hasPrev ? 'auto' : 'none';
+        btnPrev.style.cursor = hasPrev ? 'pointer' : 'not-allowed';
+
+        btnNext.style.opacity = hasNext ? '1' : '0.25';
+        btnNext.style.pointerEvents = hasNext ? 'auto' : 'none';
+        btnNext.style.cursor = hasNext ? 'pointer' : 'not-allowed';
+
+        let autoHideTimer: any = null;
+        const showControlsUI = () => {
+          centerControls.style.opacity = '1';
+          centerControls.style.pointerEvents = 'auto';
+          if (autoHideTimer) clearTimeout(autoHideTimer);
+          if (art.playing) {
+            autoHideTimer = setTimeout(() => {
+              centerControls.style.opacity = '0';
+              centerControls.style.pointerEvents = 'none';
+            }, 3000);
+          }
+        };
+
+        const hideControlsUI = () => {
+          if (art.playing) {
+            centerControls.style.opacity = '0';
+            centerControls.style.pointerEvents = 'none';
+          }
+        };
+
+        art.on('play', () => {
+          btnPlay.innerHTML = PAUSE_CENTER_HTML;
+          showControlsUI();
+        });
+
+        art.on('pause', () => {
+          btnPlay.innerHTML = PLAY_CENTER_HTML;
+          centerControls.style.opacity = '1';
+          centerControls.style.pointerEvents = 'auto';
+          if (autoHideTimer) clearTimeout(autoHideTimer);
+        });
+
+        btnPlay.addEventListener('click', (e) => {
+          e.stopPropagation();
+          art.toggle();
+        });
+
+        btnPrev.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onPrevVideoRef.current?.();
+        });
+
+        btnNext.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onNextVideoRef.current?.();
+        });
+
+        let lastTapTime = 0;
+        let lastTapX = 0;
+
+        const handleTapInteraction = (clientX: number) => {
+          const rect = overlay.getBoundingClientRect();
+          const offsetX = clientX - rect.left;
+          const width = rect.width;
+          const now = Date.now();
+
+          const isDoubleTap = now - lastTapTime < 320;
+          const isSameSide =
+            (offsetX < width * 0.35 && lastTapX < width * 0.35) ||
+            (offsetX > width * 0.65 && lastTapX > width * 0.65);
+
+          if (isDoubleTap && isSameSide) {
+            if (offsetX < width * 0.35) {
+              seekRelative(-10);
+              if (rippleLeft) {
+                rippleLeft.style.display = 'flex';
+                setTimeout(() => {
+                  rippleLeft.style.display = 'none';
+                }, 500);
+              }
+            } else if (offsetX > width * 0.65) {
+              seekRelative(10);
+              if (rippleRight) {
+                rippleRight.style.display = 'flex';
+                setTimeout(() => {
+                  rippleRight.style.display = 'none';
+                }, 500);
+              }
+            }
+            lastTapTime = 0;
+            hideControlsUI();
+          } else {
+            lastTapTime = now;
+            lastTapX = offsetX;
+            if (centerControls.style.opacity === '1') {
+              hideControlsUI();
+            } else {
+              showControlsUI();
+            }
+          }
+        };
+
+        overlay.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          handleTapInteraction(e.clientX);
+        });
+
+        overlay.addEventListener('touchend', (e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          if (e.changedTouches && e.changedTouches[0]) {
+            handleTapInteraction(e.changedTouches[0].clientX);
+          }
+        });
       }
     });
 
