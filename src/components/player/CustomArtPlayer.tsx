@@ -218,124 +218,124 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     const defaultSub = subList.find((s) => s.default) || subList[0];
     const hasConfiguredSubtitle = subList.length > 0 && Boolean(defaultSub?.url);
 
+    // ==============================================================
+    // XỬ LÝ HÌNH TRONG NỀN (PIP) CHUẨN CẢ IPHONE, ANDROID & MÁY TÍNH
+    // ==============================================================
     const togglePip = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
-      const videoEl = art.template?.$video as HTMLVideoElement | null;
+      const videoEl = art.template?.$video as any;
       if (!videoEl) return;
 
       try {
+        // Đang ở PiP -> Thoát ra
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
-          art.notice.show = 'Đã thoát hình trong nền (PiP)';
+          art.notice.show = 'Đã thoát hình trong nền';
           return;
         }
 
+        // iPhone / iPad Safari (Bắt buộc dùng webkitSetPresentationMode của Apple)
+        if (
+          typeof videoEl.webkitSupportsPresentationMode === 'function' &&
+          videoEl.webkitSupportsPresentationMode('picture-in-picture') &&
+          typeof videoEl.webkitSetPresentationMode === 'function'
+        ) {
+          const currentMode = videoEl.webkitPresentationMode;
+          const nextMode = currentMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture';
+          videoEl.webkitSetPresentationMode(nextMode);
+          art.notice.show = nextMode === 'picture-in-picture' ? 'Đã bật PiP' : 'Đã thoát PiP';
+          return;
+        }
+
+        // Android Chrome & Máy tính (HTML5 requestPictureInPicture)
         if (videoEl.requestPictureInPicture) {
           await videoEl.requestPictureInPicture();
           art.notice.show = 'Đã bật hình trong nền (PiP)';
           return;
         }
 
-        if (
-          (videoEl as any).webkitSupportsPresentationMode &&
-          typeof (videoEl as any).webkitSetPresentationMode === 'function'
-        ) {
-          const currentMode = (videoEl as any).webkitPresentationMode;
-          const nextMode =
-            currentMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture';
-          (videoEl as any).webkitSetPresentationMode(nextMode);
-          art.notice.show =
-            nextMode === 'picture-in-picture'
-              ? 'Đã bật hình trong nền (PiP)'
-              : 'Đã thoát hình trong nền';
-          return;
-        }
-
+        // Fallback Mini Mode nếu thiết bị không hỗ trợ PiP
         (art as any).mini = !(art as any).mini;
-        art.notice.show = (art as any).mini
-          ? 'Đã thu nhỏ góc màn hình'
-          : 'Đã phóng to khung phát';
+        art.notice.show = (art as any).mini ? 'Đã thu nhỏ góc màn hình' : 'Đã phóng to';
       } catch (err: any) {
-        console.warn('PiP failed:', err);
+        console.warn('PiP error, fallback mini:', err);
+        try {
+          (art as any).mini = !(art as any).mini;
+        } catch {
+          art.notice.show = 'Trình duyệt này không hỗ trợ PiP';
+        }
       }
     };
 
+    // ==============================================================
+    // XỬ LÝ TOÀN MÀN HÌNH (FULLSCREEN): ĐẶC TRỊ CHO IPHONE & ANDROID
+    // ==============================================================
     const toggleFullscreen = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
 
       const isMobile =
         /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+      const videoEl = art.template?.$video as any;
+      const playerEl = art.template?.$player as HTMLElement | null;
 
-      if (art.fullscreenWeb) {
+      // Đang ở Fullscreen -> Thoát ra
+      if (art.fullscreen || art.fullscreenWeb || document.fullscreenElement) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          try { await document.exitFullscreen(); } catch {}
+        }
+        art.fullscreen = false;
         art.fullscreenWeb = false;
         updateFullscreenButtonIcon(false);
-        art.notice.show = 'Đã thoát toàn màn hình';
         if (isMobile && screen.orientation && 'unlock' in screen.orientation) {
-          try {
-            screen.orientation.unlock();
-          } catch {}
+          try { screen.orientation.unlock(); } catch {}
         }
+        art.notice.show = 'Đã thoát toàn màn hình';
         return;
       }
 
-      if (document.fullscreenElement || art.fullscreen) {
-        try {
-          if (document.exitFullscreen) await document.exitFullscreen();
-        } catch {
-          art.fullscreen = false;
-        }
-        updateFullscreenButtonIcon(false);
-        art.notice.show = 'Đã thoát toàn màn hình';
-        if (isMobile && screen.orientation && 'unlock' in screen.orientation) {
-          try {
-            screen.orientation.unlock();
-          } catch {}
-        }
+      // 1. ĐẶC BIỆT CHO IPHONE (iOS Safari bắt buộc dùng webkitEnterFullscreen trên video):
+      if (videoEl && typeof videoEl.webkitEnterFullscreen === 'function' && !playerEl?.requestFullscreen) {
+        videoEl.webkitEnterFullscreen();
+        updateFullscreenButtonIcon(true);
         return;
       }
 
+      // 2. CHO ANDROID VÀ MÁY TÍNH (Standard HTML5 requestFullscreen trên khung phát):
       try {
-        const playerEl = art.template?.$player;
-        if (document.fullscreenEnabled && playerEl && playerEl.requestFullscreen) {
+        if (playerEl && playerEl.requestFullscreen) {
           await playerEl.requestFullscreen();
+          art.fullscreen = true;
           updateFullscreenButtonIcon(true);
           art.notice.show = 'Đã bật toàn màn hình';
-        } else {
-          art.fullscreenWeb = true;
-          updateFullscreenButtonIcon(true);
-          art.notice.show = 'Toàn màn hình (Web Fullscreen)';
+
+          // Tự động xoay ngang theo con quay hồi chuyển trên điện thoại
+          if (isMobile && screen.orientation && 'lock' in screen.orientation) {
+            try {
+              await (screen.orientation as any).lock('landscape');
+            } catch {}
+          }
+          return;
         }
 
-        if (isMobile && screen.orientation && 'lock' in screen.orientation) {
-          try {
-            await (screen.orientation as any).lock('landscape');
-          } catch (err) {
-            console.warn('Orientation lock error:', err);
-          }
-        }
+        // 3. FALLBACK WEB FULLSCREEN NẾU TRÌNH DUYỆT CHẶN NATIVE:
+        art.fullscreenWeb = true;
+        updateFullscreenButtonIcon(true);
+        art.notice.show = 'Toàn màn hình (Web)';
       } catch (err) {
         art.fullscreenWeb = true;
         updateFullscreenButtonIcon(true);
-        art.notice.show = 'Toàn màn hình (Web Fullscreen)';
       }
     };
 
     const updateFullscreenButtonIcon = (isFullscreen: boolean) => {
       const containerEl = containerRef.current;
       if (!containerEl) return;
-      const btn = containerEl.querySelector(
-        '.art-control-fullscreen-toggle'
-      ) as HTMLElement | null;
+      const btn = containerEl.querySelector('.art-control-fullscreen-toggle') as HTMLElement | null;
       if (btn) {
-        btn.innerHTML = isFullscreen
-          ? FULLSCREEN_MIN_LUCIDE_HTML
-          : FULLSCREEN_MAX_LUCIDE_HTML;
-        btn.setAttribute(
-          'title',
-          isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'
-        );
+        btn.innerHTML = isFullscreen ? FULLSCREEN_MIN_LUCIDE_HTML : FULLSCREEN_MAX_LUCIDE_HTML;
+        btn.setAttribute('title', isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình');
       }
     };
 
@@ -415,7 +415,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
       },
 
-      // CẤU HÌNH CỐT TỬ CHO TRÌNH DUYỆT DI ĐỘNG (IOS / ANDROID)
       moreVideoAttr: {
         crossOrigin: 'anonymous',
         preload: 'auto',
@@ -437,16 +436,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           mounted($el) {
             const btn = $el.querySelector('.art-top-setting-btn');
             if (btn) {
-              btn.addEventListener('click', (ev: Event) => {
+              const handleOpen = (ev: Event) => {
                 ev.stopPropagation();
                 ev.preventDefault();
                 artInstanceRef.current?.setting.toggle();
-              });
+              };
+              btn.addEventListener('click', handleOpen);
+              btn.addEventListener('touchend', handleOpen);
             }
           },
         },
 
-        // TẦNG CỬ CHỈ CÓ SẴN CỤM NÚT (KHÔNG BỊ TÀNG HÌNH TRÊN DI ĐỘNG)
         {
           name: 'youtube-touch-engine',
           html: `
@@ -620,7 +620,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
     // ==============================================================
-    // KHÓA ĐỒNG BỘ CHUẨN CẢ DI ĐỘNG & MÁY TÍNH
+    // KHÓA ĐỒNG BỘ ĐÁY + CẢM BIẾN TOUCHEND TRỰC TIẾP CHO DI ĐỘNG
     // ==============================================================
     art.on('ready', () => {
       try {
@@ -656,6 +656,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
+      // CSS CỐT TỬ: ĐẢM BẢO CÁC NÚT Ở MÉP DƯỚI RỘNG RÃI VÀ BẤM ĂN 100% TRÊN ĐIỆN THOẠI
       const styleTag = document.createElement('style');
       styleTag.innerHTML = `
         .art-video-player .art-settings {
@@ -675,23 +676,63 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           display: none !important;
           pointer-events: none !important;
         }
-
         .art-video-player .art-bottom {
-          z-index: 25 !important;
+          z-index: 50 !important;
           pointer-events: none !important;
         }
-        /* Chỉ các nút con ở mép đáy mới nhận click */
         .art-video-player .art-controls,
         .art-video-player .art-progress {
           pointer-events: auto !important;
         }
-
+        /* Mở rộng vùng chạm tối thiểu 42px cho ngón tay trên di động */
+        @media (max-width: 768px) {
+          .art-video-player .art-control {
+            min-width: 40px !important;
+            min-height: 40px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+        }
         .art-video-player .art-layer-top-actions {
-          z-index: 40 !important;
+          z-index: 60 !important;
           pointer-events: auto !important;
         }
       `;
       containerEl.appendChild(styleTag);
+
+      // GẮN SỰ KIỆN TOUCHEND TRỰC TIẾP CHO NÚT FULLSCREEN VÀ PIP TRÊN ĐIỆN THOẠI
+      const fsBtn = containerEl.querySelector('.art-control-fullscreen-toggle');
+      if (fsBtn) {
+        fsBtn.addEventListener('touchend', (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          toggleFullscreen();
+        });
+      }
+
+      const pipBtn = containerEl.querySelector('.art-control-pip-toggle');
+      if (pipBtn) {
+        pipBtn.addEventListener('touchend', (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          togglePip();
+        });
+      }
+
+      const subBtn = containerEl.querySelector('.art-control-subtitles-toggle');
+      if (subBtn) {
+        subBtn.addEventListener('touchend', (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          if (!hasConfiguredSubtitle || !art.subtitle) {
+            art.notice.show = 'Video này chưa có phụ đề';
+            return;
+          }
+          art.subtitle.show = !art.subtitle.show;
+          art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
+        });
+      }
 
       const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
       const centerControls = containerEl.querySelector('.art-yt-center-controls') as HTMLElement | null;
@@ -710,7 +751,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnNext.style.pointerEvents = hasNext ? 'auto' : 'none';
         btnNext.style.cursor = hasNext ? 'pointer' : 'not-allowed';
 
-        // Tự động ẩn 3 nút sau 3.5 giây khi video đang phát
         let autoHideTimer: any = null;
         const resetHideTimer = () => {
           if (autoHideTimer) clearTimeout(autoHideTimer);
@@ -763,9 +803,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           if (autoHideTimer) clearTimeout(autoHideTimer);
         });
 
-        // ==============================================================
-        // HÀM PHÁT VIDEO ĐỒNG THỜI (SYNCHRONOUS) ĐỂ VƯỢT CHỐNG AUTOPLAY CỦA DI ĐỘNG
-        // ==============================================================
         const executeDirectPlay = () => {
           if (art.template?.$video) {
             const v = art.template.$video as HTMLVideoElement;
@@ -784,8 +821,11 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           }
         };
 
-        // Bấm trực tiếp nút Play: kích hoạt ngay tức thì
         btnPlay.addEventListener('click', (e) => {
+          e.stopPropagation();
+          executeDirectPlay();
+        });
+        btnPlay.addEventListener('touchend', (e) => {
           e.stopPropagation();
           executeDirectPlay();
         });
@@ -800,7 +840,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           onNextVideoRef.current?.();
         });
 
-        // BỘ CẢM BIẾN CHẠM DI ĐỘNG & NHẤP CHUỘT
         let lastTapTime = 0;
         let lastTapSide: 'left' | 'right' | 'center' | null = null;
         let singleTapTimer: any = null;
@@ -823,7 +862,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return;
           }
 
-          // NẾU VIDEO ĐANG TẠM DỪNG (HOẶC MỚI VÀO): CHẠM MÀN HÌNH LÀ PHÁT NGAY LẬP TỨC (0MS)!
+          // NẾU VIDEO ĐANG TẠM DỪNG: CHẠM MÀN HÌNH LÀ PHÁT NGAY LẬP TỨC (0MS)
           if (!art.playing) {
             executeDirectPlay();
             return;
@@ -839,7 +878,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           else if (offsetX > width * 0.70) currentSide = 'right';
           else currentSide = 'center';
 
-          // KIỂM TRA DOUBLE CLICK KHI VIDEO ĐANG CHẠY
           const isDoubleClick =
             now - lastTapTime < 280 &&
             lastTapSide === currentSide;
@@ -869,7 +907,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             lastTapTime = 0;
             lastTapSide = null;
           } else {
-            // SINGLE CLICK KHI ĐANG PHÁT: DỪNG PHIM VÀ BẬT ĐIỀU KHIỂN
             lastTapTime = now;
             lastTapSide = currentSide;
 
@@ -888,7 +925,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }
     });
 
-    // SCRUBBING TIẾN TRÌNH
     let cleanupScrubListeners: (() => void) | null = null;
     art.on('ready', () => {
       const containerEl = containerRef.current;
