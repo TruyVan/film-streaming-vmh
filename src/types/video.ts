@@ -1,14 +1,22 @@
 export interface Video {
   id: string;
   title: string;
-  description: string | null;
-  event_date: string; // YYYY-MM-DD
-  duration: string | null; // e.g. "02:15:30"
-  video_url: string; // Direct HTTPS link from Nginx VPS (.mp4)
-  thumbnail_url: string | null; // Preview cover image URL
-  subtitle_url?: string | null; // Subtitle SRT/VTT file or direct HTTPS link (configured by dev)
-  tags: string[];
-  created_at: string;
+  description?: string | null;
+  event_date: string;
+  duration?: string;
+  video_url: string;
+  thumbnail_url?: string | null;
+  subtitle_url?: string | null;
+  tags?: string[];
+  deleted_at?: string | null; // Cột xóa tạm
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TagItem {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export interface VideoProgress {
