@@ -12,7 +12,6 @@ import {
   Trash2,
   Film,
   XCircle,
-  Loader2,
   RotateCcw,
   Image as ImageIcon,
   Calendar,
@@ -54,7 +53,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 }) => {
   const isLight = themeMode === 'light';
 
-  // 1. Luôn bắt nhập mã PIN mỗi lần vào
+  // Luôn bắt nhập mã PIN mỗi lần mở trang
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [passcode, setPasscode] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -76,10 +75,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   );
   const [addDuration, setAddDuration] = useState('00:00:00');
   const [addSelectedTopics, setAddSelectedTopics] = useState<string[]>([]);
-  const [addCustomTagInput, setAddCustomTagInput] = useState('');
   const [addDescription, setAddDescription] = useState('');
 
-  // Upload state
+  // Upload States
   const [uploadedVideoFile, setUploadedVideoFile] = useState<{
     name: string;
     sizeMB: string;
@@ -99,12 +97,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [editEventDate, setEditEventDate] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editSelectedTopics, setEditSelectedTopics] = useState<string[]>([]);
-  const [editCustomTagInput, setEditCustomTagInput] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Lọc danh sách Active vs Trash (30 ngày)
+  // Danh sách Active vs Trash (30 ngày)
   const now = new Date().getTime();
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -147,7 +144,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       canvas.height = video.videoHeight || 720;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const thumbDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         setAddThumbnailUrl(thumbDataUrl);
         toast.info('Đã tự động trích xuất ảnh bìa từ video!');
@@ -216,7 +212,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        // Gán link streaming ngay lập tức trước khi set trạng thái hoàn tất
         setAddVideoUrl(targetUrl);
         setUploadProgress(100);
         setUploadStatusText('Upload thành công 100%!');
@@ -306,7 +301,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Bật chế độ Sửa Video
+  // Mở Form SỬA PHIM (Tự động lọc chỉ giữ lại các topic còn tồn tại trong customTopics)
   const handleStartEdit = (video: Video) => {
     setEditingVideoId(video.id);
     setEditTitle(video.title);
@@ -316,29 +311,19 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     setEditSubtitleFileName(video.subtitle_url ? 'Đã có phụ đề' : '');
     setEditEventDate(video.event_date);
     setEditDuration(video.duration || '00:00:00');
-    setEditSelectedTopics(video.tags || []);
+    
+    // GỘP VÀ CHUẨN HÓA: Chỉ giữ lại các tag nằm trong customTopics hiện hành!
+    const validCurrentTopics = (video.tags || []).filter((t) =>
+      customTopics.some((ct) => ct.toLowerCase() === t.toLowerCase())
+    );
+    setEditSelectedTopics(validCurrentTopics);
+
     setEditDescription(video.description || '');
     setActiveTab('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Thêm Tag tùy ý trong form
-  const handleAddCustomTag = (mode: 'add' | 'edit') => {
-    if (mode === 'add') {
-      const tag = addCustomTagInput.trim();
-      if (tag && !addSelectedTopics.includes(tag)) {
-        setAddSelectedTopics([...addSelectedTopics, tag]);
-        setAddCustomTagInput('');
-      }
-    } else {
-      const tag = editCustomTagInput.trim();
-      if (tag && !editSelectedTopics.includes(tag)) {
-        setEditSelectedTopics([...editSelectedTopics, tag]);
-        setEditCustomTagInput('');
-      }
-    }
-  };
-
+  // Toggle chọn / bỏ chọn topic chuẩn
   const toggleTopicSelection = (topic: string, mode: 'add' | 'edit') => {
     if (mode === 'add') {
       setAddSelectedTopics((prev) =>
@@ -366,7 +351,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     );
   };
 
-  // Xóa tạm (đơn lẻ hoặc hàng loạt)
+  // Xóa tạm (Soft Delete)
   const handleSoftDelete = async (targets: string[]) => {
     if (window.confirm(`Chuyển ${targets.length} phim vào thùng rác? (Tự động xóa hẳn sau 30 ngày)`)) {
       for (const id of targets) {
@@ -379,7 +364,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Khôi phục (đơn lẻ hoặc hàng loạt)
+  // Khôi phục
   const handleRestore = async (targets: string[]) => {
     for (const id of targets) {
       await restoreVideoRecord(id);
@@ -390,7 +375,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     toast.success(`Đã khôi phục ${targets.length} phim về rạp!`);
   };
 
-  // Xóa hẳn vĩnh viễn (đơn lẻ hoặc hàng loạt)
+  // Xóa vĩnh viễn (Hard Delete)
   const handleHardDelete = async (targets: string[]) => {
     if (window.confirm(`CẢNH BÁO: Xóa vĩnh viễn ${targets.length} phim khỏi cơ sở dữ liệu? Hành động này không thể hoàn tác!`)) {
       for (const id of targets) {
@@ -411,6 +396,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       return;
     }
 
+    // Đảm bảo chỉ lưu các topic thực sự còn tồn tại trong customTopics
+    const cleanTags = addSelectedTopics.filter((t) => customTopics.includes(t));
+
     setIsSubmitting(true);
     const payload: NewVideoInput = {
       title: addTitle.trim(),
@@ -419,7 +407,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       duration: addDuration.trim() || '00:00:00',
       video_url: addVideoUrl.trim(),
       thumbnail_url: addThumbnailUrl.trim() || undefined,
-      tags: addSelectedTopics.length > 0 ? addSelectedTopics : ['Harry Potter'],
+      tags: cleanTags,
       subtitle_url: addSubtitleUrl.trim() || undefined,
     };
 
@@ -451,6 +439,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     e.preventDefault();
     if (!editingVideoId) return;
 
+    const cleanTags = editSelectedTopics.filter((t) => customTopics.includes(t));
+
     setIsSubmitting(true);
     const payload: UpdateVideoInput = {
       id: editingVideoId,
@@ -460,7 +450,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       duration: editDuration.trim() || '00:00:00',
       video_url: editVideoUrl.trim(),
       thumbnail_url: editThumbnailUrl.trim() || undefined,
-      tags: editSelectedTopics,
+      tags: cleanTags,
       subtitle_url: editSubtitleUrl.trim() || undefined,
     };
 
@@ -769,7 +759,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           <div className="flex items-center gap-2 shrink-0">
                             {listFilter === 'active' ? (
                               <>
-                                {/* NÚT SỬA PHIM */}
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(video)}
@@ -816,7 +805,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               </div>
             )}
 
-            {/* TAB 2: THÊM PHIM MỚI (ĐẦY ĐỦ PHỤ ĐỀ, TAGS, ANTI-RACE CONDITION) */}
+            {/* TAB 2: THÊM PHIM MỚI (CHỦ ĐỀ GỘP 100% VỚI TOPICS CỦA HỆ THỐNG) */}
             {activeTab === 'add' && (
               <div className="p-6 sm:p-8 rounded-2xl border bg-[#141418] border-white/10 space-y-6">
                 <div className="pb-4 border-b border-white/10">
@@ -900,7 +889,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       />
                     </div>
 
-                    {/* Vùng Ảnh bìa (Thumbnail) */}
+                    {/* Vùng Ảnh bìa */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold">Ảnh Bìa (Thumbnail)</label>
@@ -997,51 +986,44 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </div>
                   </div>
 
-                  {/* VÙNG CHỦ ĐỀ & GẮN TAGS */}
+                  {/* VÙNG CHỦ ĐỀ / TOPICS CHUẨN HOÁ (KHÔNG CHO NHẬP TÙY TIỆN) */}
                   <div className="space-y-3">
-                    <label className="block text-xs font-semibold">Gắn Thể loại / Chủ đề cho phim</label>
-                    <div className="flex flex-wrap gap-2">
-                      {customTopics.map((topic) => {
-                        const isSelected = addSelectedTopics.includes(topic);
-                        return (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => toggleTopicSelection(topic, 'add')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
-                            }`}
-                          >
-                            {isSelected ? '✓ ' : '+ '}
-                            {topic}
-                          </button>
-                        );
-                      })}
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold">
+                        Chủ đề / Thể loại phim (Chọn từ danh mục hệ thống)
+                      </label>
+                      <span className="text-[11px] text-zinc-400">
+                        Đã chọn: {addSelectedTopics.length} chủ đề
+                      </span>
                     </div>
 
-                    {/* Thêm tag tùy ý ngay tại form */}
-                    <div className="flex items-center gap-2 max-w-sm">
-                      <input
-                        type="text"
-                        value={addCustomTagInput}
-                        onChange={(e) => setAddCustomTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddCustomTag('add');
-                          }
-                        }}
-                        placeholder="Gõ tag mới rồi bấm Thêm..."
-                        className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-[#1a1a20] border-white/15 text-white focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddCustomTag('add')}
-                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white cursor-pointer"
-                      >
-                        Thêm tag
-                      </button>
-                    </div>
+                    {customTopics.length === 0 ? (
+                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                        <span>
+                          Chưa có chủ đề nào được tạo. Vui lòng quay ra Sidebar bấm <strong>"Cấu hình chủ đề..."</strong> để thêm trước khi gắn cho phim nhé!
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {customTopics.map((topic) => {
+                          const isSelected = addSelectedTopics.includes(topic);
+                          return (
+                            <button
+                              key={topic}
+                              type="button"
+                              onClick={() => toggleTopicSelection(topic, 'add')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+                                isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {topic}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Mô tả */}
@@ -1056,7 +1038,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     />
                   </div>
 
-                  {/* NÚT SUBMIT ĐƯỢC BẢO VỆ CHỐNG LINK RỖNG */}
+                  {/* NÚT SUBMIT */}
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="submit"
@@ -1077,7 +1059,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <div>
                     <h2 className="text-base sm:text-lg font-bold">Cập Nhật Thông Tin Phim</h2>
                     <p className="text-xs text-zinc-400">
-                      Chỉnh sửa tiêu đề, đổi phụ đề, cập nhật ảnh bìa hoặc gỡ tag của phim.
+                      Chỉnh sửa tiêu đề, đổi phụ đề, cập nhật ảnh bìa hoặc thay đổi chủ đề của phim.
                     </p>
                   </div>
                   <button
@@ -1201,51 +1183,38 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </div>
                   </div>
 
-                  {/* CHỈNH SỬA TAGS CỦA PHIM (CHO PHÉP GỠ HOẶC THÊM TAG) */}
+                  {/* CHỦ ĐỀ CHUẨN HOÁ TRONG FORM SỬA */}
                   <div className="space-y-3">
-                    <label className="block text-xs font-semibold">Chủ đề & Tags của phim (Click để gỡ hoặc thêm)</label>
-                    <div className="flex flex-wrap gap-2">
-                      {customTopics.map((topic) => {
-                        const isSelected = editSelectedTopics.includes(topic);
-                        return (
-                          <button
-                            key={topic}
-                            type="button"
-                            onClick={() => toggleTopicSelection(topic, 'edit')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                              isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
-                            }`}
-                          >
-                            {isSelected ? '✓ ' : '+ '}
-                            {topic}
-                          </button>
-                        );
-                      })}
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold">Chủ đề của phim (Chọn từ danh mục hệ thống)</label>
+                      <span className="text-[11px] text-zinc-400">Đã chọn: {editSelectedTopics.length}</span>
                     </div>
 
-                    {/* Thêm tag riêng cho phim này */}
-                    <div className="flex items-center gap-2 max-w-sm">
-                      <input
-                        type="text"
-                        value={editCustomTagInput}
-                        onChange={(e) => setEditCustomTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddCustomTag('edit');
-                          }
-                        }}
-                        placeholder="Thêm tag riêng cho phim..."
-                        className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-[#1a1a20] border-white/15 text-white focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddCustomTag('edit')}
-                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white cursor-pointer"
-                      >
-                        Thêm
-                      </button>
-                    </div>
+                    {customTopics.length === 0 ? (
+                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                        <span>Chưa có chủ đề nào trong hệ thống. Vui lòng tạo ở Sidebar trước!</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {customTopics.map((topic) => {
+                          const isSelected = editSelectedTopics.includes(topic);
+                          return (
+                            <button
+                              key={topic}
+                              type="button"
+                              onClick={() => toggleTopicSelection(topic, 'edit')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+                                isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {topic}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
