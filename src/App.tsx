@@ -9,7 +9,17 @@ import {
   WatchHistoryItem,
 } from './types/video';
 import { mockVideos } from './data/mockVideos';
-import { fetchVideos } from './lib/supabase';
+import {
+  fetchVideos,
+  fetchTopicsDb,
+  addTopicDb,
+  removeTopicDb,
+  fetchFavoritesDb,
+  toggleFavoriteDb,
+  fetchWatchHistoryDb,
+  recordWatchHistoryDb,
+  clearAllWatchHistoryDb,
+} from './lib/supabase';
 import {
   addVideoTimestampBookmark,
   clearAllWatchHistory,
@@ -127,6 +137,47 @@ export default function App() {
     },
     [syncRouteFromLocation]
   );
+
+  // Tải Topics, Favorites, History từ Supabase khi mở web
+useEffect(() => {
+  fetchTopicsDb().then((topics) => {
+    setCustomTopics(topics);
+  });
+  fetchFavoritesDb().then((favs) => {
+    setFavoriteIds(favs);
+  });
+  fetchWatchHistoryDb().then((hist) => {
+    setWatchHistory(hist);
+  });
+}, []);
+
+// Thêm Topic lên DB
+const handleAddTopic = useCallback(async (topic: string) => {
+  await addTopicDb(topic);
+  setCustomTopics((prev) => [...prev, topic]);
+}, []);
+
+// Xóa Topic trên DB vĩnh viễn (Không bao giờ hồi sinh rác!)
+const handleRemoveTopic = useCallback(async (topic: string) => {
+  await removeTopicDb(topic);
+  setCustomTopics((prev) => prev.filter((t) => t !== topic));
+  setActiveCategory((prev) => (prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev));
+}, []);
+
+// Bật/tắt Yêu thích lên DB
+const handleToggleFavorite = useCallback(async (videoId: string) => {
+  const isFav = favoriteIds.includes(videoId);
+  await toggleFavoriteDb(videoId, isFav);
+  setFavoriteIds((prev) => (isFav ? prev.filter((id) => id !== videoId) : [...prev, videoId]));
+}, [favoriteIds]);
+
+// Lưu lịch sử xem lên DB
+const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
+  setProgressMap((prev) => ({ ...prev, [updated.videoId]: updated }));
+  await recordWatchHistoryDb(updated.videoId, updated.currentTime, updated.duration);
+  const nextHistory = await fetchWatchHistoryDb();
+  setWatchHistory(nextHistory);
+}, []);
 
   // Bắt sự kiện người dùng bấm Back / Forward trên trình duyệt
   useEffect(() => {
