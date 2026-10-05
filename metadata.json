@@ -1,0 +1,6 @@
+{
+  "name": "PartyStream — Private VoD Platform",
+  "description": "Nền tảng phát video trực tuyến nội bộ (Private VoD) dành riêng cho các hoạt động sự kiện, teambuilding, gala dinner và karaoke.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

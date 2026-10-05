@@ -1,0 +1,474 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Roboto', sans-serif;
+    --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Roboto', monospace;
+
+    /* Pastel Palette */
+    --pastel-rose: #F2BBC9;
+    --pastel-orchid: #F2A7CA;
+    --pastel-lavender: #C9CFF2;
+    --pastel-sky: #A0DBF2;
+    --pastel-peach: #F2C9C9;
+  }
+
+  * {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Hiệu ứng trượt khi mở Sidebar (Drawer Slide Transition) */
+.sidebar-drawer-overlay {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-drawer-overlay.drawer-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-drawer-panel {
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.sidebar-drawer-panel.drawer-open {
+  transform: translateX(0);
+}
+
+/* ==========================================================================
+   CUSTOM ARTPLAYER YOUTUBE STYLING & CONTROLS REFINEMENT
+   ========================================================================== */
+
+.art-video-player {
+  font-family: var(--font-sans) !important;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #000000 !important;
+}
+
+.art-video-player.art-fullscreen,
+.art-video-player.art-fullscreen-web {
+  border-radius: 0 !important;
+}
+
+.art-video-player .art-video {
+  transition: filter 80ms linear;
+}
+
+/* 1. LOẠI BỎ NÚT PLAY NHỎ Ở HÀNG DƯỚI (Nút to ở giữa video đã đủ dùng) */
+.art-video-player .art-controls .art-control-playAndPause,
+.art-video-player .art-controls [data-art-control="playAndPause"] {
+  display: none !important;
+}
+
+/* 2. THÔNG TIN THỜI GIAN VIDEO CHẠY (TIMESTAMP): HIỂN THỊ TRÊN THANH ĐIỀU KHIỂN BÊN PHẢI NÚT VOLUME */
+.art-video-player .art-controls .art-control-time {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  padding: 0 6px 0 2px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  color: #e2e8f0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  pointer-events: auto !important;
+  z-index: auto !important;
+  line-height: 1 !important;
+  letter-spacing: 0.3px !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+}
+
+.art-video-player .art-controls .art-control-time .art-time-current {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.art-video-player .art-controls .art-control-time .art-time-duration {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-weight: 400 !important;
+}
+
+/* 3. NÚT TUA LUCIDE ROTATE CCW / CW OUTLINE, NÚT PHỤ ĐỀ, HÌNH TRONG NỀN & TOÀN MÀN HÌNH */
+.art-video-player .art-control-rewind-10s,
+.art-video-player .art-control-forward-10s,
+.art-video-player .art-control-subtitles-toggle,
+.art-video-player .art-control-pip-toggle,
+.art-video-player .art-control-fullscreen-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 9999px !important;
+  transition: transform 0.15s ease, background-color 0.15s ease !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+}
+
+/* Đảm bảo các icon Lucide Outline KHÔNG bị ArtPlayer đè fill trắng thành khối đặc */
+.art-video-player .art-control-rewind-10s svg,
+.art-video-player .art-control-forward-10s svg,
+.art-video-player .art-control-subtitles-toggle svg,
+.art-video-player .art-control-pip-toggle svg,
+.art-video-player .art-control-fullscreen-toggle svg,
+.art-video-player svg.lucide {
+  fill: none !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2px !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.art-video-player .art-control-rewind-10s:hover,
+.art-video-player .art-control-forward-10s:hover,
+.art-video-player .art-control-subtitles-toggle:hover,
+.art-video-player .art-control-pip-toggle:hover,
+.art-video-player .art-control-fullscreen-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  transform: scale(1.12) !important;
+}
+
+.art-video-player .art-control-rewind-10s:hover svg,
+.art-video-player .art-control-forward-10s:hover svg,
+.art-video-player .art-control-subtitles-toggle:hover svg,
+.art-video-player .art-control-pip-toggle:hover svg,
+.art-video-player .art-control-fullscreen-toggle:hover svg {
+  stroke: #F2A7CA !important;
+}
+
+/* 4. LOẠI BỎ ASPECT RATIO, FLIP VÀ CÁC NÚT MẶC ĐỊNH BỊ TRÙNG LẶP */
+.art-video-player .art-controls .art-control-aspectRatio,
+.art-video-player .art-controls .art-control-flip,
+.art-video-player .art-controls .art-control-fullscreenWeb,
+.art-video-player .art-controls > .art-control-pip,
+.art-video-player .art-controls > .art-control-fullscreen,
+.art-video-player .art-setting-item[data-name="aspect-ratio"],
+.art-video-player .art-setting-item[data-name="flip"] {
+  display: none !important;
+}
+
+/* TOÀN MÀN HÌNH WEB FULLSCREEN (100vw x 100vh che phủ toàn màn hình, vượt qua hạn chế iframe) */
+.art-video-player.art-fullscreen-web,
+.art-fullscreen-web {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 999999 !important;
+  background-color: #000000 !important;
+}
+
+/* 5. ĐƯA NÚT CÀI ĐẶT LÊN PHÍA TRÊN BÊN PHẢI CỦA KHUNG CHIẾU VIDEO */
+.art-video-player .art-controls .art-control-setting {
+  display: none !important;
+}
+
+.art-layer-top-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.art-video-player.art-control-show .art-layer-top-actions,
+.art-video-player:hover .art-layer-top-actions,
+.art-video-player.art-setting-show .art-layer-top-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.art-top-setting-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.art-top-setting-btn:hover {
+  background: rgba(242, 167, 202, 0.35);
+  border-color: rgba(242, 167, 202, 0.8);
+  transform: rotate(45deg) scale(1.08);
+}
+
+.art-top-setting-btn:active {
+  transform: rotate(45deg) scale(0.95);
+}
+
+/* Theme Toggle Switch (Rotate & Scale Transition) */
+.theme-switch-wrapper .toggle {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.theme-switch-wrapper .toggle:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.theme-switch-wrapper .input {
+  display: none !important;
+}
+
+.theme-switch-wrapper .icon {
+  grid-column: 1 / 1;
+  grid-row: 1 / 1;
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 0.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-switch-wrapper .icon--moon {
+  transition-delay: 150ms;
+  color: #b4b4b4;
+}
+
+.theme-switch-wrapper .icon--sun {
+  transform: scale(0);
+  color: #ffa500;
+}
+
+.theme-switch-wrapper .input:checked + .icon--moon {
+  transform: rotate(360deg) scale(0);
+}
+
+.theme-switch-wrapper .input:checked ~ .icon--sun {
+  transition-delay: 150ms;
+  transform: scale(1) rotate(360deg);
+}
+
+/* Position settings menu and fix Playback Speed submenu positioning */
+.art-video-player .art-settings {
+  position: absolute !important;
+  top: 54px !important;
+  right: 12px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: calc(100% - 24px) !important;
+  max-height: calc(100% - 70px) !important;
+  background: rgba(15, 15, 18, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85) !important;
+  overflow: hidden !important;
+  z-index: 25 !important;
+}
+
+.art-video-player .art-setting-inner {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  width: auto !important;
+  min-width: 100% !important;
+  height: auto !important;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.art-video-player .art-setting-panel {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+  max-height: 380px !important;
+  padding: 6px 0 !important;
+}
+
+.art-video-player .art-setting-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 14px !important;
+  color: #f1f5f9 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.art-video-player .art-setting-item:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.art-video-player .art-setting-item-back {
+  padding: 8px 14px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  margin-bottom: 4px !important;
+  font-weight: 600 !important;
+  color: #F2A7CA !important;
+}
+
+/* Ẩn mục phụ đề trong bảng Cài đặt video vì đã có nút ở mép dưới */
+.art-video-player .art-setting-item[data-name="subtitle"],
+.art-video-player .art-setting-item[data-name="subtitle-offset"],
+.art-video-player .art-setting-item[data-name="subtitleOffset"] {
+  display: none !important;
+}
+
+/* 6. TỐI ƯU TRẢI NGHIỆM VUỐT / KÉO GIỮ CHẤM ĐỎ TRÊN TIẾN TRÌNH */
+.art-bottom .art-progress {
+  touch-action: none !important;
+  padding-top: 14px !important;
+  padding-bottom: 12px !important;
+  cursor: pointer !important;
+}
+
+.art-bottom .art-progress .art-control-progress-inner {
+  height: 4px !important;
+  border-radius: 9999px !important;
+  transition: height 0.15s ease !important;
+}
+
+.art-bottom .art-progress:hover .art-control-progress-inner,
+.art-video-player.art-is-scrubbing .art-control-progress-inner {
+  height: 6px !important;
+}
+
+.art-bottom .art-progress .art-control-progress-inner .art-progress-indicator {
+  width: 15px !important;
+  height: 15px !important;
+  border-radius: 50% !important;
+  background-color: #ff0033 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 10px rgba(255, 0, 51, 0.8) !important;
+  cursor: grab !important;
+  touch-action: none !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.art-bottom .art-progress:hover .art-progress-indicator,
+.art-bottom .art-progress .art-progress-indicator:hover {
+  transform: scale(1.3) !important;
+}
+
+.art-video-player.art-is-scrubbing .art-progress-indicator,
+.art-bottom .art-progress .art-progress-indicator:active {
+  cursor: grabbing !important;
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 16px rgba(255, 0, 51, 1), 0 0 6px rgba(255, 255, 255, 0.8) !important;
+}
+
+.art-bottom .art-progress .art-control-progress-inner .art-progress-tip {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  padding: 4px 7px !important;
+  background-color: rgba(15, 15, 18, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.art-video-player.art-is-scrubbing .art-progress-tip {
+  opacity: 1 !important;
+  transform: scale(1.1) !important;
+}
+
+/* Subtitle styling */
+.art-video-player .art-subtitle {
+  bottom: 50px !important;
+  pointer-events: none !important;
+}
+
+.art-video-player .art-subtitle p {
+  display: inline-block !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  padding: 4px 14px !important;
+  border-radius: 8px !important;
+  letter-spacing: 0.3px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Notice popup */
+.art-video-player .art-notice .art-notice-inner {
+  background: rgba(15, 15, 18, 0.92) !important;
+  border: 1px solid rgba(242, 167, 202, 0.45) !important;
+  color: #fff !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+}
+
+/* Center Big Play Button */
+.art-video-player .art-state .art-icon {
+  width: 64px !important;
+  height: 64px !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 165, 0.35);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 167, 202, 0.75);
+}
