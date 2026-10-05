@@ -130,16 +130,14 @@ export async function createVideoRecord(input: NewVideoInput): Promise<Video> {
         video_url: input.video_url.trim(),
         thumbnail_url: input.thumbnail_url?.trim() || null,
         subtitle_url: input.subtitle_url?.trim() || null,
+        subtitles: (input as any).subtitles || [], // <-- LƯU ĐA PHỤ ĐỀ JSONB
         tags: input.tags,
       },
     ])
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message || 'Không thể lưu phim vào Supabase.');
-  }
-
+  if (error || !data) throw new Error(error?.message || 'Lỗi lưu phim');
   return data as Video;
 }
 
@@ -157,6 +155,7 @@ export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video>
       video_url: input.video_url.trim(),
       thumbnail_url: input.thumbnail_url?.trim() || null,
       subtitle_url: input.subtitle_url?.trim() || null,
+      subtitles: (input as any).subtitles || [], // <-- CẬP NHẬT ĐA PHỤ ĐỀ
       tags: input.tags,
       updated_at: new Date().toISOString(),
     })
@@ -164,10 +163,7 @@ export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video>
     .select()
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message || 'Không thể cập nhật phim trên Supabase.');
-  }
-
+  if (error || !data) throw new Error(error?.message || 'Lỗi cập nhật');
   return data as Video;
 }
 
