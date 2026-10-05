@@ -43,7 +43,7 @@ interface CustomArtPlayerProps {
 
 const SUN_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
 
-// Lucide React Static HTML Icons
+// Lucide HTML Static Icons
 const REWIND_10_LUCIDE_HTML = renderToStaticMarkup(
   React.createElement(RotateCcw, {
     size: 20,
@@ -107,7 +107,6 @@ const SETTING_LUCIDE_HTML = renderToStaticMarkup(
   })
 );
 
-// ICONS TRUNG TÂM CHO CỬ CHỈ CHẠM YOUTUBE
 const PLAY_CENTER_HTML = renderToStaticMarkup(
   React.createElement(Play, { size: 36, fill: 'currentColor' })
 );
@@ -250,17 +249,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           : 'Đã phóng to khung phát';
       } catch (err: any) {
         console.warn('PiP failed:', err);
-        try {
-          (art as any).mini = !(art as any).mini;
-        } catch {
-          art.notice.show = 'Trình duyệt không hỗ trợ PiP';
-        }
       }
     };
 
-    // ==============================================================
-    // TOÀN MÀN HÌNH + TỰ ĐỘNG XOAY NGANG THEO CON QUAY HỒI CHUYỂN (GYRO)
-    // ==============================================================
+    // FULLSCREEN + XOAY NGANG GYROSCOPE CHO MOBILE
     const toggleFullscreen = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
@@ -308,10 +300,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           art.notice.show = 'Toàn màn hình (Web Fullscreen)';
         }
 
-        // TỰ ĐỘNG KHÓA XOAY NGANG CHO ĐIỆN THOẠI (HỖ TRỢ GYROSCOPE)
         if (isMobile && screen.orientation && 'lock' in screen.orientation) {
           try {
-            // 'landscape' cho phép con quay hồi chuyển tự do đảo chiều 2 hướng nằm ngang!
             await (screen.orientation as any).lock('landscape');
           } catch (err) {
             console.warn('Orientation lock error:', err);
@@ -400,13 +390,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       playsInline: true,
       autoPlayback: false,
       fastForward: true,
-      gesture: false, // Tắt gesture mặc định để dùng Touch Engine chuẩn YouTube bên dưới
+      gesture: false,
       theme: '#ff0033',
       lang: 'vi',
       hotkey: false,
       highlight: highlights,
 
-      // CẤU HÌNH ĐA PHỤ ĐỀ BAN ĐẦU
       subtitle: defaultSub
         ? {
             url: defaultSub.url,
@@ -427,7 +416,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       },
 
       layers: [
-        // 1. Nút cài đặt góc trên bên phải
         {
           name: 'top-settings-control',
           html: `
@@ -437,13 +425,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               </button>
             </div>
           `,
-          mounted($el) {
+          mounted($el, artPlayerInstance: Artplayer) {
             const btn = $el.querySelector('.art-top-setting-btn');
             if (btn) {
               const handleOpenSetting = (ev: Event) => {
                 ev.stopPropagation();
                 ev.preventDefault();
-                art.setting.toggle();
+                artPlayerInstance.setting.toggle();
               };
               btn.addEventListener('click', handleOpenSetting);
               btn.addEventListener('touchend', handleOpenSetting);
@@ -452,20 +440,18 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
 
         // ==============================================================
-        // 2. YOUTUBE TOUCH ENGINE & CỤM NÚT TRUNG TÂM (CHẠM HIỆN NÚT, 2 CHẠM TUA)
+        // 2. YOUTUBE TOUCH ENGINE: SỬ DỤNG artPlayerInstance AN TOÀN TUYỆT ĐỐI
         // ==============================================================
         {
           name: 'youtube-touch-engine',
           html: `
             <div class="art-yt-overlay" style="position: absolute; inset: 0; z-index: 15; user-select: none; -webkit-tap-highlight-color: transparent;">
-              <!-- Sóng tua bên trái -->
               <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div style="font-size: 32px;">⏪</div>
                 <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">-10s</div>
               </div>
 
-              <!-- Cụm nút trung tâm (Prev, Play/Pause, Next) -->
-              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); transition: opacity 0.25s ease; opacity: 1;">
+              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
                 <button type="button" class="art-yt-btn-prev" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s;" title="Tập trước đó">
                   ${PREV_BTN_HTML}
                 </button>
@@ -479,14 +465,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 </button>
               </div>
 
-              <!-- Sóng tua bên phải -->
               <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div style="font-size: 32px;">⏩</div>
                 <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">+10s</div>
               </div>
             </div>
           `,
-          mounted($el) {
+          mounted($el, artPlayerInstance: Artplayer) {
             const overlay = $el.querySelector('.art-yt-overlay') as HTMLElement | null;
             const centerControls = $el.querySelector('.art-yt-center-controls') as HTMLElement | null;
             const btnPlay = $el.querySelector('.art-yt-btn-play') as HTMLElement | null;
@@ -497,69 +482,63 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
             if (!overlay || !centerControls || !btnPlay || !btnPrev || !btnNext) return;
 
-            // Cập nhật trạng thái disabled của Prev/Next
-            const updatePrevNextState = () => {
-              if (hasPrev) {
-                btnPrev.style.opacity = '1';
-                btnPrev.style.cursor = 'pointer';
-                btnPrev.style.pointerEvents = 'auto';
-              } else {
-                btnPrev.style.opacity = '0.25';
-                btnPrev.style.cursor = 'not-allowed';
-                btnPrev.style.pointerEvents = 'none';
-              }
+            if (hasPrev) {
+              btnPrev.style.opacity = '1';
+              btnPrev.style.cursor = 'pointer';
+              btnPrev.style.pointerEvents = 'auto';
+            } else {
+              btnPrev.style.opacity = '0.25';
+              btnPrev.style.cursor = 'not-allowed';
+              btnPrev.style.pointerEvents = 'none';
+            }
 
-              if (hasNext) {
-                btnNext.style.opacity = '1';
-                btnNext.style.cursor = 'pointer';
-                btnNext.style.pointerEvents = 'auto';
-              } else {
-                btnNext.style.opacity = '0.25';
-                btnNext.style.cursor = 'not-allowed';
-                btnNext.style.pointerEvents = 'none';
-              }
-            };
-            updatePrevNextState();
+            if (hasNext) {
+              btnNext.style.opacity = '1';
+              btnNext.style.cursor = 'pointer';
+              btnNext.style.pointerEvents = 'auto';
+            } else {
+              btnNext.style.opacity = '0.25';
+              btnNext.style.cursor = 'not-allowed';
+              btnNext.style.pointerEvents = 'none';
+            }
 
             let autoHideTimer: any = null;
             const showControlsUI = () => {
               centerControls.style.opacity = '1';
               centerControls.style.pointerEvents = 'auto';
               if (autoHideTimer) clearTimeout(autoHideTimer);
-              if (art.playing) {
-                autoHideTimer = setTimeout(() => {
+              autoHideTimer = setTimeout(() => {
+                if (artPlayerInstance.playing) {
                   centerControls.style.opacity = '0';
                   centerControls.style.pointerEvents = 'none';
-                }, 3500);
-              }
+                }
+              }, 3500);
             };
 
             const hideControlsUI = () => {
-              if (art.playing) {
+              if (artPlayerInstance.playing) {
                 centerControls.style.opacity = '0';
                 centerControls.style.pointerEvents = 'none';
               }
             };
 
-            art.on('play', () => {
+            artPlayerInstance.on('play', () => {
               btnPlay.innerHTML = PAUSE_CENTER_HTML;
               showControlsUI();
             });
 
-            art.on('pause', () => {
+            artPlayerInstance.on('pause', () => {
               btnPlay.innerHTML = PLAY_CENTER_HTML;
               centerControls.style.opacity = '1';
               centerControls.style.pointerEvents = 'auto';
               if (autoHideTimer) clearTimeout(autoHideTimer);
             });
 
-            // Xử lý nút Play/Pause trung tâm
             btnPlay.addEventListener('click', (e) => {
               e.stopPropagation();
-              art.toggle();
+              artPlayerInstance.toggle();
             });
 
-            // Xử lý nút Prev / Next
             btnPrev.addEventListener('click', (e) => {
               e.stopPropagation();
               onPrevVideoRef.current?.();
@@ -570,9 +549,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               onNextVideoRef.current?.();
             });
 
-            // =========================================================
-            // BỘ NHẬN DIỆN CHẠM: CHẠM 1 LẦN HIỆN NÚT, CHẠM 2 LẦN TUA 10S
-            // =========================================================
             let lastTapTime = 0;
             let lastTapX = 0;
 
@@ -582,14 +558,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               const width = rect.width;
               const now = Date.now();
 
-              // Kiểm tra xem có phải chạm đúp (Double Tap < 320ms) ở cùng 1 phía không
               const isDoubleTap = now - lastTapTime < 320;
               const isSameSide =
                 (offsetX < width * 0.35 && lastTapX < width * 0.35) ||
                 (offsetX > width * 0.65 && lastTapX > width * 0.65);
 
               if (isDoubleTap && isSameSide) {
-                // DOUBLE TAP: TUA VIDEO
                 if (offsetX < width * 0.35) {
                   seekRelative(-10);
                   if (rippleLeft) {
@@ -610,7 +584,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 lastTapTime = 0;
                 hideControlsUI();
               } else {
-                // SINGLE TAP: ẨN / HIỆN CỤM NÚT ĐIỀU KHIỂN
                 lastTapTime = now;
                 lastTapX = offsetX;
                 if (centerControls.style.opacity === '1') {
@@ -622,7 +595,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             };
 
             overlay.addEventListener('click', (e) => {
-              // Bỏ qua nếu bấm trúng 3 nút trung tâm
               if ((e.target as HTMLElement).closest('button')) return;
               handleTapInteraction(e.clientX);
             });
@@ -665,7 +637,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           html: SUBTITLES_LUCIDE_HTML,
           tooltip: hasConfiguredSubtitle ? 'Bật / Tắt Phụ đề' : 'Chưa có phụ đề',
           click: () => {
-            if (!hasConfiguredSubtitle) {
+            if (!hasConfiguredSubtitle || !art.subtitle) {
               art.notice.show = 'Video này chưa có phụ đề';
               return;
             }
@@ -695,7 +667,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
       ],
 
-      // MENU CÀI ĐẶT: ĐỘ SÁNG & CHỌN ĐA PHỤ ĐỀ (TIẾNG VIỆT, TIẾNG ANH...)
       settings: [
         {
           html: 'Độ sáng',
@@ -743,6 +714,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                   })),
                 ],
                 onSelect: (item: any) => {
+                  if (!art.subtitle) return 'Chưa có phụ đề';
                   if (!item.url) {
                     art.subtitle.show = false;
                     return 'Đã tắt';
@@ -790,7 +762,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.playbackRate = initialRate;
       }
 
-      if (hasConfiguredSubtitle) {
+      // BẢO VỆ PHỤ ĐỀ: CHỈ BẬT KHI ĐỐI TƯỢNG SUBTITLE THỰC SỰ TỒN TẠI
+      if (hasConfiguredSubtitle && art.subtitle) {
         art.subtitle.show = true;
       }
 
@@ -1008,7 +981,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         onProgressUpdateRef.current?.(updated);
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        if (hasConfiguredSubtitle) {
+        if (hasConfiguredSubtitle && art.subtitle) {
           art.subtitle.show = !art.subtitle.show;
           art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
         } else {
