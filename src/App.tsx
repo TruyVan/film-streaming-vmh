@@ -487,36 +487,38 @@ export default function App() {
                   const hasNext = currentIndex >= 0 && currentIndex < filteredVideos.length - 1;
                 
                   return (
-                    <CustomArtPlayer
-                      video={currentVideo}
-                      themeMode={themeMode}
-                      timestampBookmarks={timestampBookmarks}
-                      onProgressUpdate={handleProgressUpdate}
-                      onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
-                      externalSeekTime={externalSeekTime}
-                      hasPrev={hasPrev}
-                      hasNext={hasNext}
-                      onPrevVideo={() => {
-                        if (hasPrev) handleSelectVideo(filteredVideos[currentIndex - 1]);
-                      }}
-                      onNextVideo={() => {
-                        if (hasNext) handleSelectVideo(filteredVideos[currentIndex + 1]);
-                      }}
-                    />
-                    <VideoDetails  
-                      video={currentVideo}
-                      themeMode={themeMode}
-                      progress={progressMap[currentVideo.id] || null}
-                      isFavorite={favoriteIds.includes(currentVideo.id)}
-                      timestampBookmarks={timestampBookmarks}
-                      activeTag={activeCategory}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAddTimestampBookmark={handleAddTimestampBookmark}
-                      onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
-                      onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
-                      onSeekTo={handleSeekTo}
-                      onResetProgress={handleResetProgress}
-                    />
+                    <>
+                      <CustomArtPlayer
+                        video={currentVideo}
+                        themeMode={themeMode}
+                        timestampBookmarks={timestampBookmarks}
+                        onProgressUpdate={handleProgressUpdate}
+                        onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
+                        externalSeekTime={externalSeekTime}
+                        hasPrev={hasPrev}
+                        hasNext={hasNext}
+                        onPrevVideo={() => {
+                          if (hasPrev) handleSelectVideo(filteredVideos[currentIndex - 1]);
+                        }}
+                        onNextVideo={() => {
+                          if (hasNext) handleSelectVideo(filteredVideos[currentIndex + 1]);
+                        }}
+                      />
+                      <VideoDetails  
+                        video={currentVideo}
+                        themeMode={themeMode}
+                        progress={progressMap[currentVideo.id] || null}
+                        isFavorite={favoriteIds.includes(currentVideo.id)}
+                        timestampBookmarks={timestampBookmarks}
+                        activeTag={activeCategory}
+                        onToggleFavorite={handleToggleFavorite}
+                        onAddTimestampBookmark={handleAddTimestampBookmark}
+                        onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
+                        onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
+                        onSeekTo={handleSeekTo}
+                        onResetProgress={handleResetProgress}
+                      />
+                    </>
                   );
                 })()}
               </div>
