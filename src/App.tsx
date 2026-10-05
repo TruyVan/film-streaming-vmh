@@ -503,6 +503,20 @@ export default function App() {
                         if (hasNext) handleSelectVideo(filteredVideos[currentIndex + 1]);
                       }}
                     />
+                    <VideoDetails  
+                      video={currentVideo}
+                      themeMode={themeMode}
+                      progress={progressMap[currentVideo.id] || null}
+                      isFavorite={favoriteIds.includes(currentVideo.id)}
+                      timestampBookmarks={timestampBookmarks}
+                      activeTag={activeCategory}
+                      onToggleFavorite={handleToggleFavorite}
+                      onAddTimestampBookmark={handleAddTimestampBookmark}
+                      onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
+                      onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
+                      onSeekTo={handleSeekTo}
+                      onResetProgress={handleResetProgress}
+                    />
                   );
                 })()}
               </div>
