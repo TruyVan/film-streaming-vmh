@@ -59,7 +59,7 @@ export default function App() {
       const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
       if (saved === 'light' || saved === 'dark') return saved;
     }
-    return 'dark';
+    return 'light';
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
