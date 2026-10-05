@@ -325,6 +325,16 @@ export default function App() {
     []
   );
 
+  const handleResetProgress = useCallback((videoId: string) => {
+    clearVideoProgress(videoId);
+    setProgressMap((prev) => {
+      const next = { ...prev };
+      delete next[videoId];
+      return next;
+    });
+    setExternalSeekTime({ time: 0, nonce: Date.now() });
+  }, []);
+
   const handleToggleFavorite = useCallback(
     async (videoId: string) => {
       const isFav = favoriteIds.includes(videoId);
