@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
               </span>
               <span className="font-display text-lg font-extrabold tracking-tight">
-                PartyStream
+                Harry Potter Tube
               </span>
             </a>
           </div>
