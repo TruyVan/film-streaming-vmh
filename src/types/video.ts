@@ -1,3 +1,10 @@
+export interface SubtitleTrack {
+  name: string;      // Tên hiển thị (Ví dụ: "Tiếng Việt", "English")
+  url: string;       // Link file .vtt / .srt hoặc Data URI
+  default?: boolean; // Phụ đề mặc định bật
+}
+
+// Bổ sung vào interface Video:
 export interface Video {
   id: string;
   title: string;
@@ -7,8 +14,9 @@ export interface Video {
   video_url: string;
   thumbnail_url?: string | null;
   subtitle_url?: string | null;
+  subtitles?: SubtitleTrack[]; // <-- Danh sách đa phụ đề
   tags?: string[];
-  deleted_at?: string | null; // Cột xóa tạm
+  deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
