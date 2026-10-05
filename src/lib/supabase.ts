@@ -133,6 +133,46 @@ export function updateLocalCustomVideo(input: UpdateVideoInput): Video {
   return updated;
 }
 
+// Xóa tạm (Soft Delete)
+export async function softDeleteVideoRecord(id: string): Promise<void> {
+  if (supabase) {
+    await supabase
+      .from('videos')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+  }
+}
+
+// Khôi phục video đã xóa tạm
+export async function restoreVideoRecord(id: string): Promise<void> {
+  if (supabase) {
+    await supabase
+      .from('videos')
+      .update({ deleted_at: null })
+      .eq('id', id);
+  }
+}
+
+// Xóa vĩnh viễn (Hard Delete)
+export async function hardDeleteVideoRecord(id: string): Promise<void> {
+  if (supabase) {
+    await supabase.from('videos').delete().eq('id', id);
+  }
+}
+
+// Lấy danh sách Tags từ Supabase
+export async function fetchTagsFromSupabase(): Promise<{ name: string; slug: string }[]> {
+  if (supabase) {
+    const { data } = await supabase.from('tags').select('name, slug').order('created_at', { ascending: true });
+    if (data && data.length > 0) return data;
+  }
+  return [
+    { name: 'Harry Potter', slug: 'harry-potter' },
+    { name: 'Sự kiện', slug: 'su-kien' },
+    { name: 'Trải nghiệm', slug: 'trai-nghiem' },
+  ];
+}
+
 export function deleteLocalCustomVideo(id: string): void {
   if (typeof window === 'undefined') return;
   const existing = getLocalCustomVideos();
