@@ -481,8 +481,12 @@ export default function App() {
           <main className="flex-1 w-full min-w-0 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 pb-20 md:pb-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
               <div className="lg:col-span-8 min-w-0 w-full space-y-3">
-                {currentVideo && (
-                  <>
+                {currentVideo && (() => {
+                  const currentIndex = filteredVideos.findIndex((v) => v.id === currentVideo.id);
+                  const hasPrev = currentIndex > 0;
+                  const hasNext = currentIndex >= 0 && currentIndex < filteredVideos.length - 1;
+                
+                  return (
                     <CustomArtPlayer
                       video={currentVideo}
                       themeMode={themeMode}
@@ -490,24 +494,17 @@ export default function App() {
                       onProgressUpdate={handleProgressUpdate}
                       onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
                       externalSeekTime={externalSeekTime}
+                      hasPrev={hasPrev}
+                      hasNext={hasNext}
+                      onPrevVideo={() => {
+                        if (hasPrev) handleSelectVideo(filteredVideos[currentIndex - 1]);
+                      }}
+                      onNextVideo={() => {
+                        if (hasNext) handleSelectVideo(filteredVideos[currentIndex + 1]);
+                      }}
                     />
-
-                    <VideoDetails
-                      video={currentVideo}
-                      themeMode={themeMode}
-                      progress={progressMap[currentVideo.id] || null}
-                      isFavorite={favoriteIds.includes(currentVideo.id)}
-                      timestampBookmarks={timestampBookmarks}
-                      activeTag={activeCategory}
-                      onToggleFavorite={handleToggleFavorite}
-                      onAddTimestampBookmark={handleAddTimestampBookmark}
-                      onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
-                      onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
-                      onSeekTo={handleSeekTo}
-                      onResetProgress={handleResetProgress}
-                    />
-                  </>
-                )}
+                  );
+                })()}
               </div>
 
               <div className="lg:col-span-4 min-w-0 w-full">
