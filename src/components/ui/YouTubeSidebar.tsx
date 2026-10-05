@@ -170,18 +170,31 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
 
       {/* FOOTER: Theme Switch & Nút Admin Dev Portal (/admin) */}
       <div className="pt-4 mt-4 border-t border-black/10 dark:border-white/10 space-y-2">
-        <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl ${isLight ? 'bg-slate-100/90' : 'bg-white/5'}`}>
-          <div className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => onToggleThemeMode()}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer select-none text-left ${
+            isLight
+              ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+              : 'bg-white/5 hover:bg-white/10 text-zinc-200'
+          }`}
+          title="Bấm để đổi giao diện Sáng / Tối"
+        >
+          <div className="flex flex-col pointer-events-none">
             <span className="text-xs font-semibold">Giao diện</span>
-            <span className="text-[11px] opacity-65">{isLight ? 'Đang bật Sáng' : 'Đang bật Tối'}</span>
+            <span className="text-[11px] opacity-65">
+              {isLight ? 'Đang bật Sáng' : 'Đang bật Tối'}
+            </span>
           </div>
-
-          <ThemeSwitch
-            id={onItemClick ? 'themeToggleMobile' : 'themeToggleDesktop'}
-            checked={isLight}
-            onChange={() => onToggleThemeMode()}
-          />
-        </div>
+        
+          <div className="pointer-events-none">
+            <ThemeSwitch
+              id={onItemClick ? 'themeToggleMobile' : 'themeToggleDesktop'}
+              checked={isLight}
+              onChange={() => {}}
+            />
+          </div>
+        </button>
 
         <button
           type="button"
