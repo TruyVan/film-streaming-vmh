@@ -16,7 +16,8 @@ import {
   fetchFavoritesDb,
   toggleFavoriteDb,
   fetchWatchHistoryDb,
-  recordWatchHistoryDb,
+  createWatchSessionDb,
+  updateWatchSessionProgressDb,
   clearAllWatchHistoryDb,
 } from './lib/supabase';
 import {
@@ -52,6 +53,7 @@ export default function App() {
   // Dữ liệu Video từ Supabase (Không mock)
   const [videos, setVideos] = useState<Video[]>([]);
   const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>('home');
+  const currentWatchSessionIdRef = React.useRef<string | null>(null);
   const [currentVideoId, setCurrentVideoId] = useState<string>('');
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -223,11 +225,10 @@ export default function App() {
   }, []);
 
   const handleSelectVideo = useCallback(
-    async (video: Video) => {
+    (video: Video) => {
+      // Reset phiên xem cũ khi đổi phim
+      currentWatchSessionIdRef.current = null;
       setCurrentVideoId(video.id);
-      await recordWatchHistoryDb(video.id, 0, video.duration || '00:00:00');
-      const updatedHistory = await fetchWatchHistoryDb();
-      setWatchHistory(updatedHistory);
       navigateTo(`/watch?v=${video.id}`);
     },
     [navigateTo]
@@ -292,29 +293,37 @@ export default function App() {
     );
   }, [videos, currentVideoId, filteredVideos]);
 
-  const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
-    setProgressMap((prev) => ({
-      ...prev,
-      [updated.videoId]: updated,
-    }));
-    await recordWatchHistoryDb(
-      updated.videoId,
-      updated.currentTime,
-      formatSeconds(updated.duration)
-    );
-    const updatedHistory = await fetchWatchHistoryDb();
-    setWatchHistory(updatedHistory);
-  }, []);
-
-  const handleResetProgress = useCallback((videoId: string) => {
-    clearVideoProgress(videoId);
-    setProgressMap((prev) => {
-      const next = { ...prev };
-      delete next[videoId];
-      return next;
-    });
-    setExternalSeekTime({ time: 0, nonce: Date.now() });
-  }, []);
+  const handleProgressUpdate = useCallback(
+    async (updated: VideoProgress) => {
+      // 1. Cập nhật tiến độ cục bộ để vạch đỏ trên giao diện vẫn chạy mượt
+      setProgressMap((prev) => ({
+        ...prev,
+        [updated.videoId]: updated,
+      }));
+  
+      // 2. CHỈ TÍNH LƯỢT XEM KHI ĐÃ XEM TỐI THIỂU 3 GIÂY (Chống click nhầm)
+      if (updated.currentTime < 3) return;
+  
+      // 3. NẾU CHƯA CÓ PHIÊN: Tạo đúng 1 lượt xem đầu tiên
+      if (!currentWatchSessionIdRef.current) {
+        const newSessionId = await createWatchSessionDb(
+          updated.videoId,
+          updated.currentTime,
+          formatSeconds(updated.duration)
+        );
+        currentWatchSessionIdRef.current = newSessionId;
+        const history = await fetchWatchHistoryDb();
+        setWatchHistory(history);
+      } else {
+        // 4. NẾU ĐANG TRONG PHIÊN: Chỉ cập nhật số giây, tuyệt đối không đẻ thêm lượt mới!
+        await updateWatchSessionProgressDb(
+          currentWatchSessionIdRef.current,
+          updated.currentTime
+        );
+      }
+    },
+    []
+  );
 
   const handleToggleFavorite = useCallback(
     async (videoId: string) => {
