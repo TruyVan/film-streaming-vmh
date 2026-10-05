@@ -1,10 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { NewVideoInput, UpdateVideoInput, Video } from '../types/video';
-import { mockVideos } from '../data/mockVideos';
+import { NewVideoInput, UpdateVideoInput, Video, WatchHistoryItem } from '../types/video';
 
-const CUSTOM_VIDEOS_STORAGE_KEY = 'partystream_custom_videos_v1';
-
-// Support both Vite env vars and Next.js env vars
+// 1. KHỞI TẠO CLIENT KẾT NỐI SUPABASE
 const supabaseUrl =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
   (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL) ||
@@ -15,275 +12,345 @@ const supabaseAnonKey =
   (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
   '';
 
-const isValidSupabaseConfig = Boolean(
-  supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.startsWith('http') &&
-    !supabaseUrl.includes('your-project-id')
-);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    'CẢNH BÁO BẢO MẬT: Chưa cấu hình VITE_SUPABASE_URL hoặc VITE_SUPABASE_ANON_KEY trong file .env!'
+  );
+}
 
-export const supabase: SupabaseClient | null = isValidSupabaseConfig
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export const isSupabaseConnected: boolean = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const isSupabaseConnected = isValidSupabaseConfig;
-
-export const SUPABASE_SCHEMA_SQL = `-- Supabase PostgreSQL Schema cho Private VoD Platform
+// 2. MÃ SQL SCHEMA TOÀN DIỆN CHO TOÀN BỘ RẠP PHIM
+export const SUPABASE_SCHEMA_SQL = `-- PartyStream PostgreSQL Production Schema
 create extension if not exists "pgcrypto";
 
+-- Bảng 1: Danh sách Phim & Video (Hỗ trợ Soft Delete 30 ngày)
 create table if not exists public.videos (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   description text,
   event_date date not null default current_date,
   duration text default '00:15:00',
-  video_url text not null,       -- Direct HTTPS link từ Nginx VPS (mp4)
-  thumbnail_url text,           -- Link ảnh bìa preview
-  subtitle_url text,            -- File phụ đề .srt / .vtt (URL hoặc Data URI)
-  tags text[] default '{"Sự kiện"}',
+  video_url text not null,
+  thumbnail_url text,
+  subtitle_url text,
+  tags text[] default '{}',
+  deleted_at timestamp with time zone default null,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
--- Index tối ưu tìm kiếm theo ngày sự kiện và tags
-create index if not exists idx_videos_event_date on public.videos (event_date desc);
+-- Bảng 2: Chủ đề / Thể loại phim (Strict Taxonomy)
+create table if not exists public.topics (
+  id uuid primary key default gen_random_uuid(),
+  name text unique not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Bảng 3: Danh sách Phim Yêu Thích
+create table if not exists public.favorites (
+  id uuid primary key default gen_random_uuid(),
+  video_id text unique not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Bảng 4: Lịch sử xem phim chi tiết (Không gộp phiên)
+create table if not exists public.watch_history (
+  id uuid primary key default gen_random_uuid(),
+  video_id text not null,
+  watched_seconds integer default 0,
+  duration text default '00:00:00',
+  watched_at timestamp with time zone default now()
+);
+
+-- Indexes tối ưu hiệu năng truy vấn
+create index if not exists idx_videos_created on public.videos (created_at desc);
+create index if not exists idx_videos_deleted on public.videos (deleted_at);
 create index if not exists idx_videos_tags on public.videos using gin (tags);
+create index if not exists idx_history_watched on public.watch_history (watched_at desc);
 
--- Kích hoạt Row Level Security (RLS)
+-- Thiết lập Row Level Security (RLS) mở quyền cho rạp phim cá nhân
 alter table public.videos enable row level security;
+alter table public.topics enable row level security;
+alter table public.favorites enable row level security;
+alter table public.watch_history enable row level security;
 
--- Cho phép đọc công khai danh sách video
-create policy "Public Read Videos" on public.videos for select using (true);
+create policy "Allow all videos" on public.videos for all using (true) with check (true);
+create policy "Allow all topics" on public.topics for all using (true) with check (true);
+create policy "Allow all favorites" on public.favorites for all using (true) with check (true);
+create policy "Allow all history" on public.watch_history for all using (true) with check (true);
+`;
 
--- Cho phép Dev Portal thêm/sửa/xóa video
-create policy "Dev Insert Videos" on public.videos for insert with check (true);
-create policy "Dev Update Videos" on public.videos for update using (true);
-create policy "Dev Delete Videos" on public.videos for delete using (true);`;
+// =========================================================================
+// 3. DATA ACCESS LAYER: VIDEOS (QUẢN LÝ PHIM TRỰC TIẾP TRÊN DATABASE)
+// =========================================================================
 
-export function getLocalCustomVideos(): Video[] {
-  if (typeof window === 'undefined') return [];
+/**
+ * Tải toàn bộ danh sách phim từ Supabase PostgreSQL.
+ * Trả về định dạng tương thích tuyệt đối với App.tsx.
+ */
+export async function fetchVideos(): Promise<{
+  videos: Video[];
+  source: 'supabase';
+}> {
   try {
-    const raw = window.localStorage.getItem(CUSTOM_VIDEOS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Lỗi khi truy vấn videos từ Supabase:', error.message);
+      return { videos: [], source: 'supabase' };
+    }
+
+    return {
+      videos: (data as Video[]) || [],
+      source: 'supabase',
+    };
+  } catch (err: any) {
+    console.error('Lỗi kết nối Supabase:', err.message);
+    return { videos: [], source: 'supabase' };
+  }
+}
+
+/**
+ * Thêm một bộ phim mới vào Supabase
+ */
+export async function createVideoRecord(input: NewVideoInput): Promise<Video> {
+  const { data, error } = await supabase
+    .from('videos')
+    .insert([
+      {
+        title: input.title.trim(),
+        description: input.description.trim() || null,
+        event_date: input.event_date,
+        duration: input.duration.trim() || '00:00:00',
+        video_url: input.video_url.trim(),
+        thumbnail_url: input.thumbnail_url?.trim() || null,
+        subtitle_url: input.subtitle_url?.trim() || null,
+        tags: input.tags,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || 'Không thể lưu phim vào Supabase.');
+  }
+
+  return data as Video;
+}
+
+/**
+ * Cập nhật thông tin bộ phim hiện có
+ */
+export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video> {
+  const { data, error } = await supabase
+    .from('videos')
+    .update({
+      title: input.title.trim(),
+      description: input.description.trim() || null,
+      event_date: input.event_date,
+      duration: input.duration.trim() || '00:00:00',
+      video_url: input.video_url.trim(),
+      thumbnail_url: input.thumbnail_url?.trim() || null,
+      subtitle_url: input.subtitle_url?.trim() || null,
+      tags: input.tags,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || 'Không thể cập nhật phim trên Supabase.');
+  }
+
+  return data as Video;
+}
+
+/**
+ * Xóa tạm một bộ phim (Soft Delete - lưu timestamp deleted_at)
+ */
+export async function softDeleteVideoRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('videos')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Lỗi xóa tạm video: ${error.message}`);
+  }
+}
+
+/**
+ * Khôi phục bộ phim đã xóa tạm (Đặt deleted_at về null)
+ */
+export async function restoreVideoRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('videos')
+    .update({ deleted_at: null })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Lỗi khôi phục video: ${error.message}`);
+  }
+}
+
+/**
+ * Xóa vĩnh viễn một bộ phim khỏi database (Hard Delete)
+ */
+export async function hardDeleteVideoRecord(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('videos')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Lỗi xóa vĩnh viễn video: ${error.message}`);
+  }
+}
+
+// =========================================================================
+// 4. DATA ACCESS LAYER: TOPICS / CHỦ ĐỀ
+// =========================================================================
+
+export async function fetchTopicsDb(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('topics')
+      .select('name')
+      .order('created_at', { ascending: true });
+
+    if (error || !data) return [];
+    return data.map((t) => t.name);
   } catch {
     return [];
   }
 }
 
-export function saveLocalCustomVideo(input: NewVideoInput): Video {
-  const newVideo: Video = {
-    id: `vid-custom-${Date.now()}`,
-    title: input.title.trim(),
-    description: input.description.trim() || null,
-    event_date: input.event_date,
-    duration: input.duration.trim() || '00:00:00',
-    video_url: input.video_url.trim(),
-    thumbnail_url: input.thumbnail_url?.trim() || mockVideos[0].thumbnail_url,
-    subtitle_url: input.subtitle_url?.trim() || null,
-    tags: input.tags.length > 0 ? input.tags : ['Sự kiện'],
-    created_at: new Date().toISOString(),
-  };
+export async function addTopicDb(name: string): Promise<void> {
+  const clean = name.trim();
+  if (!clean) return;
 
-  if (typeof window !== 'undefined') {
-    const existing = getLocalCustomVideos();
-    window.localStorage.setItem(
-      CUSTOM_VIDEOS_STORAGE_KEY,
-      JSON.stringify([newVideo, ...existing])
-    );
+  const { error } = await supabase
+    .from('topics')
+    .insert([{ name: clean }]);
+
+  if (error && !error.message.includes('duplicate')) {
+    throw new Error(`Không thể thêm chủ đề: ${error.message}`);
   }
-  return newVideo;
 }
 
-export function updateLocalCustomVideo(input: UpdateVideoInput): Video {
-  const existing = getLocalCustomVideos();
-  const index = existing.findIndex((v) => v.id === input.id);
-  const updated: Video = {
-    id: input.id,
-    title: input.title.trim(),
-    description: input.description.trim() || null,
-    event_date: input.event_date,
-    duration: input.duration.trim() || '00:00:00',
-    video_url: input.video_url.trim(),
-    thumbnail_url: input.thumbnail_url?.trim() || null,
-    subtitle_url: input.subtitle_url?.trim() || null,
-    tags: input.tags.length > 0 ? input.tags : ['Sự kiện'],
-    created_at:
-      index >= 0 ? existing[index].created_at : new Date().toISOString(),
-  };
+export async function removeTopicDb(name: string): Promise<void> {
+  const { error } = await supabase
+    .from('topics')
+    .delete()
+    .eq('name', name.trim());
 
-  if (index >= 0) {
-    existing[index] = updated;
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        CUSTOM_VIDEOS_STORAGE_KEY,
-        JSON.stringify(existing)
-      );
-    }
+  if (error) {
+    throw new Error(`Không thể xóa chủ đề: ${error.message}`);
+  }
+}
+
+// =========================================================================
+// 5. DATA ACCESS LAYER: FAVORITES / YÊU THÍCH
+// =========================================================================
+
+export async function fetchFavoritesDb(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('video_id');
+
+    if (error || !data) return [];
+    return data.map((f) => f.video_id);
+  } catch {
+    return [];
+  }
+}
+
+export async function toggleFavoriteDb(videoId: string, isFav: boolean): Promise<void> {
+  if (isFav) {
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('video_id', videoId);
+    if (error) console.error('Lỗi gỡ yêu thích:', error.message);
   } else {
-    // If not found in local custom videos (e.g. was a mock video being edited), save it into local custom
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        CUSTOM_VIDEOS_STORAGE_KEY,
-        JSON.stringify([updated, ...existing])
-      );
+    const { error } = await supabase
+      .from('favorites')
+      .insert([{ video_id: videoId }]);
+    if (error && !error.message.includes('duplicate')) {
+      console.error('Lỗi thêm yêu thích:', error.message);
     }
   }
-  return updated;
 }
 
-// Xóa tạm (Soft Delete)
-export async function softDeleteVideoRecord(id: string): Promise<void> {
-  if (supabase) {
-    await supabase
-      .from('videos')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+// =========================================================================
+// 6. DATA ACCESS LAYER: WATCH HISTORY / LỊCH SỬ XEM
+// =========================================================================
+
+export async function fetchWatchHistoryDb(): Promise<WatchHistoryItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('watch_history')
+      .select('*')
+      .order('watched_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((h) => ({
+      id: h.id,
+      videoId: h.video_id,
+      watchedSeconds: h.watched_seconds,
+      duration: h.duration,
+      lastWatchedAt: new Date(h.watched_at).getTime(),
+    }));
+  } catch {
+    return [];
   }
 }
 
-// Khôi phục video đã xóa tạm
-export async function restoreVideoRecord(id: string): Promise<void> {
-  if (supabase) {
-    await supabase
-      .from('videos')
-      .update({ deleted_at: null })
-      .eq('id', id);
+export async function recordWatchHistoryDb(
+  videoId: string,
+  seconds = 0,
+  duration = '00:00:00'
+): Promise<void> {
+  try {
+    await supabase.from('watch_history').insert([
+      {
+        video_id: videoId,
+        watched_seconds: Math.floor(seconds),
+        duration: duration || '00:00:00',
+        watched_at: new Date().toISOString(),
+      },
+    ]);
+  } catch (err: any) {
+    console.error('Lỗi ghi nhận lịch sử xem:', err.message);
   }
 }
 
-// Xóa vĩnh viễn (Hard Delete)
-export async function hardDeleteVideoRecord(id: string): Promise<void> {
-  if (supabase) {
-    await supabase.from('videos').delete().eq('id', id);
+export async function removeWatchHistoryItemDb(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('watch_history')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Lỗi xóa mục lịch sử:', error.message);
   }
 }
 
-// Lấy danh sách Tags từ Supabase
-export async function fetchTagsFromSupabase(): Promise<{ name: string; slug: string }[]> {
-  if (supabase) {
-    const { data } = await supabase.from('tags').select('name, slug').order('created_at', { ascending: true });
-    if (data && data.length > 0) return data;
+export async function clearAllWatchHistoryDb(): Promise<void> {
+  const { error } = await supabase
+    .from('watch_history')
+    .delete()
+    .neq('video_id', '___empty___');
+
+  if (error) {
+    console.error('Lỗi làm sạch lịch sử:', error.message);
   }
-  return [
-    { name: 'Harry Potter', slug: 'harry-potter' },
-    { name: 'Sự kiện', slug: 'su-kien' },
-    { name: 'Trải nghiệm', slug: 'trai-nghiem' },
-  ];
-}
-
-export function deleteLocalCustomVideo(id: string): void {
-  if (typeof window === 'undefined') return;
-  const existing = getLocalCustomVideos();
-  const next = existing.filter((v) => v.id !== id);
-  window.localStorage.setItem(CUSTOM_VIDEOS_STORAGE_KEY, JSON.stringify(next));
-}
-
-/**
- * Truy vấn danh sách video từ bảng `videos` trên Supabase.
- * Tự động fallback về `mockVideos.ts` khi chưa kết nối Supabase hoặc bảng trống.
- */
-export async function fetchVideos(): Promise<{
-  videos: Video[];
-  source: 'supabase' | 'mock';
-}> {
-  const localCustom = getLocalCustomVideos();
-
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*')
-        .order('event_date', { ascending: false });
-
-      if (!error && data && data.length > 0) {
-        // Merge local custom on top
-        const dbVideos = data as Video[];
-        const customIds = new Set(localCustom.map((v) => v.id));
-        const merged = [...localCustom, ...dbVideos.filter((v) => !customIds.has(v.id))];
-        return {
-          videos: merged,
-          source: 'supabase',
-        };
-      }
-    } catch (err) {
-      console.warn('Supabase query fallback to mockVideos:', err);
-    }
-  }
-
-  // Combine local custom and mockVideos, replacing mockVideo if overridden by localCustom
-  const customIds = new Set(localCustom.map((v) => v.id));
-  const combined = [
-    ...localCustom,
-    ...mockVideos.filter((v) => !customIds.has(v.id)),
-  ].sort(
-    (a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
-  );
-
-  return {
-    videos: combined,
-    source: 'mock',
-  };
-}
-
-export async function createVideoRecord(input: NewVideoInput): Promise<Video> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('videos')
-        .insert([
-          {
-            title: input.title.trim(),
-            description: input.description.trim() || null,
-            event_date: input.event_date,
-            duration: input.duration.trim() || '00:00:00',
-            video_url: input.video_url.trim(),
-            thumbnail_url: input.thumbnail_url?.trim() || null,
-            subtitle_url: input.subtitle_url?.trim() || null,
-            tags: input.tags,
-          },
-        ])
-        .select()
-        .single();
-
-      if (!error && data) {
-        return data as Video;
-      }
-    } catch (err) {
-      console.warn('Supabase insert failed, falling back to local:', err);
-    }
-  }
-
-  return saveLocalCustomVideo(input);
-}
-
-export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('videos')
-        .update({
-          title: input.title.trim(),
-          description: input.description.trim() || null,
-          event_date: input.event_date,
-          duration: input.duration.trim() || '00:00:00',
-          video_url: input.video_url.trim(),
-          thumbnail_url: input.thumbnail_url?.trim() || null,
-          subtitle_url: input.subtitle_url?.trim() || null,
-          tags: input.tags,
-        })
-        .eq('id', input.id)
-        .select()
-        .single();
-
-      if (!error && data) {
-        return data as Video;
-      }
-    } catch (err) {
-      console.warn('Supabase update failed, updating local:', err);
-    }
-  }
-
-  return updateLocalCustomVideo(input);
 }
