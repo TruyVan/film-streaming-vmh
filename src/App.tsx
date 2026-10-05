@@ -42,30 +42,20 @@ import { MobileBottomNav } from './components/ui/MobileBottomNav';
 
 const THEME_STORAGE_KEY = 'partystream_theme_mode_v1';
 
+// Hàm chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
+export const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
 export default function App() {
   const [videos, setVideos] = useState<Video[]>(mockVideos);
 
-  const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const requestedId = params.get('v');
-      if (requestedId && mockVideos.some((v) => v.id === requestedId)) {
-        return 'watch';
-      }
-    }
-    return 'home';
-  });
-
-  const [currentVideoId, setCurrentVideoId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const requestedId = params.get('v');
-      if (requestedId && mockVideos.some((v) => v.id === requestedId)) {
-        return requestedId;
-      }
-    }
-    return mockVideos[0]?.id || '';
-  });
+  const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>('home');
+  const [currentVideoId, setCurrentVideoId] = useState<string>(mockVideos[0]?.id || '');
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window !== 'undefined') {
@@ -82,28 +72,73 @@ export default function App() {
   const [isTopicModalOpen, setIsTopicModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // User configurable topics
-  const [customTopics, setCustomTopics] = useState<string[]>(() =>
-    getCustomTopics()
+  const [customTopics, setCustomTopics] = useState<string[]>(() => getCustomTopics());
+  const [progressMap, setProgressMap] = useState<Record<string, VideoProgress>>({});
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => getFavoriteVideoIds());
+  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>(() => getWatchHistory());
+  const [timestampBookmarks, setTimestampBookmarks] = useState<TimestampBookmark[]>([]);
+  const [externalSeekTime, setExternalSeekTime] = useState<{ time: number; nonce: number } | null>(null);
+
+  // ==========================================
+  // BỘ ĐIỀU HƯỚNG ROUTING TỰ ĐỘNG THEO SLUG URL
+  // ==========================================
+  const syncRouteFromLocation = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const { pathname, search } = window.location;
+    const params = new URLSearchParams(search);
+    const vId = params.get('v');
+
+    if (pathname === '/admin') {
+      setCurrentPage('admin');
+      setIsSidebarOpen(false);
+    } else if (vId || pathname === '/watch') {
+      if (vId) setCurrentVideoId(vId);
+      setCurrentPage('watch');
+      setIsSidebarOpen(false);
+    } else if (pathname === '/history') {
+      setCurrentPage('home');
+      setPlaylistTab('history');
+      setActiveCategory('ALL');
+    } else if (pathname === '/favorites' || pathname === '/bookmarked') {
+      setCurrentPage('home');
+      setPlaylistTab('favorites');
+      setActiveCategory('ALL');
+    } else if (pathname.startsWith('/tags/')) {
+      const rawSlug = pathname.replace('/tags/', '').trim();
+      setCurrentPage('home');
+      setPlaylistTab('all');
+      const matched = customTopics.find((t) => slugify(t) === rawSlug);
+      setActiveCategory(matched || rawSlug);
+    } else {
+      setCurrentPage('home');
+      setPlaylistTab('all');
+      setActiveCategory('ALL');
+    }
+  }, [customTopics]);
+
+  // Hàm chuyển trang và cập nhật URL mượt mà không reload
+  const navigateTo = useCallback(
+    (targetPath: string) => {
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', targetPath);
+        syncRouteFromLocation();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [syncRouteFromLocation]
   );
 
-  const [progressMap, setProgressMap] = useState<Record<string, VideoProgress>>(
-    {}
-  );
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() =>
-    getFavoriteVideoIds()
-  );
-  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>(() =>
-    getWatchHistory()
-  );
-  const [timestampBookmarks, setTimestampBookmarks] = useState<
-    TimestampBookmark[]
-  >([]);
+  // Bắt sự kiện người dùng bấm Back / Forward trên trình duyệt
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('popstate', syncRouteFromLocation);
+    return () => window.removeEventListener('popstate', syncRouteFromLocation);
+  }, [syncRouteFromLocation]);
 
-  const [externalSeekTime, setExternalSeekTime] = useState<{
-    time: number;
-    nonce: number;
-  } | null>(null);
+  // Khởi động đồng bộ URL khi ứng dụng load lần đầu
+  useEffect(() => {
+    syncRouteFromLocation();
+  }, [syncRouteFromLocation]);
 
   const handleToggleThemeMode = useCallback(() => {
     setThemeMode((prev) => {
@@ -111,15 +146,12 @@ export default function App() {
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(THEME_STORAGE_KEY, next);
-        } catch {
-          // Ignore errors
-        }
+        } catch {}
       }
       return next;
     });
   }, []);
 
-  // Topic management handlers: deleting topic does NOT delete videos
   const handleAddTopic = useCallback((topic: string) => {
     const next = addCustomTopic(topic);
     setCustomTopics(next);
@@ -137,25 +169,8 @@ export default function App() {
     const next = resetCustomTopicsToDefault();
     setCustomTopics(next);
   }, []);
-  useEffect(() => {
-  const path = window.location.pathname;
-  if (path === '/history') {
-    setPlaylistTab('history');
-  } else if (path === '/bookmarked' || path === '/favorites') {
-    setPlaylistTab('favorites');
-  } else if (path.startsWith('/tags/')) {
-    const tagSlug = path.replace('/tags/', '');
-    // Tự động tìm tag tương ứng và kích hoạt filter
-    const found = customTopics.find((t) => t.toLowerCase().replace(/\s+/g, '-') === tagSlug);
-    if (found) setActiveCategory(found);
-  }
-}, [customTopics]);
 
-// Khi người dùng bấm tab hoặc tag, cập nhật URL không cần reload:
-const navigateSlug = (slugPath: string) => {
-  window.history.pushState({}, '', slugPath);
-};
-  // Load videos from Supabase (with automatic fallback to mockVideos.ts)
+  // Tải danh sách video từ Supabase
   useEffect(() => {
     let isMounted = true;
     fetchVideos()
@@ -165,17 +180,13 @@ const navigateSlug = (slugPath: string) => {
         if (loadedVideos.length === 0) return;
         setVideos(loadedVideos);
 
+        // Kiểm tra nếu đang có link xem video trực tiếp
         if (typeof window !== 'undefined') {
           const params = new URLSearchParams(window.location.search);
           const requestedId = params.get('v');
           if (requestedId && loadedVideos.some((v) => v.id === requestedId)) {
             setCurrentVideoId(requestedId);
             setCurrentPage('watch');
-            setIsSidebarOpen(false);
-          } else {
-            setCurrentVideoId((prev) =>
-              loadedVideos.some((v) => v.id === prev) ? prev : loadedVideos[0].id
-            );
           }
         }
       })
@@ -194,7 +205,6 @@ const navigateSlug = (slugPath: string) => {
     setProgressMap(getAllVideoProgressMap(ids));
   }, [videos]);
 
-  // Record watch history & load timestamp bookmarks when on Watch Page
   useEffect(() => {
     if (currentPage !== 'watch' || !currentVideoId) return;
     const nextHistory = recordWatchHistory(currentVideoId);
@@ -202,101 +212,67 @@ const navigateSlug = (slugPath: string) => {
     setTimestampBookmarks(getVideoTimestampBookmarks(currentVideoId));
   }, [currentPage, currentVideoId]);
 
-  // Sync browser Back/Forward navigation
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const vId = params.get('v');
-      if (vId && videos.some((v) => v.id === vId)) {
-        setCurrentVideoId(vId);
-        setCurrentPage('watch');
-        setIsSidebarOpen(false);
-      } else {
-        setCurrentPage('home');
-        setIsSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [videos]);
-
-  const handleSelectVideo = useCallback((video: Video) => {
-    setCurrentVideoId(video.id);
-    setCurrentPage('watch');
-    setIsSidebarOpen(false);
-    // Ghi nhận một lượt xem mới riêng biệt cho lần xem này
-    const nextHistory = recordWatchHistory(video.id, 0, 0, true);
-    setWatchHistory(nextHistory);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('v', video.id);
-      window.history.pushState({ videoId: video.id }, '', url.toString());
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
-
-  const handleGoHome = useCallback(() => {
-    setCurrentPage('home');
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('v');
-      window.history.pushState({}, '', url.pathname + url.search);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
+  const handleSelectVideo = useCallback(
+    (video: Video) => {
+      setCurrentVideoId(video.id);
+      const nextHistory = recordWatchHistory(video.id, 0, 0, true);
+      setWatchHistory(nextHistory);
+      navigateTo(`/watch?v=${video.id}`);
+    },
+    [navigateTo]
+  );
 
   const handleSelectSidebarItem = useCallback(
     (tab: PlaylistTab, category?: string) => {
-      setPlaylistTab(tab);
-      if (category) {
-        setActiveCategory(category);
+      if (tab === 'favorites') {
+        navigateTo('/favorites');
+      } else if (tab === 'history') {
+        navigateTo('/history');
+      } else if (category && category !== 'ALL') {
+        navigateTo(`/tags/${slugify(category)}`);
+      } else {
+        navigateTo('/');
       }
-      handleGoHome();
     },
-    [handleGoHome]
+    [navigateTo]
   );
 
   const filteredVideos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+    // Bỏ qua các video đã bị xóa tạm (soft deleted)
+    const availableVideos = videos.filter((v) => !v.deleted_at);
 
     let baseList: Video[] = [];
     if (playlistTab === 'favorites') {
       baseList = favoriteIds
-        .map((id) => videos.find((v) => v.id === id))
+        .map((id) => availableVideos.find((v) => v.id === id))
         .filter((v): v is Video => Boolean(v));
     } else if (playlistTab === 'history') {
       baseList = watchHistory
-        .map((h) => videos.find((v) => v.id === h.videoId))
+        .map((h) => availableVideos.find((v) => v.id === h.videoId))
         .filter((v): v is Video => Boolean(v));
     } else {
-      baseList = videos;
+      baseList = availableVideos;
     }
 
     return baseList.filter((video) => {
       const matchesCategory =
         playlistTab !== 'all' ||
         activeCategory === 'ALL' ||
-        video.tags.some(
-          (t) => t.toLowerCase() === activeCategory.toLowerCase()
+        (video.tags || []).some(
+          (t) =>
+            t.toLowerCase() === activeCategory.toLowerCase() ||
+            slugify(t) === slugify(activeCategory)
         );
 
       if (!matchesCategory) return false;
       if (!q) return true;
 
       const inTitle = video.title.toLowerCase().includes(q);
-      const inTags = video.tags.some((t) => t.toLowerCase().includes(q));
+      const inTags = (video.tags || []).some((t) => t.toLowerCase().includes(q));
       return inTitle || inTags;
     });
-  }, [
-    videos,
-    playlistTab,
-    favoriteIds,
-    watchHistory,
-    searchQuery,
-    activeCategory,
-  ]);
+  }, [videos, playlistTab, favoriteIds, watchHistory, searchQuery, activeCategory]);
 
   const currentVideo = useMemo(() => {
     return (
@@ -357,11 +333,7 @@ const navigateSlug = (slugPath: string) => {
     (currentTime: number) => {
       if (!currentVideo) return;
       const label = `Khoảnh khắc tại ${formatSeconds(currentTime)}`;
-      const next = addVideoTimestampBookmark(
-        currentVideo.id,
-        currentTime,
-        label
-      );
+      const next = addVideoTimestampBookmark(currentVideo.id, currentTime, label);
       setTimestampBookmarks(next);
     },
     [currentVideo]
@@ -392,7 +364,11 @@ const navigateSlug = (slugPath: string) => {
   );
 
   const handleVideoUpdated = useCallback((updated: Video) => {
-    setVideos((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
+    if (updated.deleted_at === 'permanently_deleted') {
+      setVideos((prev) => prev.filter((v) => v.id !== updated.id));
+    } else {
+      setVideos((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
+    }
   }, []);
 
   const isLight = themeMode === 'light';
@@ -400,23 +376,18 @@ const navigateSlug = (slugPath: string) => {
   return (
     <div
       className={`min-h-screen flex flex-col transition-colors duration-150 ${
-        isLight
-          ? 'bg-[#FAF7F9] text-slate-900'
-          : 'bg-[#0f0f0f] text-zinc-100'
+        isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      {/* YouTube Compact Header (Chỉ Logo & Search Button - Nền sáng/tối đã chuyển vào Sidebar) */}
       <Header
         themeMode={themeMode}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onGoHome={handleGoHome}
+        onGoHome={() => navigateTo('/')}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex w-full">
-        {/* YouTube Left Sidebar (Persistent on Desktop, Slide-over on Mobile - z-[9999] che phủ video player khi mở) */}
         <YouTubeSidebar
           isOpen={isSidebarOpen}
           currentPage={currentPage}
@@ -430,13 +401,9 @@ const navigateSlug = (slugPath: string) => {
           onOpenTopicManager={() => setIsTopicModalOpen(true)}
           onSelectHomeTab={handleSelectSidebarItem}
           onCloseMobile={() => setIsSidebarOpen(false)}
-          onOpenDevManage={() => {
-            setCurrentPage('admin');
-            setIsSidebarOpen(false);
-          }}
+          onOpenDevManage={() => navigateTo('/admin')}
         />
 
-        {/* Main View: Home Feed, Watch Page OR Dedicated Admin Dev Portal */}
         {currentPage === 'admin' ? (
           <AdminDevPortal
             themeMode={themeMode}
@@ -444,10 +411,7 @@ const navigateSlug = (slugPath: string) => {
             customTopics={customTopics}
             onVideoAdded={handleVideoAdded}
             onVideoUpdated={handleVideoUpdated}
-            onAddTopic={handleAddTopic}
-            onRemoveTopic={handleRemoveTopic}
-            onResetTopics={handleResetTopics}
-            onGoHome={handleGoHome}
+            onGoHome={() => navigateTo('/')}
           />
         ) : currentPage === 'home' ? (
           <HomeBentoGrid
@@ -465,21 +429,22 @@ const navigateSlug = (slugPath: string) => {
             onOpenTopicManager={() => setIsTopicModalOpen(true)}
             onSelectVideo={handleSelectVideo}
             onToggleFavorite={handleToggleFavorite}
-            onPlaylistTabChange={setPlaylistTab}
-            onCategoryChange={setActiveCategory}
+            onPlaylistTabChange={(tab) => {
+              if (tab === 'favorites') navigateTo('/favorites');
+              else if (tab === 'history') navigateTo('/history');
+              else navigateTo('/');
+            }}
+            onCategoryChange={(cat) => {
+              if (cat === 'ALL') navigateTo('/');
+              else navigateTo(`/tags/${slugify(cat)}`);
+            }}
             onRemoveHistoryItem={handleRemoveHistoryItem}
             onClearAllHistory={handleClearAllHistory}
-            onClearFilters={() => {
-              setSearchQuery('');
-              setActiveCategory('ALL');
-              setPlaylistTab('all');
-            }}
+            onClearFilters={() => navigateTo('/')}
           />
         ) : (
-          /* YOUTUBE FULL-WIDTH 2-COLUMN WATCH PAGE (Hiển thị toàn trang, không để khoảng trống vô nghĩa) */
           <main className="flex-1 w-full min-w-0 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 pb-20 md:pb-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
-              {/* Left Column (8 cols): Player + Details */}
               <div className="lg:col-span-8 min-w-0 w-full space-y-3">
                 {currentVideo && (
                   <>
@@ -502,11 +467,7 @@ const navigateSlug = (slugPath: string) => {
                       onToggleFavorite={handleToggleFavorite}
                       onAddTimestampBookmark={handleAddTimestampBookmark}
                       onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
-                      onTagClick={(tag) => {
-                        setPlaylistTab('all');
-                        setActiveCategory(tag);
-                        handleGoHome();
-                      }}
+                      onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
                       onSeekTo={handleSeekTo}
                       onResetProgress={handleResetProgress}
                     />
@@ -514,7 +475,6 @@ const navigateSlug = (slugPath: string) => {
                 )}
               </div>
 
-              {/* Right Column (4 cols): Playlist / Related Videos */}
               <div className="lg:col-span-4 min-w-0 w-full">
                 <PlaylistSidebar
                   videos={filteredVideos}
@@ -528,15 +488,16 @@ const navigateSlug = (slugPath: string) => {
                   searchQuery={searchQuery}
                   activeCategory={activeCategory}
                   isLoading={isLoading}
-                  onPlaylistTabChange={setPlaylistTab}
+                  onPlaylistTabChange={(tab) => {
+                    if (tab === 'favorites') navigateTo('/favorites');
+                    else if (tab === 'history') navigateTo('/history');
+                    else navigateTo('/');
+                  }}
                   onSelectVideo={handleSelectVideo}
                   onToggleFavorite={handleToggleFavorite}
                   onRemoveHistoryItem={handleRemoveHistoryItem}
                   onClearAllHistory={handleClearAllHistory}
-                  onClearFilters={() => {
-                    setSearchQuery('');
-                    setActiveCategory('ALL');
-                  }}
+                  onClearFilters={() => navigateTo('/')}
                 />
               </div>
             </div>
@@ -544,7 +505,6 @@ const navigateSlug = (slugPath: string) => {
         )}
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Home, Favorites, History, Theme) */}
       <MobileBottomNav
         currentPage={currentPage}
         themeMode={themeMode}
@@ -552,13 +512,13 @@ const navigateSlug = (slugPath: string) => {
         favoritesCount={favoriteIds.length}
         historyCount={watchHistory.length}
         onSelectTab={(tab) => {
-          setPlaylistTab(tab);
-          handleGoHome();
+          if (tab === 'favorites') navigateTo('/favorites');
+          else if (tab === 'history') navigateTo('/history');
+          else navigateTo('/');
         }}
         onToggleTheme={handleToggleThemeMode}
       />
 
-      {/* User Topic Manager Modal (Cấu hình phân loại chủ đề cho người dùng) */}
       <TopicManagerModal
         isOpen={isTopicModalOpen}
         onClose={() => setIsTopicModalOpen(false)}
@@ -570,7 +530,6 @@ const navigateSlug = (slugPath: string) => {
         onResetTopics={handleResetTopics}
       />
 
-      {/* Toast Notification Container */}
       <ToastContainer
         position="top-right"
         autoClose={3000}
