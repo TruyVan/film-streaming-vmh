@@ -314,22 +314,46 @@ export async function fetchWatchHistoryDb(): Promise<WatchHistoryItem[]> {
   }
 }
 
-export async function recordWatchHistoryDb(
+export async function createWatchSessionDb(
   videoId: string,
   seconds = 0,
   duration = '00:00:00'
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('watch_history')
+      .insert([
+        {
+          video_id: videoId,
+          watched_seconds: Math.floor(seconds),
+          duration: duration || '00:00:00',
+          watched_at: new Date().toISOString(),
+        },
+      ])
+      .select('id')
+      .single();
+
+    if (!error && data) return data.id;
+  } catch (err: any) {
+    console.error('Lỗi tạo phiên xem:', err.message);
+  }
+  return null;
+}
+
+// 2. Cập nhật số giây đã xem cho chính phiên đó (Không tạo thêm lượt mới)
+export async function updateWatchSessionProgressDb(
+  sessionId: string,
+  seconds: number
 ): Promise<void> {
   try {
-    await supabase.from('watch_history').insert([
-      {
-        video_id: videoId,
+    await supabase
+      .from('watch_history')
+      .update({
         watched_seconds: Math.floor(seconds),
-        duration: duration || '00:00:00',
-        watched_at: new Date().toISOString(),
-      },
-    ]);
+      })
+      .eq('id', sessionId);
   } catch (err: any) {
-    console.error('Lỗi ghi nhận lịch sử xem:', err.message);
+    console.error('Lỗi cập nhật tiến độ xem:', err.message);
   }
 }
 
