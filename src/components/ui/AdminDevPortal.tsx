@@ -8,7 +8,6 @@ import {
   Edit3,
   FileText,
   Upload,
-  Tag,
   Trash2,
   Film,
   XCircle,
@@ -53,7 +52,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 }) => {
   const isLight = themeMode === 'light';
 
-  // Luôn bắt nhập mã PIN mỗi lần mở trang
+  // Luôn bắt nhập mã PIN mỗi lần vào
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [passcode, setPasscode] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -101,7 +100,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Danh sách Active vs Trash (30 ngày)
+  // Lọc Active vs Trash (30 ngày)
   const now = new Date().getTime();
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -233,7 +232,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     xhr.send(file);
   };
 
-  // Upload phụ đề (.srt / .vtt)
+  // Upload phụ đề
   const handleSubtitleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     mode: 'add' | 'edit'
@@ -268,7 +267,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     reader.readAsText(file);
   };
 
-  // Upload ảnh bìa tùy chỉnh từ máy tính
+  // Upload ảnh bìa tùy chỉnh
   const handleCustomThumbnailUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     mode: 'add' | 'edit'
@@ -301,7 +300,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Mở Form SỬA PHIM (Tự động lọc chỉ giữ lại các topic còn tồn tại trong customTopics)
+  // Mở Form SỬA PHIM
   const handleStartEdit = (video: Video) => {
     setEditingVideoId(video.id);
     setEditTitle(video.title);
@@ -311,8 +310,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     setEditSubtitleFileName(video.subtitle_url ? 'Đã có phụ đề' : '');
     setEditEventDate(video.event_date);
     setEditDuration(video.duration || '00:00:00');
-    
-    // GỘP VÀ CHUẨN HÓA: Chỉ giữ lại các tag nằm trong customTopics hiện hành!
+
+    // Chỉ giữ lại các topic có trong customTopics
     const validCurrentTopics = (video.tags || []).filter((t) =>
       customTopics.some((ct) => ct.toLowerCase() === t.toLowerCase())
     );
@@ -323,7 +322,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Toggle chọn / bỏ chọn topic chuẩn
   const toggleTopicSelection = (topic: string, mode: 'add' | 'edit') => {
     if (mode === 'add') {
       setAddSelectedTopics((prev) =>
@@ -336,7 +334,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // ================= XỬ LÝ CHECKBOX HÀNG LOẠT =================
   const handleToggleSelectAll = () => {
     if (selectedIds.length === currentDisplayList.length) {
       setSelectedIds([]);
@@ -351,7 +348,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     );
   };
 
-  // Xóa tạm (Soft Delete)
   const handleSoftDelete = async (targets: string[]) => {
     if (window.confirm(`Chuyển ${targets.length} phim vào thùng rác? (Tự động xóa hẳn sau 30 ngày)`)) {
       for (const id of targets) {
@@ -364,7 +360,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Khôi phục
   const handleRestore = async (targets: string[]) => {
     for (const id of targets) {
       await restoreVideoRecord(id);
@@ -375,7 +370,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     toast.success(`Đã khôi phục ${targets.length} phim về rạp!`);
   };
 
-  // Xóa vĩnh viễn (Hard Delete)
   const handleHardDelete = async (targets: string[]) => {
     if (window.confirm(`CẢNH BÁO: Xóa vĩnh viễn ${targets.length} phim khỏi cơ sở dữ liệu? Hành động này không thể hoàn tác!`)) {
       for (const id of targets) {
@@ -388,7 +382,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Submit THÊM PHIM MỚI
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addTitle.trim() || !addVideoUrl.trim()) {
@@ -396,7 +389,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       return;
     }
 
-    // Đảm bảo chỉ lưu các topic thực sự còn tồn tại trong customTopics
     const cleanTags = addSelectedTopics.filter((t) => customTopics.includes(t));
 
     setIsSubmitting(true);
@@ -416,7 +408,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       onVideoAdded(created);
       toast.success(`Đã đăng bộ phim "${created.title}" lên rạp thành công!`);
 
-      // Reset Form
+      // Reset
       setAddTitle('');
       setAddVideoUrl('');
       setAddThumbnailUrl('');
@@ -434,7 +426,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Submit CẬP NHẬT PHIM
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVideoId) return;
@@ -472,17 +463,17 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
         isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      {/* Header Bar */}
+      {/* Top Header */}
       <div
-        className={`w-full px-4 sm:px-8 py-4 border-b flex items-center justify-between ${
-          isLight ? 'bg-white border-slate-200' : 'bg-[#141418] border-white/[0.08]'
+        className={`w-full px-4 sm:px-8 py-4 border-b flex items-center justify-between transition-colors ${
+          isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/[0.08]'
         }`}
       >
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onGoHome}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
               isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
             }`}
           >
@@ -506,14 +497,20 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       {/* Main Container */}
       <div className="w-full flex-1 px-4 sm:px-8 py-6">
         {!isAuthenticated ? (
-          /* Màn hình Khóa PIN bảo mật */
-          <div className="max-w-md mx-auto my-12 p-6 sm:p-8 rounded-2xl border shadow-xl bg-[#141418] border-white/10">
+          /* MÀN HÌNH KHÓA PIN: CHUẨN SÁNG / TỐI */
+          <div
+            className={`max-w-md mx-auto my-12 p-6 sm:p-8 rounded-2xl border shadow-xl transition-colors ${
+              isLight
+                ? 'bg-white border-slate-200 text-slate-900 shadow-slate-200/50'
+                : 'bg-[#141418] border-white/10 text-white shadow-black/40'
+            }`}
+          >
             <div className="text-center space-y-2 mb-6">
               <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto">
                 <Lock className="w-6 h-6" />
               </div>
               <h2 className="text-lg font-bold">Bảo Mật Quyền Quản Trị</h2>
-              <p className="text-xs text-zinc-400">
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                 Nhập mã PIN kỹ thuật để truy cập trung tâm quản lý rạp phim.
               </p>
             </div>
@@ -532,7 +529,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     setAuthError('');
                   }}
                   placeholder="Nhập mã PIN (admin2026)"
-                  className="w-full px-4 py-2.5 rounded-xl border text-sm bg-[#1a1a20] border-white/15 text-white focus:border-rose-500 focus:outline-none"
+                  className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none transition-colors ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                      : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                  }`}
                   autoFocus
                 />
                 {authError && <p className="text-xs text-rose-500 pt-1">{authError}</p>}
@@ -542,7 +543,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                 <button
                   type="button"
                   onClick={onGoHome}
-                  className="px-4 py-2 rounded-xl text-xs bg-white/10 hover:bg-white/15 cursor-pointer"
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-white'
+                  }`}
                 >
                   Quay lại
                 </button>
@@ -558,13 +561,19 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
         ) : (
           <div className="w-full space-y-6">
             {/* Tab điều hướng */}
-            <div className="p-1.5 rounded-2xl border flex items-center gap-1.5 bg-[#141418] border-white/10">
+            <div
+              className={`p-1.5 rounded-2xl border flex items-center gap-1.5 transition-colors ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setActiveTab('list')}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'list'
                     ? 'bg-rose-600 text-white shadow-sm'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                 }`}
               >
@@ -578,6 +587,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                 className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'add'
                     ? 'bg-rose-600 text-white shadow-sm'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
                 }`}
               >
@@ -598,8 +609,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
             {/* TAB 1: DANH SÁCH PHIM + CHECKBOX XÓA HÀNG LOẠT + NÚT SỬA */}
             {activeTab === 'list' && (
-              <div className="p-6 rounded-2xl border bg-[#141418] border-white/10 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+              <div
+                className={`p-6 rounded-2xl border space-y-4 transition-colors ${
+                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                }`}
+              >
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
+                  isLight ? 'border-slate-200' : 'border-white/10'
+                }`}>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -610,6 +627,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
                         listFilter === 'active'
                           ? 'bg-rose-600 text-white'
+                          : isLight
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           : 'bg-white/5 hover:bg-white/10 text-zinc-400'
                       }`}
                     >
@@ -624,6 +643,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
                         listFilter === 'trash'
                           ? 'bg-amber-600 text-white'
+                          : isLight
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                           : 'bg-white/5 hover:bg-white/10 text-zinc-400'
                       }`}
                     >
@@ -633,15 +654,17 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
                   {/* Thanh thao tác hàng loạt */}
                   {selectedIds.length > 0 && (
-                    <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl">
-                      <span className="text-xs font-bold text-rose-400">
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
+                      isLight ? 'bg-rose-50 border border-rose-200' : 'bg-white/10'
+                    }`}>
+                      <span className="text-xs font-bold text-rose-500">
                         Đã chọn {selectedIds.length} phim:
                       </span>
                       {listFilter === 'active' ? (
                         <button
                           type="button"
                           onClick={() => handleSoftDelete(selectedIds)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-semibold cursor-pointer"
                         >
                           Xóa tạm đã chọn
                         </button>
@@ -650,14 +673,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRestore(selectedIds)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-semibold cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300 text-xs font-semibold cursor-pointer"
                           >
                             Khôi phục đã chọn
                           </button>
                           <button
                             type="button"
                             onClick={() => handleHardDelete(selectedIds)}
-                            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-300 text-xs font-semibold cursor-pointer"
                           >
                             Xóa hẳn đã chọn
                           </button>
@@ -669,11 +692,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
                 {/* Chọn tất cả */}
                 {currentDisplayList.length > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1 text-xs text-zinc-400">
+                  <div className={`flex items-center gap-2 px-3 py-1 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                     <button
                       type="button"
                       onClick={handleToggleSelectAll}
-                      className="flex items-center gap-1.5 hover:text-white cursor-pointer"
+                      className={`flex items-center gap-1.5 cursor-pointer ${isLight ? 'hover:text-slate-900' : 'hover:text-white'}`}
                     >
                       {selectedIds.length === currentDisplayList.length ? (
                         <CheckSquare className="w-4 h-4 text-rose-500" />
@@ -688,7 +711,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                 {/* Danh sách từng phim */}
                 <div className="space-y-3">
                   {currentDisplayList.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-500 text-xs">
+                    <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
                       Không có bộ phim nào trong danh sách này.
                     </div>
                   ) : (
@@ -699,16 +722,19 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           key={video.id}
                           className={`p-3 rounded-xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                             isSelected
-                              ? 'border-rose-500/50 bg-rose-500/5'
+                              ? isLight
+                                ? 'border-rose-300 bg-rose-50/50'
+                                : 'border-rose-500/50 bg-rose-500/5'
+                              : isLight
+                              ? 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/70'
                               : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            {/* Checkbox */}
                             <button
                               type="button"
                               onClick={() => handleToggleSelectItem(video.id)}
-                              className="text-zinc-400 hover:text-white cursor-pointer shrink-0"
+                              className={`cursor-pointer shrink-0 ${isLight ? 'text-slate-400 hover:text-slate-900' : 'text-zinc-400 hover:text-white'}`}
                             >
                               {isSelected ? (
                                 <CheckSquare className="w-4 h-4 text-rose-500" />
@@ -717,8 +743,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                               )}
                             </button>
 
-                            {/* Thumbnail */}
-                            <div className="w-32 h-18 rounded-lg overflow-hidden bg-black/40 shrink-0 relative border border-white/10">
+                            <div className="w-32 h-18 rounded-lg overflow-hidden bg-black/40 shrink-0 relative border border-slate-200 dark:border-white/10">
                               {video.thumbnail_url ? (
                                 <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
                               ) : (
@@ -731,22 +756,28 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                               </span>
                             </div>
 
-                            {/* Thông tin */}
                             <div className="min-w-0 space-y-1">
-                              <h3 className="text-sm font-bold truncate text-white">{video.title}</h3>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+                              <h3 className={`text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                {video.title}
+                              </h3>
+                              <div className={`flex flex-wrap items-center gap-3 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                                 <span className="flex items-center gap-1 font-mono">
                                   <Calendar className="w-3.5 h-3.5" />
                                   {video.event_date}
                                 </span>
                                 {video.subtitle_url && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold">
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
                                     CC Phụ đề
                                   </span>
                                 )}
                                 <div className="flex flex-wrap gap-1">
                                   {(video.tags || []).map((t) => (
-                                    <span key={t} className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-zinc-300">
+                                    <span
+                                      key={t}
+                                      className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                        isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
+                                      }`}
+                                    >
                                       #{t}
                                     </span>
                                   ))}
@@ -755,22 +786,23 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             </div>
                           </div>
 
-                          {/* Nút hành động */}
                           <div className="flex items-center gap-2 shrink-0">
                             {listFilter === 'active' ? (
                               <>
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(video)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold cursor-pointer transition-colors"
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                                    isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-800' : 'bg-white/10 hover:bg-white/20 text-white'
+                                  }`}
                                 >
-                                  <Edit3 className="w-3.5 h-3.5 text-rose-400" />
+                                  <Edit3 className="w-3.5 h-3.5 text-rose-500" />
                                   <span>Sửa</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleSoftDelete([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-xs font-semibold cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-500 text-xs font-semibold cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   <span>Xóa tạm</span>
@@ -781,7 +813,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleRestore([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-semibold cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500 text-xs font-semibold cursor-pointer"
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />
                                   <span>Khôi phục</span>
@@ -789,7 +821,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleHardDelete([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-xs font-semibold cursor-pointer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-500 text-xs font-semibold cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   <span>Xóa hẳn</span>
@@ -805,24 +837,34 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               </div>
             )}
 
-            {/* TAB 2: THÊM PHIM MỚI (CHỦ ĐỀ GỘP 100% VỚI TOPICS CỦA HỆ THỐNG) */}
+            {/* TAB 2: THÊM PHIM MỚI */}
             {activeTab === 'add' && (
-              <div className="p-6 sm:p-8 rounded-2xl border bg-[#141418] border-white/10 space-y-6">
-                <div className="pb-4 border-b border-white/10">
+              <div
+                className={`p-6 sm:p-8 rounded-2xl border space-y-6 transition-colors ${
+                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                }`}
+              >
+                <div className={`pb-4 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
                   <h2 className="text-base sm:text-lg font-bold">Tải Lên Phim Mới</h2>
-                  <p className="text-xs text-zinc-400">
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                     File video sẽ tự động trích xuất ảnh bìa và thời lượng khi chọn file.
                   </p>
                 </div>
 
                 <form onSubmit={handleAddSubmit} className="space-y-6">
                   {/* Upload video container */}
-                  <div className="p-5 rounded-2xl border-2 border-dashed border-rose-500/40 bg-rose-500/5">
+                  <div
+                    className={`p-5 rounded-2xl border-2 border-dashed transition-all ${
+                      isLight
+                        ? 'border-rose-300 bg-rose-50/40 hover:border-rose-400'
+                        : 'border-rose-500/40 bg-rose-500/5 hover:border-rose-500/60'
+                    }`}
+                  >
                     {uploadProgress === null && !uploadedVideoFile ? (
                       <div className="text-center py-4">
                         <Upload className="w-8 h-8 text-rose-500 mx-auto mb-2" />
                         <h3 className="text-sm font-bold mb-1">Kéo thả hoặc Chọn file Phim (.mp4)</h3>
-                        <p className="text-xs text-zinc-400 mb-4">
+                        <p className={`text-xs mb-4 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                           Tự động tải lên VPS, đo thời lượng và chụp ảnh bìa từ video.
                         </p>
                         <label className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md">
@@ -834,12 +876,12 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-emerald-400 flex items-center gap-1.5">
+                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                             <Check className="w-4 h-4" />
                             <span>Đã nạp file: {uploadedVideoFile?.name} ({uploadedVideoFile?.sizeMB} MB)</span>
                           </span>
                           <div className="flex items-center gap-3">
-                            <span className="font-mono text-zinc-400">{uploadSpeed}</span>
+                            <span className="font-mono text-slate-500 dark:text-zinc-400">{uploadSpeed}</span>
                             <span className="text-rose-500 font-mono text-sm">{uploadProgress}%</span>
                             {uploadProgress !== 100 && (
                               <button type="button" onClick={handleCancelUpload} className="text-zinc-400 hover:text-rose-500">
@@ -849,7 +891,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           </div>
                         </div>
 
-                        <div className="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
+                        <div className={`w-full h-2.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
                           <div
                             className="h-full bg-gradient-to-r from-rose-600 to-pink-500 transition-all duration-200"
                             style={{ width: `${uploadProgress || 100}%` }}
@@ -867,7 +909,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         value={addTitle}
                         onChange={(e) => setAddTitle(e.target.value)}
                         placeholder="Tiêu đề phim..."
-                        className="w-full px-4 py-2.5 rounded-xl border text-xs bg-[#1a1a20] border-white/15 text-white focus:border-rose-500 focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
                         required
                       />
                     </div>
@@ -875,7 +921,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     <div className="space-y-2">
                       <label className="block text-xs font-semibold flex items-center justify-between">
                         <span>Link phát Video (.mp4) *</span>
-                        <span className={`text-[10px] font-mono ${addVideoUrl ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <span className={`text-[10px] font-mono ${addVideoUrl ? 'text-emerald-500' : 'text-amber-500'}`}>
                           {addVideoUrl ? '✓ Link đã sẵn sàng' : 'Đang chờ upload...'}
                         </span>
                       </label>
@@ -884,7 +930,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         value={addVideoUrl}
                         onChange={(e) => setAddVideoUrl(e.target.value)}
                         placeholder={`${VOD_BASE_URL}/videos/phim.mp4`}
-                        className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
                         required
                       />
                     </div>
@@ -893,7 +943,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold">Ảnh Bìa (Thumbnail)</label>
-                        <label className="text-xs text-rose-400 hover:underline cursor-pointer flex items-center gap-1">
+                        <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1">
                           <ImageIcon className="w-3.5 h-3.5" />
                           <span>Tải ảnh khác từ máy</span>
                           <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'add')} className="hidden" />
@@ -901,11 +951,13 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       </div>
                       <div className="flex items-center gap-3">
                         {addThumbnailUrl ? (
-                          <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/20 shrink-0">
+                          <div className="w-24 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-white/20 shrink-0">
                             <img src={addThumbnailUrl} alt="Thumbnail preview" className="w-full h-full object-cover" />
                           </div>
                         ) : (
-                          <div className="w-24 h-14 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center text-zinc-500 text-xs shrink-0">
+                          <div className={`w-24 h-14 rounded-lg flex items-center justify-center text-xs shrink-0 border ${
+                            isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-black/40 border-white/10 text-zinc-500'
+                          }`}>
                             Chưa có
                           </div>
                         )}
@@ -914,7 +966,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           value={addThumbnailUrl}
                           onChange={(e) => setAddThumbnailUrl(e.target.value)}
                           placeholder="Link ảnh bìa hoặc tự trích xuất..."
-                          className="flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
@@ -926,7 +982,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="date"
                           value={addEventDate}
                           onChange={(e) => setAddEventDate(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl border text-xs bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -935,21 +995,27 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="text"
                           value={addDuration}
                           onChange={(e) => setAddDuration(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* VÙNG PHỤ ĐỀ (.SRT / .VTT) */}
-                  <div className="p-4 rounded-xl border border-white/10 bg-black/20 space-y-3">
+                  {/* VÙNG PHỤ ĐỀ */}
+                  <div className={`p-4 rounded-xl border space-y-3 transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'
+                  }`}>
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold flex items-center gap-2">
                         <FileText className="w-4 h-4 text-rose-500" />
                         <span>Phụ đề Phim (.SRT / .VTT)</span>
                       </label>
                       {addSubtitleFileName && (
-                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" />
                           <span>{addSubtitleFileName}</span>
                         </span>
@@ -958,7 +1024,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-semibold mb-1 opacity-80">
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'opacity-80'}`}>
                           Cách 1: Nạp file .srt từ máy tính
                         </label>
                         <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer transition-colors">
@@ -969,7 +1035,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-semibold mb-1 opacity-80">
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'opacity-80'}`}>
                           Cách 2: Hoặc link phụ đề có sẵn
                         </label>
                         <input
@@ -980,26 +1046,30 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             setAddSubtitleFileName(e.target.value ? 'Link trực tiếp' : '');
                           }}
                           placeholder={`${VOD_BASE_URL}/subtitles/phim.vtt`}
-                          className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-white border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* VÙNG CHỦ ĐỀ / TOPICS CHUẨN HOÁ (KHÔNG CHO NHẬP TÙY TIỆN) */}
+                  {/* VÙNG CHỦ ĐỀ / TOPICS */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-semibold">
                         Chủ đề / Thể loại phim (Chọn từ danh mục hệ thống)
                       </label>
-                      <span className="text-[11px] text-zinc-400">
+                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                         Đã chọn: {addSelectedTopics.length} chủ đề
                       </span>
                     </div>
 
                     {customTopics.length === 0 ? (
-                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300 text-xs flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
                         <span>
                           Chưa có chủ đề nào được tạo. Vui lòng quay ra Sidebar bấm <strong>"Cấu hình chủ đề..."</strong> để thêm trước khi gắn cho phim nhé!
                         </span>
@@ -1014,7 +1084,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                               type="button"
                               onClick={() => toggleTopicSelection(topic, 'add')}
                               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                                isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                                isSelected
+                                  ? 'bg-rose-600 text-white shadow-xs'
+                                  : isLight
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                  : 'bg-white/10 hover:bg-white/15 text-zinc-300'
                               }`}
                             >
                               {isSelected ? '✓ ' : '+ '}
@@ -1034,11 +1108,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       value={addDescription}
                       onChange={(e) => setAddDescription(e.target.value)}
                       placeholder="Mô tả nội dung phim..."
-                      className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                        isLight
+                          ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                          : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                      }`}
                     />
                   </div>
 
-                  {/* NÚT SUBMIT */}
+                  {/* Nút Submit */}
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="submit"
@@ -1054,18 +1132,24 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
             {/* TAB 3: CHỈNH SỬA PHIM HIỆN CÓ (EDIT FORM) */}
             {activeTab === 'edit' && (
-              <div className="p-6 sm:p-8 rounded-2xl border bg-[#141418] border-white/10 space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div
+                className={`p-6 sm:p-8 rounded-2xl border space-y-6 transition-colors ${
+                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                }`}
+              >
+                <div className={`flex items-center justify-between pb-4 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
                   <div>
                     <h2 className="text-base sm:text-lg font-bold">Cập Nhật Thông Tin Phim</h2>
-                    <p className="text-xs text-zinc-400">
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                       Chỉnh sửa tiêu đề, đổi phụ đề, cập nhật ảnh bìa hoặc thay đổi chủ đề của phim.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveTab('list')}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold cursor-pointer"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                      isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-white'
+                    }`}
                   >
                     Hủy bỏ
                   </button>
@@ -1079,7 +1163,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border text-xs bg-[#1a1a20] border-white/15 text-white focus:border-rose-500 focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
                         required
                       />
                     </div>
@@ -1090,7 +1178,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         type="url"
                         value={editVideoUrl}
                         onChange={(e) => setEditVideoUrl(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
                         required
                       />
                     </div>
@@ -1098,7 +1190,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold">Ảnh Bìa (Thumbnail)</label>
-                        <label className="text-xs text-rose-400 hover:underline cursor-pointer flex items-center gap-1">
+                        <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1">
                           <ImageIcon className="w-3.5 h-3.5" />
                           <span>Tải ảnh từ máy</span>
                           <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'edit')} className="hidden" />
@@ -1106,11 +1198,13 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       </div>
                       <div className="flex items-center gap-3">
                         {editThumbnailUrl ? (
-                          <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/20 shrink-0">
+                          <div className="w-24 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-white/20 shrink-0">
                             <img src={editThumbnailUrl} alt="Thumbnail preview" className="w-full h-full object-cover" />
                           </div>
                         ) : (
-                          <div className="w-24 h-14 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center text-zinc-500 text-xs shrink-0">
+                          <div className={`w-24 h-14 rounded-lg flex items-center justify-center text-xs shrink-0 border ${
+                            isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-black/40 border-white/10 text-zinc-500'
+                          }`}>
                             Chưa có
                           </div>
                         )}
@@ -1118,7 +1212,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="text"
                           value={editThumbnailUrl}
                           onChange={(e) => setEditThumbnailUrl(e.target.value)}
-                          className="flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1130,7 +1228,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="date"
                           value={editEventDate}
                           onChange={(e) => setEditEventDate(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl border text-xs bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                       <div className="space-y-2">
@@ -1139,21 +1241,27 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="text"
                           value={editDuration}
                           onChange={(e) => setEditDuration(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* PHỤ ĐỀ TRONG FORM SỬA */}
-                  <div className="p-4 rounded-xl border border-white/10 bg-black/20 space-y-3">
+                  <div className={`p-4 rounded-xl border space-y-3 transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'
+                  }`}>
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold flex items-center gap-2">
                         <FileText className="w-4 h-4 text-rose-500" />
                         <span>Thay thế Phụ đề Phim (.SRT / .VTT)</span>
                       </label>
                       {editSubtitleFileName && (
-                        <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                           <Check className="w-3.5 h-3.5" />
                           <span>{editSubtitleFileName}</span>
                         </span>
@@ -1162,7 +1270,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer">
+                        <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer transition-colors">
                           <Upload className="w-4 h-4" />
                           <span>Chọn file .srt mới</span>
                           <input type="file" accept=".srt,.vtt,.txt" onChange={(e) => handleSubtitleFileUpload(e, 'edit')} className="hidden" />
@@ -1177,7 +1285,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             setEditSubtitleFileName(e.target.value ? 'Link trực tiếp' : '');
                           }}
                           placeholder="Dán link phụ đề..."
-                          className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-white border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1187,12 +1299,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-semibold">Chủ đề của phim (Chọn từ danh mục hệ thống)</label>
-                      <span className="text-[11px] text-zinc-400">Đã chọn: {editSelectedTopics.length}</span>
+                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        Đã chọn: {editSelectedTopics.length}
+                      </span>
                     </div>
 
                     {customTopics.length === 0 ? (
-                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300 text-xs flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
                         <span>Chưa có chủ đề nào trong hệ thống. Vui lòng tạo ở Sidebar trước!</span>
                       </div>
                     ) : (
@@ -1205,7 +1319,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                               type="button"
                               onClick={() => toggleTopicSelection(topic, 'edit')}
                               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                                isSelected ? 'bg-rose-600 text-white shadow-xs' : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                                isSelected
+                                  ? 'bg-rose-600 text-white shadow-xs'
+                                  : isLight
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                  : 'bg-white/10 hover:bg-white/15 text-zinc-300'
                               }`}
                             >
                               {isSelected ? '✓ ' : '+ '}
@@ -1223,7 +1341,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       rows={3}
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono bg-[#1a1a20] border-white/15 text-white focus:outline-none"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
+                        isLight
+                          ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                          : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                      }`}
                     />
                   </div>
 
@@ -1231,7 +1353,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('list')}
-                      className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold cursor-pointer"
+                      className={`px-5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                        isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-white'
+                      }`}
                     >
                       Hủy
                     </button>
