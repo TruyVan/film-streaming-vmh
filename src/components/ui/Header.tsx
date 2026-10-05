@@ -150,9 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="flex items-center gap-2 select-none whitespace-nowrap cursor-pointer group"
             >
-              <span className="w-7 h-5 rounded-md bg-[#ff0033] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                <img src="https://krvabedjwomlyhsjande.supabase.co/storage/v1/object/public/assets/favicon.png" className="w-7 h-7 object-contain rounded-md" />
-              </span>
+              <img src="https://krvabedjwomlyhsjande.supabase.co/storage/v1/object/public/assets/favicon.png" className="w-7 h-7 object-contain rounded-md" />
               <span className="font-display text-lg font-extrabold tracking-tight">
                 Harry Potter Tube
               </span>
