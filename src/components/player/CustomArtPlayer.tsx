@@ -675,12 +675,19 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           display: none !important;
           pointer-events: none !important;
         }
+
         .art-video-player .art-bottom {
-          z-index: 50 !important;
+          z-index: 25 !important;
+          pointer-events: none !important;
+        }
+        /* Chỉ các nút con ở mép đáy mới nhận click */
+        .art-video-player .art-controls,
+        .art-video-player .art-progress {
           pointer-events: auto !important;
         }
+
         .art-video-player .art-layer-top-actions {
-          z-index: 60 !important;
+          z-index: 40 !important;
           pointer-events: auto !important;
         }
       `;
