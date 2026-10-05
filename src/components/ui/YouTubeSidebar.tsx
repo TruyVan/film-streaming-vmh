@@ -1,364 +1,563 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ToastContainer } from 'react-toastify';
 import {
-  Home,
-  Bookmark,
-  History,
-  X,
-  Key,
-  SlidersHorizontal,
-  FolderHeart,
-} from 'lucide-react';
-import { PlaylistTab, ThemeMode } from '../../types/video';
-import { ThemeSwitch } from './ThemeSwitch';
+  PlaylistTab,
+  ThemeMode,
+  TimestampBookmark,
+  Video,
+  VideoProgress,
+  WatchHistoryItem,
+} from './types/video';
+import {
+  fetchVideos,
+  fetchTopicsDb,
+  addTopicDb,
+  removeTopicDb,
+  fetchFavoritesDb,
+  toggleFavoriteDb,
+  fetchWatchHistoryDb,
+  recordWatchHistoryDb,
+  clearAllWatchHistoryDb,
+} from './lib/supabase';
+import {
+  addVideoTimestampBookmark,
+  clearVideoProgress,
+  formatSeconds,
+  getAllVideoProgressMap,
+  getVideoTimestampBookmarks,
+  removeVideoTimestampBookmark,
+} from './lib/progress';
+import { Header } from './components/ui/Header';
+import { YouTubeSidebar } from './components/ui/YouTubeSidebar';
+import { HomeBentoGrid } from './components/ui/HomeBentoGrid';
+import { CustomArtPlayer } from './components/player/CustomArtPlayer';
+import { VideoDetails } from './components/ui/VideoDetails';
+import { PlaylistSidebar } from './components/ui/PlaylistSidebar';
+import { AdminDevPortal } from './components/ui/AdminDevPortal';
+import { TopicManagerModal } from './components/ui/TopicManagerModal';
+import { MobileBottomNav } from './components/ui/MobileBottomNav';
 
-interface YouTubeSidebarProps {
-  isOpen: boolean;
-  currentPage: 'home' | 'watch' | 'admin';
-  themeMode: ThemeMode;
-  onToggleThemeMode: () => void;
-  playlistTab: PlaylistTab;
-  activeCategory: string;
-  favoritesCount: number;
-  historyCount: number;
-  customTopics?: string[];
-  onOpenTopicManager?: () => void;
-  onSelectHomeTab: (tab: PlaylistTab, category?: string) => void;
-  onCloseMobile: () => void;
-  onOpenDevManage: () => void;
-}
+const THEME_STORAGE_KEY = 'partystream_theme_mode_v1';
 
-export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
-  isOpen,
-  currentPage,
-  themeMode,
-  onToggleThemeMode,
-  playlistTab,
-  activeCategory,
-  favoritesCount,
-  historyCount,
-  customTopics = [],
-  onOpenTopicManager,
-  onSelectHomeTab,
-  onCloseMobile,
-  onOpenDevManage,
-}) => {
-  const isLight = themeMode === 'light';
+// Chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
+export const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+
+export default function App() {
+  // Dữ liệu Video từ Supabase (Không mock)
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>('home');
+  const [currentVideoId, setCurrentVideoId] = useState<string>('');
+
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    }
+    return 'dark';
+  });
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('ALL');
+  const [playlistTab, setPlaylistTab] = useState<PlaylistTab>('all');
+  const [isTopicModalOpen, setIsTopicModalOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Dữ liệu đồng bộ trực tiếp từ Supabase
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<string, VideoProgress>>({});
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
+  const [timestampBookmarks, setTimestampBookmarks] = useState<TimestampBookmark[]>([]);
+  const [externalSeekTime, setExternalSeekTime] = useState<{ time: number; nonce: number } | null>(null);
+
+  // ==========================================
+  // BỘ ĐIỀU HƯỚNG ROUTING TỰ ĐỘNG THEO SLUG URL
+  // ==========================================
+  const syncRouteFromLocation = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const { pathname, search } = window.location;
+    const params = new URLSearchParams(search);
+    const vId = params.get('v');
+
+    if (pathname === '/admin') {
+      setCurrentPage('admin');
+      setIsSidebarOpen(false);
+    } else if (vId || pathname === '/watch') {
+      if (vId) setCurrentVideoId(vId);
+      setCurrentPage('watch');
+      setIsSidebarOpen(false);
+    } else if (pathname === '/history') {
+      setCurrentPage('home');
+      setPlaylistTab('history');
+      setActiveCategory('ALL');
+    } else if (pathname === '/favorites' || pathname === '/bookmarked') {
+      setCurrentPage('home');
+      setPlaylistTab('favorites');
+      setActiveCategory('ALL');
+    } else if (pathname.startsWith('/tags/')) {
+      const rawSlug = pathname.replace('/tags/', '').trim();
+      setCurrentPage('home');
+      setPlaylistTab('all');
+      const matched = customTopics.find((t) => slugify(t) === rawSlug);
+      setActiveCategory(matched || rawSlug);
+    } else {
+      setCurrentPage('home');
+      setPlaylistTab('all');
+      setActiveCategory('ALL');
+    }
+  }, [customTopics]);
+
+  // Chuyển trang và cập nhật URL mượt mà
+  const navigateTo = useCallback(
+    (targetPath: string) => {
+      if (typeof window !== 'undefined') {
+        window.history.pushState({}, '', targetPath);
+        syncRouteFromLocation();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [syncRouteFromLocation]
+  );
 
   useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCloseMobile();
-      }
+    if (typeof window === 'undefined') return;
+    window.addEventListener('popstate', syncRouteFromLocation);
+    return () => window.removeEventListener('popstate', syncRouteFromLocation);
+  }, [syncRouteFromLocation]);
+
+  useEffect(() => {
+    syncRouteFromLocation();
+  }, [syncRouteFromLocation]);
+
+  // ==========================================
+  // TẢI TOÀN BỘ DỮ LIỆU TỪ SUPABASE (PROMISE.ALL)
+  // ==========================================
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    Promise.all([
+      fetchVideos(),
+      fetchTopicsDb(),
+      fetchFavoritesDb(),
+      fetchWatchHistoryDb(),
+    ])
+      .then(([videosRes, topics, favs, history]) => {
+        if (!isMounted) return;
+        const loadedVideos = videosRes.videos || [];
+        setVideos(loadedVideos);
+        setCustomTopics(topics);
+        setFavoriteIds(favs);
+        setWatchHistory(history);
+        setIsLoading(false);
+
+        // Kiểm tra link xem video nếu có sẵn trên URL
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const requestedId = params.get('v');
+          if (requestedId && loadedVideos.some((v) => v.id === requestedId)) {
+            setCurrentVideoId(requestedId);
+            setCurrentPage('watch');
+          } else if (loadedVideos.length > 0) {
+            setCurrentVideoId(loadedVideos[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Lỗi khi nạp dữ liệu Supabase:', err);
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCloseMobile]);
+  }, []);
 
-  const navItemClass = (isActive: boolean) =>
-    `w-full flex items-center gap-4 px-3.5 py-2.5 rounded-xl text-sm transition-colors cursor-pointer select-none ${
-      isActive
-        ? isLight
-          ? 'bg-[#F2BBC9]/45 text-slate-950 font-bold'
-          : 'bg-white/10 text-white font-bold'
-        : isLight
-        ? 'text-slate-700 hover:bg-slate-200/70 font-medium'
-        : 'text-zinc-300 hover:bg-white/[0.06] font-medium'
-    }`;
+  useEffect(() => {
+    const ids = videos.map((v) => v.id);
+    setProgressMap(getAllVideoProgressMap(ids));
+  }, [videos]);
 
-  const renderNavLinks = (onItemClick?: () => void) => (
-    <div className="flex-1 flex flex-col justify-between">
-      <div>
-        <div className="space-y-1">
-          {/* TRANG CHỦ */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectHomeTab('all', 'ALL');
-              onItemClick?.();
-            }}
-            className={navItemClass(
-              currentPage === 'home' && playlistTab === 'all' && activeCategory === 'ALL'
-            )}
-          >
-            <Home className="w-5 h-5 shrink-0" />
-            <span className="truncate">Trang chủ</span>
-          </button>
+  useEffect(() => {
+    if (currentPage !== 'watch' || !currentVideoId) return;
+    setTimestampBookmarks(getVideoTimestampBookmarks(currentVideoId));
+  }, [currentPage, currentVideoId]);
 
-          {/* VIDEO YÊU THÍCH (/favorites) */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectHomeTab('favorites');
-              onItemClick?.();
-            }}
-            className={navItemClass(currentPage === 'home' && playlistTab === 'favorites')}
-          >
-            <Bookmark className="w-5 h-5 shrink-0" />
-            <span className="flex-1 text-left truncate">Video yêu thích</span>
-            {favoritesCount > 0 && (
-              <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-500 font-bold">
-                {favoritesCount}
-              </span>
-            )}
-          </button>
+  // ==========================================
+  // CÁC HÀM XỬ LÝ NGHIỆP VỤ (ĐÃ ĐỒNG BỘ SUPABASE)
+  // ==========================================
+  const handleToggleThemeMode = useCallback(() => {
+    setThemeMode((prev) => {
+      const next: ThemeMode = prev === 'light' ? 'dark' : 'light';
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, next);
+        } catch {}
+      }
+      return next;
+    });
+  }, []);
 
-          {/* LỊCH SỬ XEM (/history) */}
-          <button
-            type="button"
-            onClick={() => {
-              onSelectHomeTab('history');
-              onItemClick?.();
-            }}
-            className={navItemClass(currentPage === 'home' && playlistTab === 'history')}
-          >
-            <History className="w-5 h-5 shrink-0" />
-            <span className="flex-1 text-left truncate">Lịch sử xem</span>
-            {historyCount > 0 && (
-              <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 font-bold">
-                {historyCount}
-              </span>
-            )}
-          </button>
-        </div>
+  const handleAddTopic = useCallback(async (topic: string) => {
+    await addTopicDb(topic);
+    setCustomTopics((prev) => (prev.includes(topic) ? prev : [...prev, topic]));
+  }, []);
 
-        <hr className={`my-3.5 ${isLight ? 'border-slate-200' : 'border-white/10'}`} />
+  const handleRemoveTopic = useCallback(async (topic: string) => {
+    await removeTopicDb(topic);
+    setCustomTopics((prev) => prev.filter((t) => t.toLowerCase() !== topic.toLowerCase()));
+    setActiveCategory((prev) => (prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev));
+  }, []);
 
-        <div className="px-3 py-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wider opacity-60">
-          <span>Khám phá chủ đề</span>
-        </div>
+  const handleResetTopics = useCallback(async () => {
+    await addTopicDb('Harry Potter');
+    await addTopicDb('Phim Hay');
+    setCustomTopics(['Harry Potter', 'Phim Hay']);
+  }, []);
 
-        {/* DANH SÁCH CHỦ ĐỀ (/tags/:slug) */}
-        <div className="space-y-1 mt-1">
-          {customTopics.map((topic) => {
-            const isActive =
-              currentPage === 'home' &&
-              playlistTab === 'all' &&
-              activeCategory.toLowerCase() === topic.toLowerCase();
-
-            return (
-              <button
-                key={topic}
-                type="button"
-                onClick={() => {
-                  onSelectHomeTab('all', topic);
-                  onItemClick?.();
-                }}
-                className={navItemClass(isActive)}
-              >
-                <FolderHeart className="w-4 h-4 shrink-0 opacity-75" />
-                <span className="truncate text-xs sm:text-sm">{topic}</span>
-              </button>
-            );
-          })}
-
-          {onOpenTopicManager && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpenTopicManager();
-                onItemClick?.();
-              }}
-              className="w-full flex items-center gap-3 px-3.5 py-2 mt-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-            >
-              <SlidersHorizontal className="w-4 h-4 shrink-0" />
-              <span>Cấu hình chủ đề...</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* FOOTER: Theme Switch & Nút Admin Dev Portal (/admin) */}
-      <div className="pt-4 mt-4 border-t border-black/10 dark:border-white/10 space-y-2">
-        <button
-          type="button"
-          onClick={() => onToggleThemeMode()}
-          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer select-none text-left ${
-            isLight
-              ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-              : 'bg-white/5 hover:bg-white/10 text-zinc-200'
-          }`}
-          title="Bấm để đổi giao diện Sáng / Tối"
-        >
-          <div className="flex flex-col pointer-events-none">
-            <span className="text-xs font-semibold">Giao diện</span>
-            <span className="text-[11px] opacity-65">
-              {isLight ? 'Đang bật Sáng' : 'Đang bật Tối'}
-            </span>
-          </div>
-        
-          <div className="pointer-events-none">
-            <ThemeSwitch
-              id={onItemClick ? 'themeToggleMobile' : 'themeToggleDesktop'}
-              checked={isLight}
-              onChange={() => {}}
-            />
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            onOpenDevManage();
-            onItemClick?.();
-          }}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-            currentPage === 'admin'
-              ? 'bg-rose-600 text-white shadow-md'
-              : isLight
-              ? 'bg-amber-500/10 hover:bg-amber-500/15 text-amber-900 border border-amber-500/20'
-              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20'
-          }`}
-          title="Khu vực quản trị phim & máy chủ VPS"
-        >
-          <Key className="w-4 h-4 text-amber-500 shrink-0" />
-          <div className="flex-1 text-left">
-            <div>Quản Trị Rạp Phim (Dev)</div>
-            <div className="text-[10px] font-normal opacity-75">Tải phim, Xóa tạm & Cấu hình</div>
-          </div>
-        </button>
-      </div>
-    </div>
+  const handleSelectVideo = useCallback(
+    async (video: Video) => {
+      setCurrentVideoId(video.id);
+      await recordWatchHistoryDb(video.id, 0, video.duration || '00:00:00');
+      const updatedHistory = await fetchWatchHistoryDb();
+      setWatchHistory(updatedHistory);
+      navigateTo(`/watch?v=${video.id}`);
+    },
+    [navigateTo]
   );
+
+  const handleSelectSidebarItem = useCallback(
+    (tab: PlaylistTab, category?: string) => {
+      if (tab === 'favorites') {
+        navigateTo('/favorites');
+      } else if (tab === 'history') {
+        navigateTo('/history');
+      } else if (category && category !== 'ALL') {
+        navigateTo(`/tags/${slugify(category)}`);
+      } else {
+        navigateTo('/');
+      }
+    },
+    [navigateTo]
+  );
+
+  const filteredVideos = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const availableVideos = videos.filter((v) => !v.deleted_at);
+
+    let baseList: Video[] = [];
+    if (playlistTab === 'favorites') {
+      baseList = favoriteIds
+        .map((id) => availableVideos.find((v) => v.id === id))
+        .filter((v): v is Video => Boolean(v));
+    } else if (playlistTab === 'history') {
+      baseList = watchHistory
+        .map((h) => availableVideos.find((v) => v.id === h.videoId))
+        .filter((v): v is Video => Boolean(v));
+    } else {
+      baseList = availableVideos;
+    }
+
+    return baseList.filter((video) => {
+      const matchesCategory =
+        playlistTab !== 'all' ||
+        activeCategory === 'ALL' ||
+        (video.tags || []).some(
+          (t) =>
+            t.toLowerCase() === activeCategory.toLowerCase() ||
+            slugify(t) === slugify(activeCategory)
+        );
+
+      if (!matchesCategory) return false;
+      if (!q) return true;
+
+      const inTitle = video.title.toLowerCase().includes(q);
+      const inTags = (video.tags || []).some((t) => t.toLowerCase().includes(q));
+      return inTitle || inTags;
+    });
+  }, [videos, playlistTab, favoriteIds, watchHistory, searchQuery, activeCategory]);
+
+  const currentVideo = useMemo(() => {
+    return (
+      videos.find((v) => v.id === currentVideoId) ||
+      filteredVideos[0] ||
+      videos[0]
+    );
+  }, [videos, currentVideoId, filteredVideos]);
+
+  const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
+    setProgressMap((prev) => ({
+      ...prev,
+      [updated.videoId]: updated,
+    }));
+    await recordWatchHistoryDb(
+      updated.videoId,
+      updated.currentTime,
+      formatSeconds(updated.duration)
+    );
+    const updatedHistory = await fetchWatchHistoryDb();
+    setWatchHistory(updatedHistory);
+  }, []);
+
+  const handleResetProgress = useCallback((videoId: string) => {
+    clearVideoProgress(videoId);
+    setProgressMap((prev) => {
+      const next = { ...prev };
+      delete next[videoId];
+      return next;
+    });
+    setExternalSeekTime({ time: 0, nonce: Date.now() });
+  }, []);
+
+  const handleToggleFavorite = useCallback(
+    async (videoId: string) => {
+      const isFav = favoriteIds.includes(videoId);
+      await toggleFavoriteDb(videoId, isFav);
+      setFavoriteIds((prev) =>
+        isFav ? prev.filter((id) => id !== videoId) : [...prev, videoId]
+      );
+    },
+    [favoriteIds]
+  );
+
+  const handleRemoveHistoryItem = useCallback((videoId: string) => {
+    setWatchHistory((prev) => prev.filter((h) => h.videoId !== videoId));
+  }, []);
+
+  const handleClearAllHistory = useCallback(async () => {
+    await clearAllWatchHistoryDb();
+    setWatchHistory([]);
+  }, []);
+
+  const handleAddTimestampBookmark = useCallback(
+    (time: number, label: string) => {
+      if (!currentVideo) return;
+      const next = addVideoTimestampBookmark(currentVideo.id, time, label);
+      setTimestampBookmarks(next);
+    },
+    [currentVideo]
+  );
+
+  const handleQuickBookmarkFromPlayer = useCallback(
+    (currentTime: number) => {
+      if (!currentVideo) return;
+      const label = `Khoảnh khắc tại ${formatSeconds(currentTime)}`;
+      const next = addVideoTimestampBookmark(currentVideo.id, currentTime, label);
+      setTimestampBookmarks(next);
+    },
+    [currentVideo]
+  );
+
+  const handleRemoveTimestampBookmark = useCallback(
+    (bookmarkId: string) => {
+      if (!currentVideo) return;
+      const next = removeVideoTimestampBookmark(currentVideo.id, bookmarkId);
+      setTimestampBookmarks(next);
+    },
+    [currentVideo]
+  );
+
+  const handleSeekTo = useCallback((seconds: number) => {
+    setExternalSeekTime({ time: seconds, nonce: Date.now() });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  const handleVideoAdded = useCallback(
+    (newVideo: Video) => {
+      setVideos((prev) => [newVideo, ...prev]);
+      handleSelectVideo(newVideo);
+    },
+    [handleSelectVideo]
+  );
+
+  const handleVideoUpdated = useCallback((updated: Video) => {
+    if (updated.deleted_at === 'permanently_deleted') {
+      setVideos((prev) => prev.filter((v) => v.id !== updated.id));
+    } else {
+      setVideos((prev) => prev.map((v) => (v.id === updated.id ? updated : v)));
+    }
+  }, []);
+
+  const isLight = themeMode === 'light';
 
   return (
-    <>
-      {/* 1. MOBILE DRAWER */}
-      <div className={`md:hidden fixed inset-0 z-[9999] flex sidebar-drawer-overlay ${isOpen ? 'drawer-open' : ''}`}>
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs cursor-pointer" onClick={onCloseMobile} aria-hidden="true" />
-        <aside
-          className={`relative z-[10000] w-72 max-w-[85vw] h-full flex flex-col p-4 shadow-2xl overflow-y-auto sidebar-drawer-panel ${
-            isOpen ? 'drawer-open' : ''
-          } ${isLight ? 'bg-white border-r border-slate-200 text-slate-900' : 'bg-[#0f0f0f] border-r border-white/10 text-zinc-100'}`}
-        >
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-black/5 dark:border-white/10">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-5 rounded-md bg-[#ff0033] text-white flex items-center justify-center">
-                <span className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
-              </span>
-              <span className="font-display text-base font-extrabold tracking-tight">PartyStream</span>
+    <div
+      className={`min-h-screen flex flex-col transition-colors duration-150 ${
+        isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
+      }`}
+    >
+      <Header
+        themeMode={themeMode}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onGoHome={() => navigateTo('/')}
+      />
+
+      <div className="flex-1 flex w-full">
+        <YouTubeSidebar
+          isOpen={isSidebarOpen}
+          currentPage={currentPage}
+          themeMode={themeMode}
+          onToggleThemeMode={handleToggleThemeMode}
+          playlistTab={playlistTab}
+          activeCategory={activeCategory}
+          favoritesCount={favoriteIds.length}
+          historyCount={watchHistory.length}
+          customTopics={customTopics}
+          onOpenTopicManager={() => setIsTopicModalOpen(true)}
+          onSelectHomeTab={handleSelectSidebarItem}
+          onCloseMobile={() => setIsSidebarOpen(false)}
+          onOpenDevManage={() => navigateTo('/admin')}
+        />
+
+        {currentPage === 'admin' ? (
+          <AdminDevPortal
+            themeMode={themeMode}
+            videos={videos}
+            customTopics={customTopics}
+            onVideoAdded={handleVideoAdded}
+            onVideoUpdated={handleVideoUpdated}
+            onGoHome={() => navigateTo('/')}
+          />
+        ) : currentPage === 'home' ? (
+          <HomeBentoGrid
+            videos={filteredVideos}
+            allVideos={videos}
+            themeMode={themeMode}
+            progressMap={progressMap}
+            favoriteIds={favoriteIds}
+            watchHistory={watchHistory}
+            playlistTab={playlistTab}
+            activeCategory={activeCategory}
+            searchQuery={searchQuery}
+            customTopics={customTopics}
+            isLoading={isLoading}
+            onOpenTopicManager={() => setIsTopicModalOpen(true)}
+            onSelectVideo={handleSelectVideo}
+            onToggleFavorite={handleToggleFavorite}
+            onPlaylistTabChange={(tab) => {
+              if (tab === 'favorites') navigateTo('/favorites');
+              else if (tab === 'history') navigateTo('/history');
+              else navigateTo('/');
+            }}
+            onCategoryChange={(cat) => {
+              if (cat === 'ALL') navigateTo('/');
+              else navigateTo(`/tags/${slugify(cat)}`);
+            }}
+            onRemoveHistoryItem={handleRemoveHistoryItem}
+            onClearAllHistory={handleClearAllHistory}
+            onClearFilters={() => navigateTo('/')}
+          />
+        ) : (
+          <main className="flex-1 w-full min-w-0 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 pb-20 md:pb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
+              <div className="lg:col-span-8 min-w-0 w-full space-y-3">
+                {currentVideo && (
+                  <>
+                    <CustomArtPlayer
+                      video={currentVideo}
+                      themeMode={themeMode}
+                      timestampBookmarks={timestampBookmarks}
+                      onProgressUpdate={handleProgressUpdate}
+                      onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
+                      externalSeekTime={externalSeekTime}
+                    />
+
+                    <VideoDetails
+                      video={currentVideo}
+                      themeMode={themeMode}
+                      progress={progressMap[currentVideo.id] || null}
+                      isFavorite={favoriteIds.includes(currentVideo.id)}
+                      timestampBookmarks={timestampBookmarks}
+                      activeTag={activeCategory}
+                      onToggleFavorite={handleToggleFavorite}
+                      onAddTimestampBookmark={handleAddTimestampBookmark}
+                      onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
+                      onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
+                      onSeekTo={handleSeekTo}
+                      onResetProgress={handleResetProgress}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="lg:col-span-4 min-w-0 w-full">
+                <PlaylistSidebar
+                  videos={filteredVideos}
+                  allVideosCount={videos.length}
+                  currentVideoId={currentVideo?.id || ''}
+                  themeMode={themeMode}
+                  progressMap={progressMap}
+                  favoriteIds={favoriteIds}
+                  watchHistory={watchHistory}
+                  playlistTab={playlistTab}
+                  searchQuery={searchQuery}
+                  activeCategory={activeCategory}
+                  isLoading={isLoading}
+                  onPlaylistTabChange={(tab) => {
+                    if (tab === 'favorites') navigateTo('/favorites');
+                    else if (tab === 'history') navigateTo('/history');
+                    else navigateTo('/');
+                  }}
+                  onSelectVideo={handleSelectVideo}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRemoveHistoryItem={handleRemoveHistoryItem}
+                  onClearAllHistory={handleClearAllHistory}
+                  onClearFilters={() => navigateTo('/')}
+                />
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={onCloseMobile}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                isLight ? 'hover:bg-slate-200' : 'hover:bg-white/10'
-              }`}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          {renderNavLinks(onCloseMobile)}
-        </aside>
+          </main>
+        )}
       </div>
 
-      {/* 2. DESKTOP NON-HOME DRAWER */}
-      {currentPage !== 'home' && (
-        <div className={`hidden md:flex fixed inset-0 z-[9999] sidebar-drawer-overlay ${isOpen ? 'drawer-open' : ''}`}>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs cursor-pointer" onClick={onCloseMobile} aria-hidden="true" />
-          <aside
-            className={`relative z-[10000] w-72 h-full flex flex-col p-4 shadow-2xl overflow-y-auto sidebar-drawer-panel ${
-              isOpen ? 'drawer-open' : ''
-            } ${isLight ? 'bg-white border-r border-slate-200 text-slate-900' : 'bg-[#0f0f0f] border-r border-white/10 text-zinc-100'}`}
-          >
-            <div className="flex items-center justify-between pb-3 mb-2 border-b border-black/5 dark:border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="w-7 h-5 rounded-md bg-[#ff0033] text-white flex items-center justify-center">
-                  <span className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
-                </span>
-                <span className="font-display text-base font-extrabold tracking-tight">PartyStream</span>
-              </div>
-              <button
-                type="button"
-                onClick={onCloseMobile}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                  isLight ? 'hover:bg-slate-200' : 'hover:bg-white/10'
-                }`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {renderNavLinks(onCloseMobile)}
-          </aside>
-        </div>
-      )}
+      <MobileBottomNav
+        currentPage={currentPage}
+        themeMode={themeMode}
+        playlistTab={playlistTab}
+        favoritesCount={favoriteIds.length}
+        historyCount={watchHistory.length}
+        onSelectTab={(tab) => {
+          if (tab === 'favorites') navigateTo('/favorites');
+          else if (tab === 'history') navigateTo('/history');
+          else navigateTo('/');
+        }}
+        onToggleTheme={handleToggleThemeMode}
+      />
 
-      {/* 3. DESKTOP HOME SIDEBAR */}
-      {currentPage === 'home' && (
-        <aside
-          className={`hidden md:flex flex-col shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto select-none transition-all duration-150 ${
-            isOpen ? 'w-64 px-3.5 py-3' : 'w-[72px] px-1.5 py-2'
-          } ${isLight ? 'bg-[#FAF7F9] text-slate-900 border-r border-slate-200/70' : 'bg-[#0f0f0f] text-zinc-100 border-r border-white/[0.04]'}`}
-        >
-          {isOpen ? (
-            renderNavLinks()
-          ) : (
-            <div className="flex-1 flex flex-col justify-between items-center py-1">
-              <div className="flex flex-col items-center space-y-1 w-full">
-                <button
-                  type="button"
-                  onClick={() => onSelectHomeTab('all', 'ALL')}
-                  className={`w-full py-3 px-1 rounded-xl flex flex-col items-center gap-1.5 text-[10px] cursor-pointer transition-colors ${
-                    playlistTab === 'all' && activeCategory === 'ALL'
-                      ? isLight
-                        ? 'bg-[#F2BBC9]/45 font-semibold'
-                        : 'bg-white/10 font-semibold'
-                      : 'opacity-75 hover:opacity-100'
-                  }`}
-                >
-                  <Home className="w-5 h-5" />
-                  <span>Trang chủ</span>
-                </button>
+      <TopicManagerModal
+        isOpen={isTopicModalOpen}
+        onClose={() => setIsTopicModalOpen(false)}
+        topics={customTopics}
+        allVideos={videos}
+        themeMode={themeMode}
+        onAddTopic={handleAddTopic}
+        onRemoveTopic={handleRemoveTopic}
+        onResetTopics={handleResetTopics}
+      />
 
-                <button
-                  type="button"
-                  onClick={() => onSelectHomeTab('favorites')}
-                  className={`w-full py-3 px-1 rounded-xl flex flex-col items-center gap-1.5 text-[10px] cursor-pointer transition-colors ${
-                    playlistTab === 'favorites'
-                      ? isLight
-                        ? 'bg-[#F2BBC9]/45 font-semibold'
-                        : 'bg-white/10 font-semibold'
-                      : 'opacity-75 hover:opacity-100'
-                  }`}
-                >
-                  <Bookmark className="w-5 h-5" />
-                  <span>Yêu thích</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectHomeTab('history')}
-                  className={`w-full py-3 px-1 rounded-xl flex flex-col items-center gap-1.5 text-[10px] cursor-pointer transition-colors ${
-                    playlistTab === 'history'
-                      ? isLight
-                        ? 'bg-[#F2BBC9]/45 font-semibold'
-                        : 'bg-white/10 font-semibold'
-                      : 'opacity-75 hover:opacity-100'
-                  }`}
-                >
-                  <History className="w-5 h-5" />
-                  <span>Lịch sử</span>
-                </button>
-              </div>
-
-              <div className="flex flex-col items-center space-y-2 pt-2 border-t border-black/10 dark:border-white/10 w-full">
-                <div title="Đổi giao diện Sáng / Tối">
-                  <ThemeSwitch id="themeToggleMiniRail" checked={isLight} onChange={() => onToggleThemeMode()} />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onOpenDevManage}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-500 hover:bg-amber-500/15 transition-colors cursor-pointer"
-                  title="Kỹ thuật & Cấu hình (Dev)"
-                >
-                  <Key className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </aside>
-      )}
-    </>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={themeMode}
+      />
+    </div>
   );
-};
+}
