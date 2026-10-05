@@ -107,7 +107,6 @@ const SETTING_LUCIDE_HTML = renderToStaticMarkup(
   })
 );
 
-// ICONS TRUNG TÂM GLASSMORPHISM
 const PLAY_CENTER_HTML = renderToStaticMarkup(
   React.createElement(Play, { size: 32, fill: 'currentColor' })
 );
@@ -121,7 +120,6 @@ const NEXT_BTN_HTML = renderToStaticMarkup(
   React.createElement(SkipForward, { size: 24, fill: 'currentColor' })
 );
 
-// ICON TUA SVG TRẮNG SẮC NÉT
 const FAST_FORWARD_ICON_HTML = renderToStaticMarkup(
   React.createElement(FastForward, { size: 34, fill: 'currentColor', style: { color: '#ffffff' } })
 );
@@ -445,18 +443,18 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           },
         },
 
-        // TẦNG CỬ CHỈ CÓ Z-INDEX VỪA PHẢI (KHÔNG BAO GIỜ ĐÈ LÊN SETTING)
+        // TẦNG CỬ CHỈ TRONG SUỐT VỚI 3 VÙNG: 30% TRÁI | 40% GIỮA | 30% PHẢI
         {
           name: 'youtube-touch-engine',
           html: `
             <div class="art-yt-overlay" style="position: absolute; inset: 0; z-index: 10; user-select: none; -webkit-tap-highlight-color: transparent;">
-              <!-- Sóng tua bên trái -->
-              <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 35%; height: 100%; background: radial-gradient(circle at left center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+              <!-- Sóng tua bên trái (30%) -->
+              <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 30%; height: 100%; background: radial-gradient(circle at left center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div>${REWIND_ICON_HTML}</div>
                 <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">-10s</div>
               </div>
 
-              <!-- Cụm nút trung tâm Kính mờ Xuyên thấu -->
+              <!-- Cụm nút trung tâm (CHỈ HIỆN KHI TẠM DỪNG HOẶC CLICK MỞ ĐIỀU KHIỂN) -->
               <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 32px; background: transparent; transition: opacity 0.25s ease; opacity: 0; pointer-events: none;">
                 <button type="button" class="art-yt-btn-prev" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4);" title="Tập trước đó">
                   ${PREV_BTN_HTML}
@@ -471,8 +469,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 </button>
               </div>
 
-              <!-- Sóng tua bên phải -->
-              <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 35%; height: 100%; background: radial-gradient(circle at right center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+              <!-- Sóng tua bên phải (30%) -->
+              <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 30%; height: 100%; background: radial-gradient(circle at right center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div>${FAST_FORWARD_ICON_HTML}</div>
                 <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">+10s</div>
               </div>
@@ -619,7 +617,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
     // ==============================================================
-    // KHÓA ĐỒNG BỘ ĐÁY + GIẢI CỨU BẢNG SETTINGS KHỎI BỊ ĐÈ
+    // KÍCH HOẠT VÀ ĐỒNG BỘ CHUẨN XÁC TẠI "READY"
     // ==============================================================
     art.on('ready', () => {
       try {
@@ -655,13 +653,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
-      // ==============================================================
-      // CSS VÀNG: ĐẨY BẢNG SETTINGS LÊN TẦNG CAO NHẤT (Z-INDEX 100)
-      // VÀ TỰ ĐỘNG TẮT OVERLAY KHI BẢNG SETTINGS ĐANG MỞ
-      // ==============================================================
+      // CSS CỐT TỬ: ĐẨY BẢNG CÀI ĐẶT LÊN CAO NHẤT & TỰ ẨN LỚP PHỦ KHI MỞ
       const styleTag = document.createElement('style');
       styleTag.innerHTML = `
-        /* Đẩy cả cụm Settings lên trên cùng để click chọn 100% ăn */
         .art-video-player .art-settings {
           z-index: 100 !important;
           pointer-events: auto !important;
@@ -675,12 +669,11 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player .art-setting-panel {
           pointer-events: auto !important;
         }
-        /* HỄ CÀI ĐẶT ĐANG MỞ: TẮT BIẾN MẤT LỚP PHỦ CỬ CHỈ ĐỂ KHÔNG CHẮN TAY */
+        /* Hễ mở cài đặt là giấu hẳn lớp phủ cảm ứng */
         .art-video-player.art-setting-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
         }
-        /* Thanh đáy luôn nằm trên lớp phủ */
         .art-video-player .art-bottom {
           z-index: 50 !important;
           pointer-events: auto !important;
@@ -709,15 +702,24 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnNext.style.pointerEvents = hasNext ? 'auto' : 'none';
         btnNext.style.cursor = hasNext ? 'pointer' : 'not-allowed';
 
-        // ĐỒNG BỘ 100%: 3 NÚT GIỮA ĐI CÙNG NHỊP VỚI THANH ĐÁY ARTPLAYER
+        // ==============================================================
+        // QUY TẮC 1: KHI DI CHUỘT CHỈ HIỆN THANH ĐÁY, KHÔNG HIỆN 3 NÚT GIỮA
+        // ==============================================================
         art.on('control', (state: boolean) => {
-          const isSettingOpen = art.setting && art.setting.show;
-          if (state && !isSettingOpen) {
-            centerControls.style.opacity = '1';
-            centerControls.style.pointerEvents = 'auto';
-          } else {
+          // Nếu video đang phát: Di chuột CHỈ hiện thanh đáy, 3 nút giữa LUÔN ẨN!
+          if (art.playing) {
             centerControls.style.opacity = '0';
             centerControls.style.pointerEvents = 'none';
+          } else {
+            // Chỉ khi video đang TẠM DỪNG thì mới cho hiện 3 nút giữa
+            const isSettingOpen = art.setting && art.setting.show;
+            if (state && !isSettingOpen) {
+              centerControls.style.opacity = '1';
+              centerControls.style.pointerEvents = 'auto';
+            } else {
+              centerControls.style.opacity = '0';
+              centerControls.style.pointerEvents = 'none';
+            }
           }
         });
 
@@ -733,11 +735,16 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
         art.on('play', () => {
           btnPlay.innerHTML = PAUSE_CENTER_HTML;
+          centerControls.style.opacity = '0';
+          centerControls.style.pointerEvents = 'none';
         });
 
         art.on('pause', () => {
           btnPlay.innerHTML = PLAY_CENTER_HTML;
+          // Tạm dừng: Hiện TẤT CẢ các nút điều khiển (cả thanh đáy lẫn 3 nút giữa)!
           art.controls.show = true;
+          centerControls.style.opacity = '1';
+          centerControls.style.pointerEvents = 'auto';
         });
 
         btnPlay.addEventListener('click', (e) => {
@@ -755,15 +762,16 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           onNextVideoRef.current?.();
         });
 
+        // ==============================================================
+        // BỘ CẢM BIẾN NHẤP CHUỘT / CHẠM VÀ DOUBLE CLICK 3 VÙNG
+        // ==============================================================
         let lastTapTime = 0;
-        let lastTapSide: 'left' | 'right' | null = null;
+        let lastTapSide: 'left' | 'right' | 'center' | null = null;
         let singleTapTimer: any = null;
 
-        // BẮT SỰ KIỆN CHẠM TRÊN KHUNG PHIM
         overlay.addEventListener('pointerup', (e: PointerEvent) => {
           const target = e.target as HTMLElement;
 
-          // BỎ QUA HOÀN TOÀN: NẾU BẤM VÀO BẢNG CÀI ĐẶT, THANH ĐÁY HOẶC NÚT BẤM
           if (
             target.closest('.art-setting') ||
             target.closest('.art-settings') ||
@@ -774,7 +782,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return;
           }
 
-          // Nếu bảng Cài đặt đang mở, chạm ra ngoài là đóng Cài đặt
           if (art.setting && art.setting.show) {
             art.setting.show = false;
             return;
@@ -785,48 +792,67 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           const width = rect.width;
           const now = Date.now();
 
+          // PHÂN CHIA 3 VÙNG: 30% TRÁI | 40% GIỮA | 30% PHẢI
           let currentSide: 'left' | 'right' | 'center' = 'center';
-          if (offsetX < width * 0.35) currentSide = 'left';
-          else if (offsetX > width * 0.65) currentSide = 'right';
+          if (offsetX < width * 0.30) currentSide = 'left';
+          else if (offsetX > width * 0.70) currentSide = 'right';
+          else currentSide = 'center';
 
-          // KIỂM TRA CHẠM ĐÚP (DOUBLE TAP < 300ms) Ở CÙNG 1 MÉP
-          const isDoubleTap =
-            now - lastTapTime < 300 &&
-            currentSide !== 'center' &&
+          // ==============================================================
+          // QUY TẮC 3: DOUBLE CLICK TRÁI (-10S) | PHẢI (+10S) | GIỮA (FULLSCREEN)
+          // ==============================================================
+          const isDoubleClick =
+            now - lastTapTime < 280 &&
             lastTapSide === currentSide;
 
-          if (isDoubleTap) {
+          if (isDoubleClick) {
+            // Hủy ngay lệnh click đơn để không bị tạm dừng phim!
             if (singleTapTimer) {
               clearTimeout(singleTapTimer);
               singleTapTimer = null;
             }
 
-            // KÍCH HOẠT TUA
             if (currentSide === 'left') {
               seekRelative(-10);
               if (rippleLeft) {
                 rippleLeft.style.display = 'flex';
-                setTimeout(() => { rippleLeft.style.display = 'none'; }, 500);
+                setTimeout(() => { rippleLeft.style.display = 'none'; }, 450);
               }
             } else if (currentSide === 'right') {
               seekRelative(10);
               if (rippleRight) {
                 rippleRight.style.display = 'flex';
-                setTimeout(() => { rippleRight.style.display = 'none'; }, 500);
+                setTimeout(() => { rippleRight.style.display = 'none'; }, 450);
               }
+            } else {
+              // BẤM 2 LẦN VÀO KHU VỰC GIỮA: BẬT / THOÁT TOÀN MÀN HÌNH!
+              toggleFullscreen();
             }
 
             lastTapTime = 0;
             lastTapSide = null;
           } else {
-            // CHẠM 1 LẦN: ĐỒNG BỘ ĐÁNH THỨC CẢ THANH ĐÁY LẪN 3 NÚT GIỮA
+            // ==============================================================
+            // QUY TẮC 2: ẤN CHUỘT 1 LẦN THÌ DỪNG VÀ HIỂN THỊ TẤT CẢ NÚT ĐIỀU KHIỂN
+            // ==============================================================
             lastTapTime = now;
-            lastTapSide = currentSide === 'center' ? null : currentSide;
+            lastTapSide = currentSide;
 
             if (singleTapTimer) clearTimeout(singleTapTimer);
             singleTapTimer = setTimeout(() => {
-              // BẬT / TẮT ĐỒNG THỜI CẢ THANH ĐÁY VÀ CỤM NÚT GIỮA!
-              art.controls.show = !art.controls.show;
+              if (art.playing) {
+                // Đang phát ➔ Tạm dừng ngay và hiển thị TẤT CẢ nút điều khiển!
+                art.pause();
+                art.controls.show = true;
+                centerControls.style.opacity = '1';
+                centerControls.style.pointerEvents = 'auto';
+              } else {
+                // Đang dừng ➔ Bấm vào thì tiếp tục phát và ẩn điều khiển
+                art.play();
+                art.controls.show = false;
+                centerControls.style.opacity = '0';
+                centerControls.style.pointerEvents = 'none';
+              }
               singleTapTimer = null;
             }, 260);
           }
@@ -963,7 +989,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       onEndedNextRef.current?.();
     });
 
-    // PHÍM TẮT BÀN PHÍM
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       const isInputFocused =
