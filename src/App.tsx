@@ -8,7 +8,6 @@ import {
   VideoProgress,
   WatchHistoryItem,
 } from './types/video';
-import { mockVideos } from './data/mockVideos';
 import {
   fetchVideos,
   fetchTopicsDb,
@@ -22,24 +21,12 @@ import {
 } from './lib/supabase';
 import {
   addVideoTimestampBookmark,
-  clearAllWatchHistory,
   clearVideoProgress,
   formatSeconds,
   getAllVideoProgressMap,
-  getFavoriteVideoIds,
   getVideoTimestampBookmarks,
-  getWatchHistory,
-  recordWatchHistory,
   removeVideoTimestampBookmark,
-  removeWatchHistoryItem,
-  toggleFavoriteVideoId,
 } from './lib/progress';
-import {
-  addCustomTopic,
-  getCustomTopics,
-  removeCustomTopic,
-  resetCustomTopicsToDefault,
-} from './lib/topics';
 import { Header } from './components/ui/Header';
 import { YouTubeSidebar } from './components/ui/YouTubeSidebar';
 import { HomeBentoGrid } from './components/ui/HomeBentoGrid';
@@ -52,7 +39,7 @@ import { MobileBottomNav } from './components/ui/MobileBottomNav';
 
 const THEME_STORAGE_KEY = 'partystream_theme_mode_v1';
 
-// Hàm chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
+// Chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
 export const slugify = (text: string) =>
   text
     .toLowerCase()
@@ -62,10 +49,10 @@ export const slugify = (text: string) =>
     .replace(/[^a-z0-9-]/g, '');
 
 export default function App() {
-  const [videos, setVideos] = useState<Video[]>(mockVideos);
-
+  // Dữ liệu Video từ Supabase (Không mock)
+  const [videos, setVideos] = useState<Video[]>([]);
   const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>('home');
-  const [currentVideoId, setCurrentVideoId] = useState<string>(mockVideos[0]?.id || '');
+  const [currentVideoId, setCurrentVideoId] = useState<string>('');
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window !== 'undefined') {
@@ -82,10 +69,11 @@ export default function App() {
   const [isTopicModalOpen, setIsTopicModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const [customTopics, setCustomTopics] = useState<string[]>(() => getCustomTopics());
+  // Dữ liệu đồng bộ trực tiếp từ Supabase
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, VideoProgress>>({});
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => getFavoriteVideoIds());
-  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>(() => getWatchHistory());
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
   const [timestampBookmarks, setTimestampBookmarks] = useState<TimestampBookmark[]>([]);
   const [externalSeekTime, setExternalSeekTime] = useState<{ time: number; nonce: number } | null>(null);
 
@@ -126,7 +114,7 @@ export default function App() {
     }
   }, [customTopics]);
 
-  // Hàm chuyển trang và cập nhật URL mượt mà không reload
+  // Chuyển trang và cập nhật URL mượt mà
   const navigateTo = useCallback(
     (targetPath: string) => {
       if (typeof window !== 'undefined') {
@@ -138,111 +126,52 @@ export default function App() {
     [syncRouteFromLocation]
   );
 
-  // Tải Topics, Favorites, History từ Supabase khi mở web
-useEffect(() => {
-  fetchTopicsDb().then((topics) => {
-    setCustomTopics(topics);
-  });
-  fetchFavoritesDb().then((favs) => {
-    setFavoriteIds(favs);
-  });
-  fetchWatchHistoryDb().then((hist) => {
-    setWatchHistory(hist);
-  });
-}, []);
-
-// Thêm Topic lên DB
-const handleAddTopic = useCallback(async (topic: string) => {
-  await addTopicDb(topic);
-  setCustomTopics((prev) => [...prev, topic]);
-}, []);
-
-// Xóa Topic trên DB vĩnh viễn (Không bao giờ hồi sinh rác!)
-const handleRemoveTopic = useCallback(async (topic: string) => {
-  await removeTopicDb(topic);
-  setCustomTopics((prev) => prev.filter((t) => t !== topic));
-  setActiveCategory((prev) => (prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev));
-}, []);
-
-// Bật/tắt Yêu thích lên DB
-const handleToggleFavorite = useCallback(async (videoId: string) => {
-  const isFav = favoriteIds.includes(videoId);
-  await toggleFavoriteDb(videoId, isFav);
-  setFavoriteIds((prev) => (isFav ? prev.filter((id) => id !== videoId) : [...prev, videoId]));
-}, [favoriteIds]);
-
-// Lưu lịch sử xem lên DB
-const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
-  setProgressMap((prev) => ({ ...prev, [updated.videoId]: updated }));
-  await recordWatchHistoryDb(updated.videoId, updated.currentTime, updated.duration);
-  const nextHistory = await fetchWatchHistoryDb();
-  setWatchHistory(nextHistory);
-}, []);
-
-  // Bắt sự kiện người dùng bấm Back / Forward trên trình duyệt
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.addEventListener('popstate', syncRouteFromLocation);
     return () => window.removeEventListener('popstate', syncRouteFromLocation);
   }, [syncRouteFromLocation]);
 
-  // Khởi động đồng bộ URL khi ứng dụng load lần đầu
   useEffect(() => {
     syncRouteFromLocation();
   }, [syncRouteFromLocation]);
 
-  const handleToggleThemeMode = useCallback(() => {
-    setThemeMode((prev) => {
-      const next: ThemeMode = prev === 'light' ? 'dark' : 'light';
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(THEME_STORAGE_KEY, next);
-        } catch {}
-      }
-      return next;
-    });
-  }, []);
-
-  const handleAddTopic = useCallback((topic: string) => {
-    const next = addCustomTopic(topic);
-    setCustomTopics(next);
-  }, []);
-
-  const handleRemoveTopic = useCallback((topic: string) => {
-    const next = removeCustomTopic(topic);
-    setCustomTopics(next);
-    setActiveCategory((prev) =>
-      prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev
-    );
-  }, []);
-
-  const handleResetTopics = useCallback(() => {
-    const next = resetCustomTopicsToDefault();
-    setCustomTopics(next);
-  }, []);
-
-  // Tải danh sách video từ Supabase
+  // ==========================================
+  // TẢI TOÀN BỘ DỮ LIỆU TỪ SUPABASE (PROMISE.ALL)
+  // ==========================================
   useEffect(() => {
     let isMounted = true;
-    fetchVideos()
-      .then(({ videos: loadedVideos }) => {
-        if (!isMounted) return;
-        setIsLoading(false);
-        if (loadedVideos.length === 0) return;
-        setVideos(loadedVideos);
+    setIsLoading(true);
 
-        // Kiểm tra nếu đang có link xem video trực tiếp
+    Promise.all([
+      fetchVideos(),
+      fetchTopicsDb(),
+      fetchFavoritesDb(),
+      fetchWatchHistoryDb(),
+    ])
+      .then(([videosRes, topics, favs, history]) => {
+        if (!isMounted) return;
+        const loadedVideos = videosRes.videos || [];
+        setVideos(loadedVideos);
+        setCustomTopics(topics);
+        setFavoriteIds(favs);
+        setWatchHistory(history);
+        setIsLoading(false);
+
+        // Kiểm tra link xem video nếu có sẵn trên URL
         if (typeof window !== 'undefined') {
           const params = new URLSearchParams(window.location.search);
           const requestedId = params.get('v');
           if (requestedId && loadedVideos.some((v) => v.id === requestedId)) {
             setCurrentVideoId(requestedId);
             setCurrentPage('watch');
+          } else if (loadedVideos.length > 0) {
+            setCurrentVideoId(loadedVideos[0].id);
           }
         }
       })
       .catch((err) => {
-        console.error('Fetch error:', err);
+        console.error('Lỗi khi nạp dữ liệu Supabase:', err);
         if (isMounted) setIsLoading(false);
       });
 
@@ -258,16 +187,47 @@ const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
 
   useEffect(() => {
     if (currentPage !== 'watch' || !currentVideoId) return;
-    const nextHistory = recordWatchHistory(currentVideoId);
-    setWatchHistory(nextHistory);
     setTimestampBookmarks(getVideoTimestampBookmarks(currentVideoId));
   }, [currentPage, currentVideoId]);
 
+  // ==========================================
+  // CÁC HÀM XỬ LÝ NGHIỆP VỤ (ĐÃ ĐỒNG BỘ SUPABASE)
+  // ==========================================
+  const handleToggleThemeMode = useCallback(() => {
+    setThemeMode((prev) => {
+      const next: ThemeMode = prev === 'light' ? 'dark' : 'light';
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, next);
+        } catch {}
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAddTopic = useCallback(async (topic: string) => {
+    await addTopicDb(topic);
+    setCustomTopics((prev) => (prev.includes(topic) ? prev : [...prev, topic]));
+  }, []);
+
+  const handleRemoveTopic = useCallback(async (topic: string) => {
+    await removeTopicDb(topic);
+    setCustomTopics((prev) => prev.filter((t) => t.toLowerCase() !== topic.toLowerCase()));
+    setActiveCategory((prev) => (prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev));
+  }, []);
+
+  const handleResetTopics = useCallback(async () => {
+    await addTopicDb('Harry Potter');
+    await addTopicDb('Phim Hay');
+    setCustomTopics(['Harry Potter', 'Phim Hay']);
+  }, []);
+
   const handleSelectVideo = useCallback(
-    (video: Video) => {
+    async (video: Video) => {
       setCurrentVideoId(video.id);
-      const nextHistory = recordWatchHistory(video.id, 0, 0, true);
-      setWatchHistory(nextHistory);
+      await recordWatchHistoryDb(video.id, 0, video.duration || '00:00:00');
+      const updatedHistory = await fetchWatchHistoryDb();
+      setWatchHistory(updatedHistory);
       navigateTo(`/watch?v=${video.id}`);
     },
     [navigateTo]
@@ -290,7 +250,6 @@ const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
 
   const filteredVideos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    // Bỏ qua các video đã bị xóa tạm (soft deleted)
     const availableVideos = videos.filter((v) => !v.deleted_at);
 
     let baseList: Video[] = [];
@@ -333,17 +292,18 @@ const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
     );
   }, [videos, currentVideoId, filteredVideos]);
 
-  const handleProgressUpdate = useCallback((updated: VideoProgress) => {
+  const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
     setProgressMap((prev) => ({
       ...prev,
       [updated.videoId]: updated,
     }));
-    const nextHistory = recordWatchHistory(
+    await recordWatchHistoryDb(
       updated.videoId,
       updated.currentTime,
-      updated.duration
+      formatSeconds(updated.duration)
     );
-    setWatchHistory(nextHistory);
+    const updatedHistory = await fetchWatchHistoryDb();
+    setWatchHistory(updatedHistory);
   }, []);
 
   const handleResetProgress = useCallback((videoId: string) => {
@@ -356,19 +316,24 @@ const handleProgressUpdate = useCallback(async (updated: VideoProgress) => {
     setExternalSeekTime({ time: 0, nonce: Date.now() });
   }, []);
 
-  const handleToggleFavorite = useCallback((videoId: string) => {
-    const { favorites } = toggleFavoriteVideoId(videoId);
-    setFavoriteIds(favorites);
-  }, []);
+  const handleToggleFavorite = useCallback(
+    async (videoId: string) => {
+      const isFav = favoriteIds.includes(videoId);
+      await toggleFavoriteDb(videoId, isFav);
+      setFavoriteIds((prev) =>
+        isFav ? prev.filter((id) => id !== videoId) : [...prev, videoId]
+      );
+    },
+    [favoriteIds]
+  );
 
   const handleRemoveHistoryItem = useCallback((videoId: string) => {
-    const next = removeWatchHistoryItem(videoId);
-    setWatchHistory(next);
+    setWatchHistory((prev) => prev.filter((h) => h.videoId !== videoId));
   }, []);
 
-  const handleClearAllHistory = useCallback(() => {
-    const next = clearAllWatchHistory();
-    setWatchHistory(next);
+  const handleClearAllHistory = useCallback(async () => {
+    await clearAllWatchHistoryDb();
+    setWatchHistory([]);
   }, []);
 
   const handleAddTimestampBookmark = useCallback(
