@@ -17,9 +17,10 @@ import {
   CheckSquare,
   Square,
   AlertTriangle,
+  Globe2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { NewVideoInput, ThemeMode, UpdateVideoInput, Video } from '../../types/video';
+import { NewVideoInput, SubtitleTrack, ThemeMode, UpdateVideoInput, Video } from '../../types/video';
 import {
   createVideoRecord,
   hardDeleteVideoRecord,
@@ -52,7 +53,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 }) => {
   const isLight = themeMode === 'light';
 
-  // Luôn bắt nhập mã PIN mỗi lần vào
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [passcode, setPasscode] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -60,21 +60,20 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit'>('list');
   const [listFilter, setListFilter] = useState<'active' | 'trash'>('active');
 
-  // Checkbox chọn hàng loạt
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Form ADD
   const [addTitle, setAddTitle] = useState('');
   const [addVideoUrl, setAddVideoUrl] = useState('');
   const [addThumbnailUrl, setAddThumbnailUrl] = useState('');
-  const [addSubtitleUrl, setAddSubtitleUrl] = useState('');
-  const [addSubtitleFileName, setAddSubtitleFileName] = useState('');
   const [addEventDate, setAddEventDate] = useState(
     new Date().toISOString().split('T')[0]
   );
   const [addDuration, setAddDuration] = useState('00:00:00');
   const [addSelectedTopics, setAddSelectedTopics] = useState<string[]>([]);
   const [addDescription, setAddDescription] = useState('');
+  // DANH SÁCH ĐA PHỤ ĐỀ KHI THÊM
+  const [addSubtitles, setAddSubtitles] = useState<SubtitleTrack[]>([]);
 
   // Upload States
   const [uploadedVideoFile, setUploadedVideoFile] = useState<{
@@ -91,16 +90,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editVideoUrl, setEditVideoUrl] = useState('');
   const [editThumbnailUrl, setEditThumbnailUrl] = useState('');
-  const [editSubtitleUrl, setEditSubtitleUrl] = useState('');
-  const [editSubtitleFileName, setEditSubtitleFileName] = useState('');
   const [editEventDate, setEditEventDate] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editSelectedTopics, setEditSelectedTopics] = useState<string[]>([]);
   const [editDescription, setEditDescription] = useState('');
+  // DANH SÁCH ĐA PHỤ ĐỀ KHI SỬA
+  const [editSubtitles, setEditSubtitles] = useState<SubtitleTrack[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Lọc Active vs Trash (30 ngày)
   const now = new Date().getTime();
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
@@ -125,7 +123,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Trích xuất ảnh bìa tự động từ Video bằng Canvas
   const generateThumbnailFromVideo = (file: File) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -151,7 +148,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     };
   };
 
-  // Tự động đo thời lượng video
   const autoDetectVideoDuration = (file: File) => {
     const tempVideo = document.createElement('video');
     tempVideo.preload = 'metadata';
@@ -168,7 +164,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     };
   };
 
-  // Upload video trực tiếp lên VPS
   const handleVideoFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -232,9 +227,57 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     xhr.send(file);
   };
 
-  // Upload phụ đề
-  const handleSubtitleFileUpload = (
+  // ==========================================
+  // QUẢN LÝ ĐA PHỤ ĐỀ (SUBTITLE TRACKS MANAGER)
+  // ==========================================
+  const handleAddSubtitleTrack = (mode: 'add' | 'edit') => {
+    const isFirst = mode === 'add' ? addSubtitles.length === 0 : editSubtitles.length === 0;
+    const newTrack: SubtitleTrack = {
+      name: isFirst ? 'Tiếng Việt' : 'English',
+      url: '',
+      default: isFirst,
+    };
+    if (mode === 'add') {
+      setAddSubtitles([...addSubtitles, newTrack]);
+    } else {
+      setEditSubtitles([...editSubtitles, newTrack]);
+    }
+  };
+
+  const handleRemoveSubtitleTrack = (index: number, mode: 'add' | 'edit') => {
+    if (mode === 'add') {
+      const next = addSubtitles.filter((_, i) => i !== index);
+      if (addSubtitles[index]?.default && next.length > 0) next[0].default = true;
+      setAddSubtitles(next);
+    } else {
+      const next = editSubtitles.filter((_, i) => i !== index);
+      if (editSubtitles[index]?.default && next.length > 0) next[0].default = true;
+      setEditSubtitles(next);
+    }
+  };
+
+  const handleUpdateTrackField = (
+    index: number,
+    field: keyof SubtitleTrack,
+    val: any,
+    mode: 'add' | 'edit'
+  ) => {
+    const list = mode === 'add' ? [...addSubtitles] : [...editSubtitles];
+    if (field === 'default') {
+      list.forEach((track, i) => {
+        track.default = i === index;
+      });
+    } else {
+      (list[index] as any)[field] = val;
+    }
+
+    if (mode === 'add') setAddSubtitles(list);
+    else setEditSubtitles(list);
+  };
+
+  const handleSubtitleFileSelectedForTrack = (
     e: React.ChangeEvent<HTMLInputElement>,
+    index: number,
     mode: 'add' | 'edit'
   ) => {
     const file = e.target.files?.[0];
@@ -242,9 +285,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
     const fileName = file.name;
     const isSrtOrVtt = fileName.endsWith('.srt') || fileName.endsWith('.vtt') || fileName.endsWith('.txt');
-
     if (!isSrtOrVtt) {
-      toast.error('Chỉ hỗ trợ file định dạng .srt hoặc .vtt');
+      toast.error('Chỉ hỗ trợ file phụ đề định dạng .srt hoặc .vtt');
       return;
     }
 
@@ -254,20 +296,13 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       if (content) {
         const mime = fileName.endsWith('.vtt') ? 'text/vtt' : 'text/plain';
         const dataUri = `data:${mime};charset=utf-8,${encodeURIComponent(content)}`;
-        if (mode === 'add') {
-          setAddSubtitleUrl(dataUri);
-          setAddSubtitleFileName(fileName);
-        } else {
-          setEditSubtitleUrl(dataUri);
-          setEditSubtitleFileName(fileName);
-        }
-        toast.success(`Đã nạp file phụ đề "${fileName}"!`);
+        handleUpdateTrackField(index, 'url', dataUri, mode);
+        toast.success(`Đã nạp file "${fileName}" cho phụ đề!`);
       }
     };
     reader.readAsText(file);
   };
 
-  // Upload ảnh bìa tùy chỉnh
   const handleCustomThumbnailUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
     mode: 'add' | 'edit'
@@ -278,11 +313,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     reader.onload = (event) => {
       if (event.target?.result) {
         const imgUrl = event.target.result as string;
-        if (mode === 'add') {
-          setAddThumbnailUrl(imgUrl);
-        } else {
-          setEditThumbnailUrl(imgUrl);
-        }
+        if (mode === 'add') setAddThumbnailUrl(imgUrl);
+        else setEditThumbnailUrl(imgUrl);
         toast.success('Đã tải ảnh bìa tùy chỉnh!');
       }
     };
@@ -300,18 +332,24 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  // Mở Form SỬA PHIM
+  // Mở Form SỬA PHIM: Tự động chuyển đổi phụ đề đơn cũ sang mảng đa phụ đề
   const handleStartEdit = (video: Video) => {
     setEditingVideoId(video.id);
     setEditTitle(video.title);
     setEditVideoUrl(video.video_url);
     setEditThumbnailUrl(video.thumbnail_url || '');
-    setEditSubtitleUrl(video.subtitle_url || '');
-    setEditSubtitleFileName(video.subtitle_url ? 'Đã có phụ đề' : '');
     setEditEventDate(video.event_date);
     setEditDuration(video.duration || '00:00:00');
 
-    // Chỉ giữ lại các topic có trong customTopics
+    // Chuyển đổi phụ đề sang mảng đa phụ đề chuẩn
+    if (video.subtitles && video.subtitles.length > 0) {
+      setEditSubtitles(video.subtitles);
+    } else if (video.subtitle_url) {
+      setEditSubtitles([{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]);
+    } else {
+      setEditSubtitles([]);
+    }
+
     const validCurrentTopics = (video.tags || []).filter((t) =>
       customTopics.some((ct) => ct.toLowerCase() === t.toLowerCase())
     );
@@ -390,6 +428,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
 
     const cleanTags = addSelectedTopics.filter((t) => customTopics.includes(t));
+    const validSubs = addSubtitles.filter((s) => s.name.trim() && s.url.trim());
+    const defaultSub = validSubs.find((s) => s.default) || validSubs[0];
 
     setIsSubmitting(true);
     const payload: NewVideoInput = {
@@ -400,20 +440,19 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       video_url: addVideoUrl.trim(),
       thumbnail_url: addThumbnailUrl.trim() || undefined,
       tags: cleanTags,
-      subtitle_url: addSubtitleUrl.trim() || undefined,
+      subtitle_url: defaultSub?.url || undefined,
+      subtitles: validSubs,
     };
 
     try {
       const created = await createVideoRecord(payload);
       onVideoAdded(created);
-      toast.success(`Đã đăng bộ phim "${created.title}" lên rạp thành công!`);
+      toast.success(`Đã đăng bộ phim "${created.title}" với ${validSubs.length} phụ đề!`);
 
-      // Reset
       setAddTitle('');
       setAddVideoUrl('');
       setAddThumbnailUrl('');
-      setAddSubtitleUrl('');
-      setAddSubtitleFileName('');
+      setAddSubtitles([]);
       setUploadedVideoFile(null);
       setUploadProgress(null);
       setAddDescription('');
@@ -431,6 +470,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     if (!editingVideoId) return;
 
     const cleanTags = editSelectedTopics.filter((t) => customTopics.includes(t));
+    const validSubs = editSubtitles.filter((s) => s.name.trim() && s.url.trim());
+    const defaultSub = validSubs.find((s) => s.default) || validSubs[0];
 
     setIsSubmitting(true);
     const payload: UpdateVideoInput = {
@@ -442,19 +483,136 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       video_url: editVideoUrl.trim(),
       thumbnail_url: editThumbnailUrl.trim() || undefined,
       tags: cleanTags,
-      subtitle_url: editSubtitleUrl.trim() || undefined,
+      subtitle_url: defaultSub?.url || undefined,
+      subtitles: validSubs,
     };
 
     try {
       const updated = await updateVideoRecord(payload);
       onVideoUpdated(updated);
-      toast.success(`Đã cập nhật phim "${updated.title}" thành công!`);
+      toast.success(`Đã cập nhật phim "${updated.title}" với ${validSubs.length} phụ đề!`);
       setActiveTab('list');
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi cập nhật phim.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // RENDER KHUNG ĐA PHỤ ĐỀ (DÙNG CHUNG CHO CẢ THÊM VÀ SỬA)
+  const renderSubtitleManager = (mode: 'add' | 'edit') => {
+    const list = mode === 'add' ? addSubtitles : editSubtitles;
+
+    return (
+      <div
+        className={`p-4 rounded-xl border space-y-3 transition-colors ${
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold flex items-center gap-2">
+            <Globe2 className="w-4 h-4 text-rose-500" />
+            <span>Danh Sách Phụ Đề Đa Ngôn Ngữ (.SRT / .VTT)</span>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => handleAddSubtitleTrack(mode)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-600/15 hover:bg-rose-600/25 text-rose-500 text-xs font-bold cursor-pointer transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Thêm ngôn ngữ</span>
+          </button>
+        </div>
+
+        {list.length === 0 ? (
+          <p className={`text-xs italic py-2 ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
+            Chưa có phụ đề nào. Bấm "+ Thêm ngôn ngữ" để nạp phụ đề Tiếng Việt, English...
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {list.map((track, idx) => (
+              <div
+                key={idx}
+                className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${
+                  track.default
+                    ? isLight
+                      ? 'border-rose-300 bg-rose-50/50'
+                      : 'border-rose-500/40 bg-rose-500/5'
+                    : isLight
+                    ? 'border-slate-200 bg-white'
+                    : 'border-white/10 bg-white/[0.02]'
+                }`}
+              >
+                {/* Tên ngôn ngữ */}
+                <div className="w-full sm:w-36 shrink-0">
+                  <input
+                    type="text"
+                    value={track.name}
+                    onChange={(e) => handleUpdateTrackField(idx, 'name', e.target.value, mode)}
+                    placeholder="VD: Tiếng Việt"
+                    className={`w-full px-3 py-1.5 rounded-lg border text-xs font-semibold focus:outline-none ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                        : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                    }`}
+                  />
+                </div>
+
+                {/* Chọn file từ máy */}
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-rose-500/40 bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer shrink-0 hover:bg-rose-500/15">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Nạp file</span>
+                  <input
+                    type="file"
+                    accept=".srt,.vtt,.txt"
+                    onChange={(e) => handleSubtitleFileSelectedForTrack(e, idx, mode)}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Đường link / Data URI */}
+                <input
+                  type="text"
+                  value={track.url}
+                  onChange={(e) => handleUpdateTrackField(idx, 'url', e.target.value, mode)}
+                  placeholder="Link phụ đề hoặc tự nạp từ file..."
+                  className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-mono truncate focus:outline-none ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                      : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                  }`}
+                />
+
+                {/* Nút đặt làm mặc định */}
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTrackField(idx, 'default', true, mode)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer shrink-0 transition-colors ${
+                    track.default
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                  }`}
+                >
+                  {track.default ? '★ Mặc định' : 'Đặt mặc định'}
+                </button>
+
+                {/* Nút xóa track */}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSubtitleTrack(idx, mode)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-rose-500 cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -487,7 +645,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
             <div>
               <h1 className="text-base sm:text-lg font-bold">Quản Trị Rạp Phim (Dev Portal)</h1>
               <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                Tải phim, chỉnh sửa thông tin, phụ đề .SRT, ảnh bìa & quản lý thùng rác
+                Tải phim, cấu hình đa phụ đề Tiếng Việt / Tiếng Anh, ảnh bìa & thùng rác
               </p>
             </div>
           </div>
@@ -497,7 +655,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       {/* Main Container */}
       <div className="w-full flex-1 px-4 sm:px-8 py-6">
         {!isAuthenticated ? (
-          /* MÀN HÌNH KHÓA PIN: CHUẨN SÁNG / TỐI */
+          /* MÀN HÌNH KHÓA PIN */
           <div
             className={`max-w-md mx-auto my-12 p-6 sm:p-8 rounded-2xl border shadow-xl transition-colors ${
               isLight
@@ -607,7 +765,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               )}
             </div>
 
-            {/* TAB 1: DANH SÁCH PHIM + CHECKBOX XÓA HÀNG LOẠT + NÚT SỬA */}
+            {/* TAB 1: DANH SÁCH PHIM */}
             {activeTab === 'list' && (
               <div
                 className={`p-6 rounded-2xl border space-y-4 transition-colors ${
@@ -652,7 +810,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </button>
                   </div>
 
-                  {/* Thanh thao tác hàng loạt */}
                   {selectedIds.length > 0 && (
                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
                       isLight ? 'bg-rose-50 border border-rose-200' : 'bg-white/10'
@@ -690,7 +847,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   )}
                 </div>
 
-                {/* Chọn tất cả */}
                 {currentDisplayList.length > 0 && (
                   <div className={`flex items-center gap-2 px-3 py-1 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
                     <button
@@ -708,7 +864,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   </div>
                 )}
 
-                {/* Danh sách từng phim */}
                 <div className="space-y-3">
                   {currentDisplayList.length === 0 ? (
                     <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
@@ -717,6 +872,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   ) : (
                     currentDisplayList.map((video) => {
                       const isSelected = selectedIds.includes(video.id);
+                      const subCount = video.subtitles?.length || (video.subtitle_url ? 1 : 0);
+
                       return (
                         <div
                           key={video.id}
@@ -765,9 +922,10 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                                   <Calendar className="w-3.5 h-3.5" />
                                   {video.event_date}
                                 </span>
-                                {video.subtitle_url && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
-                                    CC Phụ đề
+                                {subCount > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                                    <Globe2 className="w-3 h-3" />
+                                    <span>{subCount} phụ đề</span>
                                   </span>
                                 )}
                                 <div className="flex flex-wrap gap-1">
@@ -847,7 +1005,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                 <div className={`pb-4 border-b ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
                   <h2 className="text-base sm:text-lg font-bold">Tải Lên Phim Mới</h2>
                   <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                    File video sẽ tự động trích xuất ảnh bìa và thời lượng khi chọn file.
+                    Tải video, chụp ảnh bìa tự động và thiết lập phụ đề đa ngôn ngữ.
                   </p>
                 </div>
 
@@ -1005,56 +1163,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </div>
                   </div>
 
-                  {/* VÙNG PHỤ ĐỀ */}
-                  <div className={`p-4 rounded-xl border space-y-3 transition-colors ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-rose-500" />
-                        <span>Phụ đề Phim (.SRT / .VTT)</span>
-                      </label>
-                      {addSubtitleFileName && (
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" />
-                          <span>{addSubtitleFileName}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'opacity-80'}`}>
-                          Cách 1: Nạp file .srt từ máy tính
-                        </label>
-                        <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer transition-colors">
-                          <Upload className="w-4 h-4" />
-                          <span>Chọn file .srt</span>
-                          <input type="file" accept=".srt,.vtt,.txt" onChange={(e) => handleSubtitleFileUpload(e, 'add')} className="hidden" />
-                        </label>
-                      </div>
-
-                      <div>
-                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'opacity-80'}`}>
-                          Cách 2: Hoặc link phụ đề có sẵn
-                        </label>
-                        <input
-                          type="text"
-                          value={addSubtitleUrl}
-                          onChange={(e) => {
-                            setAddSubtitleUrl(e.target.value);
-                            setAddSubtitleFileName(e.target.value ? 'Link trực tiếp' : '');
-                          }}
-                          placeholder={`${VOD_BASE_URL}/subtitles/phim.vtt`}
-                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
-                            isLight
-                              ? 'bg-white border-slate-300 text-slate-900 focus:border-rose-500'
-                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  {/* KHUNG ĐA PHỤ ĐỀ (MULTI-SUBTITLES) */}
+                  {renderSubtitleManager('add')}
 
                   {/* VÙNG CHỦ ĐỀ / TOPICS */}
                   <div className="space-y-3">
@@ -1141,7 +1251,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <div>
                     <h2 className="text-base sm:text-lg font-bold">Cập Nhật Thông Tin Phim</h2>
                     <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                      Chỉnh sửa tiêu đề, đổi phụ đề, cập nhật ảnh bìa hoặc thay đổi chủ đề của phim.
+                      Chỉnh sửa tiêu đề, nạp thêm phụ đề đa ngôn ngữ hoặc thay đổi ảnh bìa.
                     </p>
                   </div>
                   <button
@@ -1251,57 +1361,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </div>
                   </div>
 
-                  {/* PHỤ ĐỀ TRONG FORM SỬA */}
-                  <div className={`p-4 rounded-xl border space-y-3 transition-colors ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-rose-500" />
-                        <span>Thay thế Phụ đề Phim (.SRT / .VTT)</span>
-                      </label>
-                      {editSubtitleFileName && (
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" />
-                          <span>{editSubtitleFileName}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-rose-500 text-xs font-semibold cursor-pointer transition-colors">
-                          <Upload className="w-4 h-4" />
-                          <span>Chọn file .srt mới</span>
-                          <input type="file" accept=".srt,.vtt,.txt" onChange={(e) => handleSubtitleFileUpload(e, 'edit')} className="hidden" />
-                        </label>
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          value={editSubtitleUrl}
-                          onChange={(e) => {
-                            setEditSubtitleUrl(e.target.value);
-                            setEditSubtitleFileName(e.target.value ? 'Link trực tiếp' : '');
-                          }}
-                          placeholder="Dán link phụ đề..."
-                          className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
-                            isLight
-                              ? 'bg-white border-slate-300 text-slate-900 focus:border-rose-500'
-                              : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  {/* KHUNG ĐA PHỤ ĐỀ TRONG FORM SỬA */}
+                  {renderSubtitleManager('edit')}
 
                   {/* CHỦ ĐỀ CHUẨN HOÁ TRONG FORM SỬA */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-semibold">Chủ đề của phim (Chọn từ danh mục hệ thống)</label>
-                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                        Đã chọn: {editSelectedTopics.length}
-                      </span>
+                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>Đã chọn: {editSelectedTopics.length}</span>
                     </div>
 
                     {customTopics.length === 0 ? (
