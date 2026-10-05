@@ -8,9 +8,14 @@ import {
   Maximize,
   Minimize,
   Settings,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
 } from 'lucide-react';
 import Artplayer from 'artplayer';
 import {
+  SubtitleTrack,
   ThemeMode,
   TimestampBookmark,
   Video,
@@ -30,11 +35,15 @@ interface CustomArtPlayerProps {
   onQuickBookmarkTime?: (currentTime: number) => void;
   onEndedNext?: () => void;
   externalSeekTime?: { time: number; nonce: number } | null;
+  onPrevVideo?: () => void;
+  onNextVideo?: () => void;
+  hasPrev?: boolean;
+  hasNext?: boolean;
 }
 
 const SUN_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
 
-// Lucide React Outline Icons
+// Lucide React Static HTML Icons
 const REWIND_10_LUCIDE_HTML = renderToStaticMarkup(
   React.createElement(RotateCcw, {
     size: 20,
@@ -89,7 +98,6 @@ const FULLSCREEN_MIN_LUCIDE_HTML = renderToStaticMarkup(
   })
 );
 
-// Nút Cài đặt phía trên bên phải khung chiếu video bằng Lucide React Settings
 const SETTING_LUCIDE_HTML = renderToStaticMarkup(
   React.createElement(Settings, {
     size: 20,
@@ -97,6 +105,20 @@ const SETTING_LUCIDE_HTML = renderToStaticMarkup(
     style: { fill: 'none', stroke: 'currentColor' },
     className: 'lucide lucide-settings',
   })
+);
+
+// ICONS TRUNG TÂM CHO CỬ CHỈ CHẠM YOUTUBE
+const PLAY_CENTER_HTML = renderToStaticMarkup(
+  React.createElement(Play, { size: 36, fill: 'currentColor' })
+);
+const PAUSE_CENTER_HTML = renderToStaticMarkup(
+  React.createElement(Pause, { size: 36, fill: 'currentColor' })
+);
+const PREV_BTN_HTML = renderToStaticMarkup(
+  React.createElement(SkipBack, { size: 26, fill: 'currentColor' })
+);
+const NEXT_BTN_HTML = renderToStaticMarkup(
+  React.createElement(SkipForward, { size: 26, fill: 'currentColor' })
 );
 
 function parseHighlightsFromDescription(
@@ -130,20 +152,28 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
   onProgressUpdate,
   onEndedNext,
   externalSeekTime,
+  onPrevVideo,
+  onNextVideo,
+  hasPrev = false,
+  hasNext = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const artInstanceRef = useRef<Artplayer | null>(null);
   const onProgressUpdateRef = useRef(onProgressUpdate);
   const onEndedNextRef = useRef(onEndedNext);
+  const onPrevVideoRef = useRef(onPrevVideo);
+  const onNextVideoRef = useRef(onNextVideo);
 
   const [resumeBanner, setResumeBanner] = useState<number | null>(null);
 
   useEffect(() => {
     onProgressUpdateRef.current = onProgressUpdate;
     onEndedNextRef.current = onEndedNext;
-  }, [onProgressUpdate, onEndedNext]);
+    onPrevVideoRef.current = onPrevVideo;
+    onNextVideoRef.current = onNextVideo;
+  }, [onProgressUpdate, onEndedNext, onPrevVideo, onNextVideo]);
 
-  // Handle external seek requests (e.g. from timestamp bookmark clicks)
+  // Handle external seek requests
   useEffect(() => {
     if (externalSeekTime && artInstanceRef.current) {
       artInstanceRef.current.currentTime = externalSeekTime.time;
@@ -162,21 +192,24 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     const initialRate = saved?.playbackRate ?? 1;
     const initialBrightness = saved?.brightness ?? 100;
 
-    const descHighlights = parseHighlightsFromDescription(video.description);
+    const descHighlights = parseHighlightsFromDescription(video.description || null);
     const userHighlights = timestampBookmarks.map((b) => ({
       time: b.time,
       text: `★ ${b.label}`,
     }));
     const highlights = [...descHighlights, ...userHighlights];
 
-    const hasConfiguredSubtitle = Boolean(video.subtitle_url?.trim());
-    const isVtt = video.subtitle_url?.toLowerCase().includes('.vtt');
+    // Chuẩn hóa danh sách đa phụ đề
+    const subList: SubtitleTrack[] =
+      video.subtitles && video.subtitles.length > 0
+        ? video.subtitles
+        : video.subtitle_url
+        ? [{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]
+        : [];
 
-    /*
-     * HÀM XỬ LÝ HÌNH TRONG NỀN (PICTURE-IN-PICTURE):
-     * Hỗ trợ chuẩn HTML5 requestPictureInPicture, Safari WebKit Presentation Mode,
-     * và chế độ Mini Mode góc dưới nếu iframe của browser chặn PiP.
-     */
+    const defaultSub = subList.find((s) => s.default) || subList[0];
+    const hasConfiguredSubtitle = subList.length > 0;
+
     const togglePip = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
@@ -196,16 +229,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           return;
         }
 
-        // Safari / iOS PresentationMode
         if (
           (videoEl as any).webkitSupportsPresentationMode &&
           typeof (videoEl as any).webkitSetPresentationMode === 'function'
         ) {
           const currentMode = (videoEl as any).webkitPresentationMode;
           const nextMode =
-            currentMode === 'picture-in-picture'
-              ? 'inline'
-              : 'picture-in-picture';
+            currentMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture';
           (videoEl as any).webkitSetPresentationMode(nextMode);
           art.notice.show =
             nextMode === 'picture-in-picture'
@@ -214,63 +244,61 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           return;
         }
 
-        // Fallback: Chế độ thu nhỏ góc màn hình (Mini Mode)
         (art as any).mini = !(art as any).mini;
         art.notice.show = (art as any).mini
           ? 'Đã thu nhỏ góc màn hình'
           : 'Đã phóng to khung phát';
       } catch (err: any) {
-        console.warn('PiP failed in iframe environment, falling back:', err);
+        console.warn('PiP failed:', err);
         try {
           (art as any).mini = !(art as any).mini;
-          art.notice.show = (art as any).mini
-            ? 'Đã thu nhỏ góc màn hình (Hình trong nền)'
-            : 'Đã phóng to khung phát';
         } catch {
-          art.notice.show = 'Trình duyệt không hỗ trợ PiP trong iframe này';
+          art.notice.show = 'Trình duyệt không hỗ trợ PiP';
         }
       }
     };
 
-    /*
-     * HÀM XỬ LÝ TOÀN MÀN HÌNH (FULLSCREEN):
-     * Thử HTML5 native requestFullscreen, nếu bị chặn (do iframe/sandbox/mobile),
-     * tự động chuyển sang Web Fullscreen (100vw x 100vh) đảm bảo hoạt động 100%.
-     */
+    // ==============================================================
+    // TOÀN MÀN HÌNH + TỰ ĐỘNG XOAY NGANG THEO CON QUAY HỒI CHUYỂN (GYRO)
+    // ==============================================================
     const toggleFullscreen = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
 
-      // Nếu đang ở Web Fullscreen, thoát ra
+      const isMobile =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
       if (art.fullscreenWeb) {
         art.fullscreenWeb = false;
         updateFullscreenButtonIcon(false);
         art.notice.show = 'Đã thoát toàn màn hình';
+        if (isMobile && screen.orientation && 'unlock' in screen.orientation) {
+          try {
+            screen.orientation.unlock();
+          } catch {}
+        }
         return;
       }
 
-      // Nếu đang ở Native Fullscreen, thoát ra
       if (document.fullscreenElement || art.fullscreen) {
         try {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-          }
+          if (document.exitFullscreen) await document.exitFullscreen();
         } catch {
           art.fullscreen = false;
         }
         updateFullscreenButtonIcon(false);
         art.notice.show = 'Đã thoát toàn màn hình';
+        if (isMobile && screen.orientation && 'unlock' in screen.orientation) {
+          try {
+            screen.orientation.unlock();
+          } catch {}
+        }
         return;
       }
 
-      // Thử Native Fullscreen trước
       try {
         const playerEl = art.template?.$player;
-        if (
-          document.fullscreenEnabled &&
-          playerEl &&
-          playerEl.requestFullscreen
-        ) {
+        if (document.fullscreenEnabled && playerEl && playerEl.requestFullscreen) {
           await playerEl.requestFullscreen();
           updateFullscreenButtonIcon(true);
           art.notice.show = 'Đã bật toàn màn hình';
@@ -279,12 +307,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           updateFullscreenButtonIcon(true);
           art.notice.show = 'Toàn màn hình (Web Fullscreen)';
         }
+
+        // TỰ ĐỘNG KHÓA XOAY NGANG CHO ĐIỆN THOẠI (HỖ TRỢ GYROSCOPE)
+        if (isMobile && screen.orientation && 'lock' in screen.orientation) {
+          try {
+            // 'landscape' cho phép con quay hồi chuyển tự do đảo chiều 2 hướng nằm ngang!
+            await (screen.orientation as any).lock('landscape');
+          } catch (err) {
+            console.warn('Orientation lock error:', err);
+          }
+        }
       } catch (err) {
-        // Iframe chặn Fullscreen hoặc Mobile không hỗ trợ Element Fullscreen -> Dùng Web Fullscreen
-        console.warn(
-          'Native fullscreen failed, fallback to fullscreenWeb:',
-          err
-        );
         art.fullscreenWeb = true;
         updateFullscreenButtonIcon(true);
         art.notice.show = 'Toàn màn hình (Web Fullscreen)';
@@ -320,19 +353,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const targetTime = Math.max(0, Math.min(duration, baseTime + delta));
       pendingSeekTarget = targetTime;
 
-      // Cập nhật ngay lập tức chấm đỏ và thanh tiến trình đỏ để người dùng thấy phản hồi tức thì
       const ratio = duration > 0 ? targetTime / duration : 0;
       const containerEl = containerRef.current;
       if (containerEl) {
-        const playedEl = containerEl.querySelector(
-          '.art-progress-played'
-        ) as HTMLElement | null;
-        const indicatorEl = containerEl.querySelector(
-          '.art-progress-indicator'
-        ) as HTMLElement | null;
-        const timeCurrentEl = containerEl.querySelector(
-          '.art-time-current'
-        ) as HTMLElement | null;
+        const playedEl = containerEl.querySelector('.art-progress-played') as HTMLElement | null;
+        const indicatorEl = containerEl.querySelector('.art-progress-indicator') as HTMLElement | null;
+        const timeCurrentEl = containerEl.querySelector('.art-time-current') as HTMLElement | null;
         if (playedEl) playedEl.style.width = `${ratio * 100}%`;
         if (indicatorEl) indicatorEl.style.left = `${ratio * 100}%`;
         if (timeCurrentEl) timeCurrentEl.textContent = formatSeconds(targetTime);
@@ -340,9 +366,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
       art.currentTime = targetTime;
       const direction = delta > 0 ? '⏩ Tua tới' : '⏪ Tua lùi';
-      art.notice.show = `${direction} ${Math.abs(delta)}s (${formatSeconds(
-        targetTime
-      )})`;
+      art.notice.show = `${direction} ${Math.abs(delta)}s (${formatSeconds(targetTime)})`;
 
       if (seekDebounceTimeout) window.clearTimeout(seekDebounceTimeout);
       seekDebounceTimeout = window.setTimeout(() => {
@@ -358,7 +382,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       isLive: false,
       muted: false,
       autoplay: false,
-      pip: false, // Dùng custom PiP control để đảm bảo không lỗi
+      pip: false,
       autoSize: false,
       autoMini: false,
       screenshot: false,
@@ -367,44 +391,48 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       flip: false,
       aspectRatio: false,
       playbackRate: true,
-      fullscreen: false, // Dùng custom Fullscreen control
-      fullscreenWeb: true, // Cho phép fallback Web Fullscreen
-      subtitleOffset: false, // Ẩn khỏi bảng setting vì đã có nút phụ đề ở mép dưới
+      fullscreen: false,
+      fullscreenWeb: true,
+      subtitleOffset: false,
       miniProgressBar: true,
       mutex: true,
       backdrop: true,
       playsInline: true,
       autoPlayback: false,
       fastForward: true,
-      gesture: true,
+      gesture: false, // Tắt gesture mặc định để dùng Touch Engine chuẩn YouTube bên dưới
       theme: '#ff0033',
-      lang: 'en',
-      hotkey: false, // Quản lý hotkey tùy biến chuẩn yêu cầu
+      lang: 'vi',
+      hotkey: false,
       highlight: highlights,
-      subtitle: {
-        url: video.subtitle_url || '',
-        type: isVtt ? 'vtt' : 'srt',
-        style: {
-          color: '#ffffff',
-          fontSize: '22px',
-          fontWeight: 'bold',
-          textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 4px #000',
-        },
-      },
+
+      // CẤU HÌNH ĐA PHỤ ĐỀ BAN ĐẦU
+      subtitle: defaultSub
+        ? {
+            url: defaultSub.url,
+            type: defaultSub.url.endsWith('.vtt') ? 'vtt' : 'srt',
+            style: {
+              color: '#ffffff',
+              fontSize: '22px',
+              fontWeight: 'bold',
+              textShadow: '0 2px 8px rgba(0,0,0,0.95), 0 0 4px #000',
+            },
+          }
+        : undefined,
+
       moreVideoAttr: {
         crossOrigin: 'anonymous',
         preload: 'metadata',
         playsInline: true,
       },
+
       layers: [
-        /*
-         * NÚT CÀI ĐẶT PHÍA TRÊN BÊN PHẢI KHUNG CHIẾU VIDEO
-         */
+        // 1. Nút cài đặt góc trên bên phải
         {
           name: 'top-settings-control',
           html: `
             <div class="art-layer-top-actions">
-              <button type="button" class="art-top-setting-btn" title="Cài đặt phát video (Độ sáng, Tốc độ)">
+              <button type="button" class="art-top-setting-btn" title="Cài đặt phát video (Độ sáng, Tốc độ, Phụ đề)">
                 ${SETTING_LUCIDE_HTML}
               </button>
             </div>
@@ -422,14 +450,193 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             }
           },
         },
+
+        // ==============================================================
+        // 2. YOUTUBE TOUCH ENGINE & CỤM NÚT TRUNG TÂM (CHẠM HIỆN NÚT, 2 CHẠM TUA)
+        // ==============================================================
+        {
+          name: 'youtube-touch-engine',
+          html: `
+            <div class="art-yt-overlay" style="position: absolute; inset: 0; z-index: 15; user-select: none; -webkit-tap-highlight-color: transparent;">
+              <!-- Sóng tua bên trái -->
+              <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+                <div style="font-size: 32px;">⏪</div>
+                <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">-10s</div>
+              </div>
+
+              <!-- Cụm nút trung tâm (Prev, Play/Pause, Next) -->
+              <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); transition: opacity 0.25s ease; opacity: 1;">
+                <button type="button" class="art-yt-btn-prev" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s;" title="Tập trước đó">
+                  ${PREV_BTN_HTML}
+                </button>
+
+                <button type="button" class="art-yt-btn-play" style="width: 72px; height: 72px; border-radius: 50%; background: #ff0033; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 20px rgba(255,0,51,0.5); transition: transform 0.15s;" title="Phát / Tạm dừng">
+                  ${PLAY_CENTER_HTML}
+                </button>
+
+                <button type="button" class="art-yt-btn-next" style="width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s, opacity 0.2s;" title="Tập kế tiếp">
+                  ${NEXT_BTN_HTML}
+                </button>
+              </div>
+
+              <!-- Sóng tua bên phải -->
+              <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 40%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
+                <div style="font-size: 32px;">⏩</div>
+                <div style="color: #fff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px;">+10s</div>
+              </div>
+            </div>
+          `,
+          mounted($el) {
+            const overlay = $el.querySelector('.art-yt-overlay') as HTMLElement | null;
+            const centerControls = $el.querySelector('.art-yt-center-controls') as HTMLElement | null;
+            const btnPlay = $el.querySelector('.art-yt-btn-play') as HTMLElement | null;
+            const btnPrev = $el.querySelector('.art-yt-btn-prev') as HTMLElement | null;
+            const btnNext = $el.querySelector('.art-yt-btn-next') as HTMLElement | null;
+            const rippleLeft = $el.querySelector('.art-yt-ripple-left') as HTMLElement | null;
+            const rippleRight = $el.querySelector('.art-yt-ripple-right') as HTMLElement | null;
+
+            if (!overlay || !centerControls || !btnPlay || !btnPrev || !btnNext) return;
+
+            // Cập nhật trạng thái disabled của Prev/Next
+            const updatePrevNextState = () => {
+              if (hasPrev) {
+                btnPrev.style.opacity = '1';
+                btnPrev.style.cursor = 'pointer';
+                btnPrev.style.pointerEvents = 'auto';
+              } else {
+                btnPrev.style.opacity = '0.25';
+                btnPrev.style.cursor = 'not-allowed';
+                btnPrev.style.pointerEvents = 'none';
+              }
+
+              if (hasNext) {
+                btnNext.style.opacity = '1';
+                btnNext.style.cursor = 'pointer';
+                btnNext.style.pointerEvents = 'auto';
+              } else {
+                btnNext.style.opacity = '0.25';
+                btnNext.style.cursor = 'not-allowed';
+                btnNext.style.pointerEvents = 'none';
+              }
+            };
+            updatePrevNextState();
+
+            let autoHideTimer: any = null;
+            const showControlsUI = () => {
+              centerControls.style.opacity = '1';
+              centerControls.style.pointerEvents = 'auto';
+              if (autoHideTimer) clearTimeout(autoHideTimer);
+              if (art.playing) {
+                autoHideTimer = setTimeout(() => {
+                  centerControls.style.opacity = '0';
+                  centerControls.style.pointerEvents = 'none';
+                }, 3500);
+              }
+            };
+
+            const hideControlsUI = () => {
+              if (art.playing) {
+                centerControls.style.opacity = '0';
+                centerControls.style.pointerEvents = 'none';
+              }
+            };
+
+            art.on('play', () => {
+              btnPlay.innerHTML = PAUSE_CENTER_HTML;
+              showControlsUI();
+            });
+
+            art.on('pause', () => {
+              btnPlay.innerHTML = PLAY_CENTER_HTML;
+              centerControls.style.opacity = '1';
+              centerControls.style.pointerEvents = 'auto';
+              if (autoHideTimer) clearTimeout(autoHideTimer);
+            });
+
+            // Xử lý nút Play/Pause trung tâm
+            btnPlay.addEventListener('click', (e) => {
+              e.stopPropagation();
+              art.toggle();
+            });
+
+            // Xử lý nút Prev / Next
+            btnPrev.addEventListener('click', (e) => {
+              e.stopPropagation();
+              onPrevVideoRef.current?.();
+            });
+
+            btnNext.addEventListener('click', (e) => {
+              e.stopPropagation();
+              onNextVideoRef.current?.();
+            });
+
+            // =========================================================
+            // BỘ NHẬN DIỆN CHẠM: CHẠM 1 LẦN HIỆN NÚT, CHẠM 2 LẦN TUA 10S
+            // =========================================================
+            let lastTapTime = 0;
+            let lastTapX = 0;
+
+            const handleTapInteraction = (clientX: number) => {
+              const rect = overlay.getBoundingClientRect();
+              const offsetX = clientX - rect.left;
+              const width = rect.width;
+              const now = Date.now();
+
+              // Kiểm tra xem có phải chạm đúp (Double Tap < 320ms) ở cùng 1 phía không
+              const isDoubleTap = now - lastTapTime < 320;
+              const isSameSide =
+                (offsetX < width * 0.35 && lastTapX < width * 0.35) ||
+                (offsetX > width * 0.65 && lastTapX > width * 0.65);
+
+              if (isDoubleTap && isSameSide) {
+                // DOUBLE TAP: TUA VIDEO
+                if (offsetX < width * 0.35) {
+                  seekRelative(-10);
+                  if (rippleLeft) {
+                    rippleLeft.style.display = 'flex';
+                    setTimeout(() => {
+                      rippleLeft.style.display = 'none';
+                    }, 500);
+                  }
+                } else if (offsetX > width * 0.65) {
+                  seekRelative(10);
+                  if (rippleRight) {
+                    rippleRight.style.display = 'flex';
+                    setTimeout(() => {
+                      rippleRight.style.display = 'none';
+                    }, 500);
+                  }
+                }
+                lastTapTime = 0;
+                hideControlsUI();
+              } else {
+                // SINGLE TAP: ẨN / HIỆN CỤM NÚT ĐIỀU KHIỂN
+                lastTapTime = now;
+                lastTapX = offsetX;
+                if (centerControls.style.opacity === '1') {
+                  hideControlsUI();
+                } else {
+                  showControlsUI();
+                }
+              }
+            };
+
+            overlay.addEventListener('click', (e) => {
+              // Bỏ qua nếu bấm trúng 3 nút trung tâm
+              if ((e.target as HTMLElement).closest('button')) return;
+              handleTapInteraction(e.clientX);
+            });
+
+            overlay.addEventListener('touchend', (e) => {
+              if ((e.target as HTMLElement).closest('button')) return;
+              if (e.changedTouches && e.changedTouches[0]) {
+                handleTapInteraction(e.changedTouches[0].clientX);
+              }
+            });
+          },
+        },
       ],
-      /*
-       * IN-PLAYER CONTROLS:
-       * - Nút tua: Lucide React RotateCcw & RotateCw Outline
-       * - Nút Phụ đề: Subtitles do Dev cấu hình
-       * - Nút Hình trong nền: PictureInPicture2 (có fallback mini player)
-       * - Nút Toàn màn hình: Maximize/Minimize (có fallback web fullscreen)
-       */
+
       controls: [
         {
           name: 'rewind-10s',
@@ -456,19 +663,14 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'right',
           index: 35,
           html: SUBTITLES_LUCIDE_HTML,
-          tooltip: hasConfiguredSubtitle
-            ? 'Bật / Tắt Phụ đề (SRT/VTT)'
-            : 'Chưa có phụ đề',
+          tooltip: hasConfiguredSubtitle ? 'Bật / Tắt Phụ đề' : 'Chưa có phụ đề',
           click: () => {
-            if (!hasConfiguredSubtitle || !art.subtitle.url) {
-              art.notice.show =
-                'Video này chưa có phụ đề';
+            if (!hasConfiguredSubtitle) {
+              art.notice.show = 'Video này chưa có phụ đề';
               return;
             }
             art.subtitle.show = !art.subtitle.show;
-            art.notice.show = art.subtitle.show
-              ? 'Đã bật phụ đề'
-              : 'Đã tắt phụ đề';
+            art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
           },
         },
         {
@@ -492,6 +694,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           },
         },
       ],
+
+      // MENU CÀI ĐẶT: ĐỘ SÁNG & CHỌN ĐA PHỤ ĐỀ (TIẾNG VIỆT, TIẾNG ANH...)
       settings: [
         {
           html: 'Độ sáng',
@@ -524,12 +728,37 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return val + '%';
           },
         },
+        ...(subList.length > 0
+          ? [
+              {
+                html: 'Phụ đề (Subtitles)',
+                width: 250,
+                tooltip: defaultSub?.name || 'Tắt',
+                selector: [
+                  { html: 'Tắt phụ đề', url: '', default: !defaultSub },
+                  ...subList.map((s) => ({
+                    html: s.name,
+                    url: s.url,
+                    default: s.url === defaultSub?.url,
+                  })),
+                ],
+                onSelect: (item: any) => {
+                  if (!item.url) {
+                    art.subtitle.show = false;
+                    return 'Đã tắt';
+                  }
+                  art.subtitle.show = true;
+                  art.subtitle.switch(item.url, { name: item.html });
+                  return item.html;
+                },
+              },
+            ]
+          : []),
       ],
     });
 
     artInstanceRef.current = art;
 
-    // Listen to Fullscreen changes
     art.on('fullscreen', (state) => {
       updateFullscreenButtonIcon(state);
     });
@@ -543,25 +772,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       updateFullscreenButtonIcon(isFs || Boolean(art.fullscreenWeb));
     };
 
-    document.addEventListener(
-      'fullscreenchange',
-      handleDocumentFullscreenChange
-    );
+    document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
-    // Remove small play/pause button and built-in duplicate controls
     art.on('ready', () => {
       try {
         art.controls.remove('playAndPause');
         art.controls.remove('aspectRatio');
         art.controls.remove('flip');
-      } catch {
-        // Handled via CSS
-      }
+      } catch {}
 
       if (art.template?.$video) {
-        art.template.$video.style.filter =
-          'brightness(' + initialBrightness + '%)';
-        // Đặt âm lượng độc lập cho video từ thiết lập đã lưu
+        art.template.$video.style.filter = 'brightness(' + initialBrightness + '%)';
         art.template.$video.volume = initialVolume;
       }
 
@@ -569,7 +790,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.playbackRate = initialRate;
       }
 
-      // If subtitle is configured, enable it by default
       if (hasConfiguredSubtitle) {
         art.subtitle.show = true;
       }
@@ -586,30 +806,17 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }
     });
 
-    /*
-     * TỐI ƯU TRẢI NGHIỆM VUỐT / KÉO GIỮ CHẤM ĐỎ TIẾN TRÌNH (TOUCH & POINTER SCRUBBING)
-     */
+    // KÉO GIỮ CHẤM ĐỎ TIẾN TRÌNH (SCRUBBING)
     let cleanupScrubListeners: (() => void) | null = null;
-
     art.on('ready', () => {
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
-      const progressEl = containerEl.querySelector(
-        '.art-progress'
-      ) as HTMLElement | null;
-      const playedEl = containerEl.querySelector(
-        '.art-progress-played'
-      ) as HTMLElement | null;
-      const indicatorEl = containerEl.querySelector(
-        '.art-progress-indicator'
-      ) as HTMLElement | null;
-      const tipEl = containerEl.querySelector(
-        '.art-progress-tip'
-      ) as HTMLElement | null;
-      const playerEl = containerEl.querySelector(
-        '.art-video-player'
-      ) as HTMLElement | null;
+      const progressEl = containerEl.querySelector('.art-progress') as HTMLElement | null;
+      const playedEl = containerEl.querySelector('.art-progress-played') as HTMLElement | null;
+      const indicatorEl = containerEl.querySelector('.art-progress-indicator') as HTMLElement | null;
+      const tipEl = containerEl.querySelector('.art-progress-tip') as HTMLElement | null;
+      const playerEl = containerEl.querySelector('.art-video-player') as HTMLElement | null;
 
       if (!progressEl) return;
 
@@ -634,12 +841,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         const totalDuration = art.duration || 0;
         const targetSeconds = ratio * totalDuration;
 
-        if (playedEl) {
-          playedEl.style.width = `${ratio * 100}%`;
-        }
-        if (indicatorEl) {
-          indicatorEl.style.left = `${ratio * 100}%`;
-        }
+        if (playedEl) playedEl.style.width = `${ratio * 100}%`;
+        if (indicatorEl) indicatorEl.style.left = `${ratio * 100}%`;
         if (tipEl) {
           tipEl.textContent = formatSeconds(targetSeconds);
           tipEl.style.left = `${ratio * 100}%`;
@@ -648,9 +851,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         }
 
         art.currentTime = targetSeconds;
-        art.notice.show = `🎯 ${formatSeconds(targetSeconds)} / ${formatSeconds(
-          totalDuration
-        )}`;
+        art.notice.show = `🎯 ${formatSeconds(targetSeconds)} / ${formatSeconds(totalDuration)}`;
 
         if (commitSeek) {
           art.currentTime = targetSeconds;
@@ -660,9 +861,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const handleScrubStart = (e: TouchEvent | MouseEvent) => {
         isDragging = true;
         wasPlayingBeforeDrag = art.playing;
-        if (art.playing) {
-          art.pause();
-        }
+        if (art.playing) art.pause();
         playerEl?.classList.add('art-is-scrubbing');
         const ratio = getRatioFromEvent(e);
         updateVisualScrub(ratio, false);
@@ -670,9 +869,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
       const handleScrubMove = (e: TouchEvent | MouseEvent) => {
         if (!isDragging) return;
-        if (e.cancelable) {
-          e.preventDefault();
-        }
+        if (e.cancelable) e.preventDefault();
         const ratio = getRatioFromEvent(e);
         updateVisualScrub(ratio, false);
       };
@@ -683,22 +880,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         playerEl?.classList.remove('art-is-scrubbing');
         const ratio = getRatioFromEvent(e);
         updateVisualScrub(ratio, true);
-
-        if (wasPlayingBeforeDrag) {
-          art.play();
-        }
+        if (wasPlayingBeforeDrag) art.play();
       };
 
-      progressEl.addEventListener('touchstart', handleScrubStart, {
-        passive: false,
-      });
-      window.addEventListener('touchmove', handleScrubMove, {
-        passive: false,
-      });
+      progressEl.addEventListener('touchstart', handleScrubStart, { passive: false });
+      window.addEventListener('touchmove', handleScrubMove, { passive: false });
       window.addEventListener('touchend', handleScrubEnd, { passive: true });
-      window.addEventListener('touchcancel', handleScrubEnd, {
-        passive: true,
-      });
+      window.addEventListener('touchcancel', handleScrubEnd, { passive: true });
 
       progressEl.addEventListener('mousedown', handleScrubStart);
       window.addEventListener('mousemove', handleScrubMove);
@@ -732,39 +920,22 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     });
 
     art.on('video:ratechange', () => {
-      const updated = saveVideoProgress(video.id, {
-        playbackRate: art.playbackRate,
-      });
+      const updated = saveVideoProgress(video.id, { playbackRate: art.playbackRate });
       onProgressUpdateRef.current?.(updated);
     });
 
     art.on('video:volumechange', () => {
-      const updated = saveVideoProgress(video.id, {
-        volume: art.muted ? 0 : art.volume,
-      });
+      const updated = saveVideoProgress(video.id, { volume: art.muted ? 0 : art.volume });
       onProgressUpdateRef.current?.(updated);
     });
 
     art.on('video:ended', () => {
-      const updated = saveVideoProgress(video.id, {
-        currentTime: 0,
-        duration: art.duration || 0,
-      });
+      const updated = saveVideoProgress(video.id, { currentTime: 0, duration: art.duration || 0 });
       onProgressUpdateRef.current?.(updated);
       onEndedNextRef.current?.();
     });
 
-    /*
-     * BỘ PHÍM TẮT ĐIỀU KHIỂN CHUẨN:
-     * - Dấu cách (Space / K): Tạm dừng / Phát video (chống cuộn trang & chống kích hoạt nhầm nút đang focus)
-     * - Mũi tên Trái / Phải: Tua lùi / Tua tới 5s (hoặc J / L: 10s)
-     * - Mũi tên Lên / Xuống: Tăng / Giảm âm lượng video (hoạt động độc lập với âm lượng hệ thống)
-     * - Phím F: Toàn màn hình (Fullscreen)
-     * - Phím P: Hình trong nền (Picture-in-Picture)
-     * - Phím M: Tắt / Mở âm thanh video
-     * - Phím C: Bật / Tắt phụ đề
-     * - Phím Escape: Thoát toàn màn hình
-     */
+    // BỘ PHÍM TẮT ĐIỀU KHIỂN
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
       const isInputFocused =
@@ -774,139 +945,76 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           activeEl.tagName === 'SELECT' ||
           (activeEl as HTMLElement).isContentEditable);
 
-      if (isInputFocused || e.ctrlKey || e.metaKey || e.altKey) {
-        return;
-      }
+      if (isInputFocused || e.ctrlKey || e.metaKey || e.altKey) return;
 
       const isSpace =
-        e.code === 'Space' ||
-        e.key === ' ' ||
-        e.key === 'Spacebar' ||
-        (e as any).keyCode === 32;
+        e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || (e as any).keyCode === 32;
 
-      // 1. Phím Space hoặc K: Tạm dừng / Phát video
       if (isSpace || e.key === 'k' || e.key === 'K') {
         e.preventDefault();
         e.stopPropagation();
-
-        // Bỏ focus phần tử hiện tại để tránh Space kích hoạt lại nút vừa bấm
         if (activeEl && typeof (activeEl as HTMLElement).blur === 'function') {
           (activeEl as HTMLElement).blur();
         }
-
-        const videoEl = art.template?.$video as HTMLVideoElement | null;
-        if (videoEl) {
-          if (videoEl.paused) {
-            const playPromise = videoEl.play();
-            if (playPromise !== undefined) {
-              playPromise.catch(() => {
-                art.play().catch(() => {});
-              });
-            }
-            art.notice.show = '▶ Đang phát';
-          } else {
-            videoEl.pause();
-            art.notice.show = '⏸ Tạm dừng';
-          }
-        } else {
-          art.toggle();
-        }
-        return;
-      }
-      // 2. Mũi tên Trái: Tua lùi 5s
-      else if (e.code === 'ArrowLeft') {
+        art.toggle();
+      } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        e.stopPropagation();
         seekRelative(-5);
-      }
-      // Mũi tên Phải: Tua tới 5s
-      else if (e.code === 'ArrowRight') {
+      } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        e.stopPropagation();
         seekRelative(5);
-      }
-      // Phím j / l: Tua 10s
-      else if (e.key === 'j' || e.key === 'J') {
+      } else if (e.key === 'j' || e.key === 'J') {
         e.preventDefault();
-        e.stopPropagation();
         seekRelative(-10);
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
-        e.stopPropagation();
         seekRelative(10);
-      }
-      // 3. Mũi tên Lên: Tăng âm lượng video độc lập (+5%)
-      else if (e.code === 'ArrowUp') {
+      } else if (e.code === 'ArrowUp') {
         e.preventDefault();
-        if (art.muted) {
-          art.muted = false;
-        }
+        if (art.muted) art.muted = false;
         const currentVol = Math.round((art.volume ?? 0.85) * 100);
         const nextVol = Math.min(100, currentVol + 5);
         art.volume = nextVol / 100;
-        if (art.template?.$video) {
-          art.template.$video.volume = nextVol / 100;
-        }
-        art.notice.show = `🔊 Âm lượng video: ${nextVol}%`;
+        if (art.template?.$video) art.template.$video.volume = nextVol / 100;
+        art.notice.show = `🔊 Âm lượng: ${nextVol}%`;
         const updated = saveVideoProgress(video.id, { volume: nextVol / 100 });
         onProgressUpdateRef.current?.(updated);
-      }
-      // Mũi tên Xuống: Giảm âm lượng video độc lập (-5%)
-      else if (e.code === 'ArrowDown') {
+      } else if (e.code === 'ArrowDown') {
         e.preventDefault();
         const currentVol = Math.round((art.volume ?? 0.85) * 100);
         const nextVol = Math.max(0, currentVol - 5);
         art.volume = nextVol / 100;
-        if (art.template?.$video) {
-          art.template.$video.volume = nextVol / 100;
-        }
+        if (art.template?.$video) art.template.$video.volume = nextVol / 100;
         if (nextVol === 0) {
           art.muted = true;
-          art.notice.show = '🔇 Tắt âm video: 0%';
+          art.notice.show = '🔇 Tắt âm';
         } else {
           if (art.muted) art.muted = false;
-          art.notice.show = `🔉 Âm lượng video: ${nextVol}%`;
+          art.notice.show = `🔉 Âm lượng: ${nextVol}%`;
         }
         const updated = saveVideoProgress(video.id, { volume: nextVol / 100 });
         onProgressUpdateRef.current?.(updated);
-      }
-      // 4. Phím F: Bật / Tắt toàn màn hình
-      else if (e.key === 'f' || e.key === 'F') {
+      } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         toggleFullscreen();
-      }
-      // 5. Phím P: Bật / Tắt hình trong nền (PiP)
-      else if (e.key === 'p' || e.key === 'P') {
+      } else if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         togglePip();
-      }
-      // 6. Phím M: Tắt / Bật tiếng
-      else if (e.key === 'm' || e.key === 'M') {
+      } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         art.muted = !art.muted;
-        art.notice.show = art.muted
-          ? '🔇 Đã tắt tiếng (Muted)'
-          : `🔊 Âm lượng video: ${Math.round(art.volume * 100)}%`;
-        const updated = saveVideoProgress(video.id, {
-          volume: art.muted ? 0 : art.volume,
-        });
+        art.notice.show = art.muted ? '🔇 Đã tắt tiếng' : `🔊 Âm lượng: ${Math.round(art.volume * 100)}%`;
+        const updated = saveVideoProgress(video.id, { volume: art.muted ? 0 : art.volume });
         onProgressUpdateRef.current?.(updated);
-      }
-      // 7. Phím C: Bật / Tắt phụ đề
-      else if (e.key === 'c' || e.key === 'C') {
+      } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        if (hasConfiguredSubtitle && art.subtitle.url) {
+        if (hasConfiguredSubtitle) {
           art.subtitle.show = !art.subtitle.show;
-          art.notice.show = art.subtitle.show
-            ? 'Đã bật phụ đề'
-            : 'Đã tắt phụ đề';
+          art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
         } else {
-          art.notice.show =
-            'Video này chưa có phụ đề (do Kỹ thuật viên cấu hình khi tải lên)';
+          art.notice.show = 'Video này chưa có phụ đề';
         }
-      }
-      // 8. Phím Escape: Thoát web fullscreen
-      else if (e.key === 'Escape') {
+      } else if (e.key === 'Escape') {
         if (art.fullscreenWeb) {
           e.preventDefault();
           art.fullscreenWeb = false;
@@ -920,13 +1028,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener(
-        'fullscreenchange',
-        handleDocumentFullscreenChange
-      );
-      if (cleanupScrubListeners) {
-        cleanupScrubListeners();
-      }
+      document.removeEventListener('fullscreenchange', handleDocumentFullscreenChange);
+      if (cleanupScrubListeners) cleanupScrubListeners();
       if (artInstanceRef.current) {
         artInstanceRef.current.destroy(false);
         artInstanceRef.current = null;
@@ -937,7 +1040,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     video.video_url,
     video.thumbnail_url,
     video.subtitle_url,
+    video.subtitles,
     video.description,
+    hasPrev,
+    hasNext,
   ]);
 
   return (
