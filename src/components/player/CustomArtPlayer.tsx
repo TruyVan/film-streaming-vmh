@@ -28,7 +28,7 @@ interface CustomArtPlayerProps {
 }
 
 // ==========================================
-// PURE SVG ICONS
+// PURE SVG ICONS (THANH THOÁT, CHUẨN OUTLINE STROKE CỦA ANH)
 // ==========================================
 const ICON_SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
 const ICON_REWIND_10 = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
@@ -38,8 +38,8 @@ const ICON_SUBTITLES = '<svg xmlns="http://www.w3.org/2000/svg" width="19" heigh
 const ICON_PIP = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="1"/></svg>';
 const ICON_MAXIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
 const ICON_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
-const ICON_LOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-const ICON_UNLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+const ICON_LOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+const ICON_UNLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
 const ICON_PLAY_CENTER = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="margin-left:3px;"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
 const ICON_PAUSE_CENTER = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
 const ICON_PREV = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>';
@@ -48,7 +48,7 @@ const ICON_FAST_FORWARD = '<svg xmlns="http://www.w3.org/2000/svg" width="34" he
 const ICON_REWIND = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(180deg);color:#ffffff;"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>';
 
 // ==========================================
-// LAYER TEMPLATES
+// LAYER TEMPLATES (POINTER-EVENTS: NONE ĐỂ KHÔNG BAO GIỜ CƯỚP CLICK)
 // ==========================================
 const LOCK_LAYER_HTML = [
   '<div class="art-layer-lock-action" style="position:absolute;top:16px;right:16px;z-index:90;transition:opacity 0.25s ease;opacity:1;">',
@@ -66,7 +66,7 @@ const HUD_LAYER_HTML = [
 ].join('');
 
 const TOUCH_ENGINE_LAYER_HTML = [
-  '<div class="art-yt-overlay" style="position:absolute;inset:0;z-index:10;user-select:none;-webkit-tap-highlight-color:transparent;">',
+  '<div class="art-yt-overlay" style="position:absolute;inset:0;z-index:10;pointer-events:none;user-select:none;-webkit-tap-highlight-color:transparent;">',
   '  <div class="art-yt-ripple-left" style="display:none;position:absolute;inset-y:0;left:0;width:30%;height:100%;background:radial-gradient(circle at left center,rgba(255,255,255,0.25) 0%,transparent 70%);pointer-events:none;align-items:center;justify-content:center;flex-direction:column;">',
   '    <div>' + ICON_REWIND + '</div>',
   '    <div style="color:#ffffff;font-size:13px;font-weight:bold;font-family:monospace;margin-top:4px;text-shadow:0 1px 4px rgba(0,0,0,0.9);">-10s</div>',
@@ -339,7 +339,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     };
 
     // ==============================================================
-    // KHỞI TẠO ARTPLAYER (KHÔI PHỤC ĐỦ SETTINGS CHO ĐỘ SÁNG VÀ ĐA PHỤ ĐỀ)
+    // KHỞI TẠO ARTPLAYER (ĐẶT NÚT SETTING VÀO CONTROLS VỚI ICON THANH THOÁT)
     // ==============================================================
     const art = new Artplayer({
       container: containerRef.current,
@@ -425,6 +425,15 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           tooltip: 'Tua tới 10 giây',
           click: () => seekRelative(10),
         },
+        // ĐƯA NÚT SETTING CUSTOM VÀO ĐÚNG VỊ TRÍ INDEX 30 (CẠNH PHỤ ĐỀ)
+        {
+          name: 'setting-bottom-btn',
+          position: 'right',
+          index: 30,
+          html: ICON_SETTINGS,
+          tooltip: 'Cài đặt (Độ sáng, Tốc độ, Phụ đề)',
+          click: () => art.setting.toggle(),
+        },
         {
           name: 'subtitles-toggle',
           position: 'right',
@@ -458,7 +467,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
       ],
 
-      // KHÔI PHỤC ĐẦY ĐỦ CÀI ĐẶT ĐỘ SÁNG (CHO LAPTOP/DESKTOP) VÀ ĐA PHỤ ĐỀ
       settings: [
         {
           html: 'Độ sáng',
@@ -569,7 +577,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: FIX CHUẨN CLASS .art-settings-show CHO OVERLAY & Z-INDEX
+      // INJECT CSS: ĐẢM BẢO Z-INDEX 9999 & ẨN OVERLAY KHI MỞ SETTINGS
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -578,18 +586,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        /* Thay icon setting gốc thành icon của anh */
-        .art-video-player .art-control-setting-icon {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-        .art-video-player .art-control-setting-icon svg {
-          width: 19px !important;
-          height: 19px !important;
-        }
-
-        /* Menu Settings nổi lên trên cùng với z-index cực cao */
+        /* Menu Settings nổi lên trên cùng với Z-Index 9999 */
         .art-video-player .art-settings {
           z-index: 9999 !important;
           pointer-events: auto !important;
@@ -607,8 +604,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           overflow-y: auto !important;
           pointer-events: auto !important;
         }
-        
-        /* ĐÚNG CLASS CHUẨN CỦA ARTPLAYER CÓ CHỮ 's' (art-settings-show) */
         .art-video-player.art-settings-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
@@ -644,15 +639,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           pointer-events: auto !important;
         }
       `;
-
-      // Gắn icon setting tùy chỉnh vào nút gốc của Artplayer
-      const settingControlBtn = containerEl.querySelector('.art-control-setting') as HTMLElement | null;
-      if (settingControlBtn) {
-        const iconContainer = settingControlBtn.querySelector('.art-control-setting-icon') as HTMLElement | null;
-        if (iconContainer) {
-          iconContainer.innerHTML = ICON_SETTINGS;
-        }
-      }
 
       let hideTimer: number | null = null;
 
