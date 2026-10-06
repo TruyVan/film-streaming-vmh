@@ -28,7 +28,7 @@ interface CustomArtPlayerProps {
 }
 
 // ==========================================
-// PURE SVG ICONS (THANH THOÁT, CHUẨN OUTLINE STROKE)
+// PURE SVG ICONS
 // ==========================================
 const ICON_SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
 const ICON_REWIND_10 = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
@@ -340,7 +340,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     };
 
     // ==============================================================
-    // KHỞI TẠO ARTPLAYER (DÙNG CUSTOM CONTROL BUTTON CHO SETTING ĐỂ KHÔNG BỊ ICON FONT CHE KHUẤT)
+    // KHỞI TẠO ARTPLAYER
     // ==============================================================
     const art = new Artplayer({
       container: containerRef.current,
@@ -354,7 +354,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       autoSize: false,
       autoMini: false,
       screenshot: false,
-      setting: true,
+      setting: true, // Kích hoạt setting engine
       loop: false,
       flip: false,
       aspectRatio: false,
@@ -426,15 +426,25 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           tooltip: 'Tua tới 10 giây',
           click: () => seekRelative(10),
         },
-        // DÙNG CUSTOM CONTROL BUTTON CHO SETTING ĐỂ HIỂN THỊ SVG ICON TRỰC TIẾP
+
+        // ==============================================================
+        // NÚT CÀI ĐẶT DUY NHẤT: CHỐNG TỰ ĐỘNG ĐÓNG BẰNG STOPPROPAGATION
+        // ==============================================================
         {
-          name: 'setting-custom-btn',
+          name: 'custom-setting-btn',
           position: 'right',
           index: 30,
           html: ICON_SETTINGS,
-          tooltip: 'Cài đặt (Độ sáng, Tốc độ, Phụ đề)',
-          click: () => art.setting.toggle(),
+          tooltip: 'Cài đặt',
+          click: (_control: any, event: any) => {
+            if (event && typeof event.stopPropagation === 'function') {
+              event.stopPropagation();
+              event.preventDefault();
+            }
+            art.setting.show = !art.setting.show;
+          },
         },
+
         {
           name: 'subtitles-toggle',
           position: 'right',
@@ -578,7 +588,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: ẨN NÚT SETTING NATIVE BƯỚNG BỈNH, HIỆN NÚT CUSTOM TRỰC QUAN
+      // INJECT CSS: ĐẢM BẢO MENU CÀI ĐẶT BẬT LÊN NỔI BẬT NHẤT
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -587,35 +597,45 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        /* Ẩn nút setting native gốc của artplayer để không bị đè icon font */
+        /* 1. ẨN NÚT SETTING GỐC ĐỂ TRÁNH BỊ TRÙNG 2 NÚT */
         .art-video-player .art-control-setting {
           display: none !important;
         }
 
-        /* Menu Settings nổi lên trên cùng với Z-Index 9999 */
-        .art-video-player .art-settings {
-          z-index: 9999 !important;
-          pointer-events: auto !important;
-          bottom: 54px !important;
-          right: 12px !important;
+        .art-video-player .art-control svg {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 19px !important;
+          height: 19px !important;
         }
+
+        /* 2. ĐỊNH VỊ VÀ ĐƯA BẢNG MENU CÀI ĐẶT LÊN CAO NHẤT */
         .art-video-player .art-setting {
-          z-index: 10000 !important;
+          position: absolute !important;
+          right: 14px !important;
+          bottom: 58px !important;
+          z-index: 99999 !important;
           pointer-events: auto !important;
+          border-radius: 12px !important;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75) !important;
         }
-        .art-video-player .art-setting-inner,
-        .art-video-player .art-setting-panel {
-          padding-bottom: 20px !important;
-          max-height: 280px !important;
-          overflow-y: auto !important;
-          pointer-events: auto !important;
-        }
+
+        /* Khi Setting mở: ẩn overlay Youtube để không bị che hoặc nuốt click */
+        .art-video-player.art-setting-show .art-yt-overlay,
         .art-video-player.art-settings-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
         }
 
-        /* HỖ TRỢ ĐỊNH DẠNG HTML TRONG PHỤ ĐỀ */
+        .art-video-player .art-setting-inner,
+        .art-video-player .art-setting-panel {
+          padding-bottom: 12px !important;
+          max-height: 280px !important;
+          overflow-y: auto !important;
+          pointer-events: auto !important;
+        }
+
         .art-video-player .art-subtitle i,
         .art-video-player .art-subtitle em {
           font-style: italic !important;
@@ -628,12 +648,11 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           text-decoration: underline !important;
         }
 
-        /* CHẾ ĐỘ KHÓA MÀN HÌNH BẤT KHẢ XÂM PHẠM */
         .art-video-player.art-is-locked .art-bottom,
         .art-video-player.art-is-locked .art-controls,
         .art-video-player.art-is-locked .art-progress,
         .art-video-player.art-is-locked .art-yt-center-controls,
-        .art-video-player.art-is-locked .art-settings,
+        .art-video-player.art-is-locked .art-setting,
         .art-video-player.art-is-locked .art-mask,
         .art-video-player.art-is-locked .art-state {
           display: none !important;
@@ -793,7 +812,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           const target = e.target as HTMLElement;
           if (
             target.closest('.art-setting') ||
-            target.closest('.art-settings') ||
             target.closest('.art-bottom') ||
             target.closest('.art-layer-lock-action') ||
             target.closest('button')
