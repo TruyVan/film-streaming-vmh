@@ -13,6 +13,11 @@ import {
   SkipBack,
   SkipForward,
   FastForward,
+  Lock,
+  Unlock,
+  Sun,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import Artplayer from 'artplayer';
 import {
@@ -44,67 +49,33 @@ interface CustomArtPlayerProps {
 
 const SUN_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
 
+// Icons Static HTML
 const REWIND_10_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(RotateCcw, {
-    size: 20,
-    strokeWidth: 2.2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-rotate-ccw',
-  })
+  React.createElement(RotateCcw, { size: 20, strokeWidth: 2.2, className: 'lucide lucide-rotate-ccw' })
 );
-
 const FORWARD_10_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(RotateCw, {
-    size: 20,
-    strokeWidth: 2.2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-rotate-cw',
-  })
+  React.createElement(RotateCw, { size: 20, strokeWidth: 2.2, className: 'lucide lucide-rotate-cw' })
 );
-
 const SUBTITLES_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(Subtitles, {
-    size: 19,
-    strokeWidth: 2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-subtitles',
-  })
+  React.createElement(Subtitles, { size: 19, strokeWidth: 2, className: 'lucide lucide-subtitles' })
 );
-
 const PIP_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(PictureInPicture2, {
-    size: 19,
-    strokeWidth: 2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-picture-in-picture-2',
-  })
+  React.createElement(PictureInPicture2, { size: 19, strokeWidth: 2, className: 'lucide lucide-picture-in-picture-2' })
 );
-
 const FULLSCREEN_MAX_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(Maximize, {
-    size: 19,
-    strokeWidth: 2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-maximize',
-  })
+  React.createElement(Maximize, { size: 19, strokeWidth: 2, className: 'lucide lucide-maximize' })
 );
-
 const FULLSCREEN_MIN_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(Minimize, {
-    size: 19,
-    strokeWidth: 2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-minimize',
-  })
+  React.createElement(Minimize, { size: 19, strokeWidth: 2, className: 'lucide lucide-minimize' })
 );
-
 const SETTING_LUCIDE_HTML = renderToStaticMarkup(
-  React.createElement(Settings, {
-    size: 20,
-    strokeWidth: 2,
-    style: { fill: 'none', stroke: 'currentColor' },
-    className: 'lucide lucide-settings',
-  })
+  React.createElement(Settings, { size: 20, strokeWidth: 2, className: 'lucide lucide-settings' })
+);
+const LOCK_ICON_HTML = renderToStaticMarkup(
+  React.createElement(Lock, { size: 18, strokeWidth: 2.2 })
+);
+const UNLOCK_ICON_HTML = renderToStaticMarkup(
+  React.createElement(Unlock, { size: 18, strokeWidth: 2.2 })
 );
 
 const PLAY_CENTER_HTML = renderToStaticMarkup(
@@ -218,9 +189,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     const defaultSub = subList.find((s) => s.default) || subList[0];
     const hasConfiguredSubtitle = subList.length > 0 && Boolean(defaultSub?.url);
 
-    // ==============================================================
-    // XỬ LÝ HÌNH TRONG NỀN (PIP) CHUẨN CẢ IPHONE, ANDROID & MÁY TÍNH
-    // ==============================================================
     const togglePip = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
@@ -228,14 +196,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       if (!videoEl) return;
 
       try {
-        // Đang ở PiP -> Thoát ra
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
           art.notice.show = 'Đã thoát hình trong nền';
           return;
         }
 
-        // iPhone / iPad Safari (Bắt buộc dùng webkitSetPresentationMode của Apple)
         if (
           typeof videoEl.webkitSupportsPresentationMode === 'function' &&
           videoEl.webkitSupportsPresentationMode('picture-in-picture') &&
@@ -248,29 +214,19 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           return;
         }
 
-        // Android Chrome & Máy tính (HTML5 requestPictureInPicture)
         if (videoEl.requestPictureInPicture) {
           await videoEl.requestPictureInPicture();
           art.notice.show = 'Đã bật hình trong nền (PiP)';
           return;
         }
 
-        // Fallback Mini Mode nếu thiết bị không hỗ trợ PiP
         (art as any).mini = !(art as any).mini;
         art.notice.show = (art as any).mini ? 'Đã thu nhỏ góc màn hình' : 'Đã phóng to';
       } catch (err: any) {
-        console.warn('PiP error, fallback mini:', err);
-        try {
-          (art as any).mini = !(art as any).mini;
-        } catch {
-          art.notice.show = 'Trình duyệt này không hỗ trợ PiP';
-        }
+        console.warn('PiP error:', err);
       }
     };
 
-    // ==============================================================
-    // XỬ LÝ TOÀN MÀN HÌNH (FULLSCREEN): ĐẶC TRỊ CHO IPHONE & ANDROID
-    // ==============================================================
     const toggleFullscreen = async () => {
       const art = artInstanceRef.current;
       if (!art) return;
@@ -280,7 +236,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const videoEl = art.template?.$video as any;
       const playerEl = art.template?.$player as HTMLElement | null;
 
-      // Đang ở Fullscreen -> Thoát ra
       if (art.fullscreen || art.fullscreenWeb || document.fullscreenElement) {
         if (document.fullscreenElement && document.exitFullscreen) {
           try { await document.exitFullscreen(); } catch {}
@@ -295,14 +250,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         return;
       }
 
-      // 1. ĐẶC BIỆT CHO IPHONE (iOS Safari bắt buộc dùng webkitEnterFullscreen trên video):
       if (videoEl && typeof videoEl.webkitEnterFullscreen === 'function' && !playerEl?.requestFullscreen) {
         videoEl.webkitEnterFullscreen();
         updateFullscreenButtonIcon(true);
         return;
       }
 
-      // 2. CHO ANDROID VÀ MÁY TÍNH (Standard HTML5 requestFullscreen trên khung phát):
       try {
         if (playerEl && playerEl.requestFullscreen) {
           await playerEl.requestFullscreen();
@@ -310,7 +263,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           updateFullscreenButtonIcon(true);
           art.notice.show = 'Đã bật toàn màn hình';
 
-          // Tự động xoay ngang theo con quay hồi chuyển trên điện thoại
           if (isMobile && screen.orientation && 'lock' in screen.orientation) {
             try {
               await (screen.orientation as any).lock('landscape');
@@ -319,7 +271,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           return;
         }
 
-        // 3. FALLBACK WEB FULLSCREEN NẾU TRÌNH DUYỆT CHẶN NATIVE:
         art.fullscreenWeb = true;
         updateFullscreenButtonIcon(true);
         art.notice.show = 'Toàn màn hình (Web)';
@@ -392,7 +343,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       fullscreen: false,
       fullscreenWeb: true,
       subtitleOffset: false,
-      miniProgressBar: true,
+      miniProgressBar: false, // Ẩn thanh progress mini khi ẩn điều khiển
       mutex: true,
       backdrop: true,
       playsInline: true,
@@ -424,6 +375,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       },
 
       layers: [
+        // 1. Nút Cài đặt góc trên bên phải
         {
           name: 'top-settings-control',
           html: `
@@ -447,17 +399,39 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           },
         },
 
+        // 2. Nút Khóa Màn Hình (Lock Mode - Chống chạm nhầm)
+        {
+          name: 'lock-screen-control',
+          html: `
+            <div class="art-layer-lock-action" style="position: absolute; top: 16px; left: 16px; z-index: 65; transition: opacity 0.25s ease;">
+              <button type="button" class="art-lock-btn" style="width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,0.55); border: 1.5px solid rgba(255,255,255,0.25); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(6px);" title="Khóa màn hình">
+                ${UNLOCK_ICON_HTML}
+              </button>
+            </div>
+          `,
+        },
+
+        // 3. HUD Thông Báo Vuốt Độ Sáng & Âm Lượng (VLC Style)
+        {
+          name: 'gesture-hud-indicator',
+          html: `
+            <div class="art-gesture-hud" style="display: none; position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); z-index: 70; background: rgba(0,0,0,0.7); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 16px; color: white; font-family: monospace; font-size: 14px; font-weight: bold; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); pointer-events: none;">
+              <span class="art-hud-icon"></span>
+              <span class="art-hud-text"></span>
+            </div>
+          `,
+        },
+
+        // 4. TẦNG CỬ CHỈ TRONG SUỐT VỚI NÚT KÍNH MỜ
         {
           name: 'youtube-touch-engine',
           html: `
             <div class="art-yt-overlay" style="position: absolute; inset: 0; z-index: 10; user-select: none; -webkit-tap-highlight-color: transparent;">
-              <!-- Sóng tua bên trái (30%) -->
               <div class="art-yt-ripple-left" style="display: none; position: absolute; inset-y: 0; left: 0; width: 30%; height: 100%; background: radial-gradient(circle at left center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div>${REWIND_ICON_HTML}</div>
                 <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">-10s</div>
               </div>
 
-              <!-- Cụm nút trung tâm (LUÔN SẴN SÀNG ĐỂ CHẠM PHÁT NGAY LẬP TỨC TRÊN DI ĐỘNG) -->
               <div class="art-yt-center-controls" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 32px; background: transparent; transition: opacity 0.25s ease; opacity: 1; pointer-events: auto;">
                 <button type="button" class="art-yt-btn-prev" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1.5px solid rgba(255,255,255,0.25); backdrop-filter: blur(6px); color: white; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, opacity 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.4); cursor: pointer;" title="Tập trước đó">
                   ${PREV_BTN_HTML}
@@ -472,7 +446,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
                 </button>
               </div>
 
-              <!-- Sóng tua bên phải (30%) -->
               <div class="art-yt-ripple-right" style="display: none; position: absolute; inset-y: 0; right: 0; width: 30%; height: 100%; background: radial-gradient(circle at right center, rgba(255,255,255,0.25) 0%, transparent 70%); pointer-events: none; align-items: center; justify-content: center; flex-direction: column;">
                 <div>${FAST_FORWARD_ICON_HTML}</div>
                 <div style="color: #ffffff; font-size: 13px; font-weight: bold; font-family: monospace; margin-top: 4px; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">+10s</div>
@@ -620,7 +593,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
     // ==============================================================
-    // KHÓA ĐỒNG BỘ ĐÁY + CẢM BIẾN TOUCHEND TRỰC TIẾP CHO DI ĐỘNG
+    // TOÀN BỘ LOGIC CỬ CHỈ, KHÓA MÀN HÌNH & VUỐT FULLSCREEN TẠI READY
     // ==============================================================
     art.on('ready', () => {
       try {
@@ -656,7 +629,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
-      // CSS CỐT TỬ: ĐẢM BẢO CÁC NÚT Ở MÉP DƯỚI RỘNG RÃI VÀ BẤM ĂN 100% TRÊN ĐIỆN THOẠI
+      // ==============================================================
+      // FIX CSS: SỬA LỖI PADDING SETTING SUBMENU VÀ THANH TIẾN TRÌNH FULL WIDTH
+      // ==============================================================
       const styleTag = document.createElement('style');
       styleTag.innerHTML = `
         .art-video-player .art-settings {
@@ -667,9 +642,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           z-index: 101 !important;
           pointer-events: auto !important;
         }
-        .art-video-player .art-setting-item,
-        .art-video-player .art-setting-range,
+        /* Fix lỗi cắt padding mục dưới cùng của Cài đặt */
+        .art-video-player .art-setting-inner,
         .art-video-player .art-setting-panel {
+          padding-bottom: 16px !important;
+          max-height: 280px !important;
+          overflow-y: auto !important;
           pointer-events: auto !important;
         }
         .art-video-player.art-setting-show .art-yt-overlay {
@@ -684,7 +662,23 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player .art-progress {
           pointer-events: auto !important;
         }
-        /* Mở rộng vùng chạm tối thiểu 42px cho ngón tay trên di động */
+        /* Fix thanh tiến trình luôn phủ 100% chiều ngang */
+        .art-video-player .art-progress {
+          width: 100% !important;
+          position: absolute !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 40px !important;
+        }
+        /* Ẩn tooltip timestamp cố định rác, chỉ hiện khi hover/kéo */
+        .art-video-player .art-progress-tip {
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+        .art-video-player .art-progress:hover .art-progress-tip,
+        .art-video-player.art-is-scrubbing .art-progress-tip {
+          opacity: 1 !important;
+        }
         @media (max-width: 768px) {
           .art-video-player .art-control {
             min-width: 40px !important;
@@ -701,39 +695,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       `;
       containerEl.appendChild(styleTag);
 
-      // GẮN SỰ KIỆN TOUCHEND TRỰC TIẾP CHO NÚT FULLSCREEN VÀ PIP TRÊN ĐIỆN THOẠI
-      const fsBtn = containerEl.querySelector('.art-control-fullscreen-toggle');
-      if (fsBtn) {
-        fsBtn.addEventListener('touchend', (ev) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-          toggleFullscreen();
-        });
-      }
-
-      const pipBtn = containerEl.querySelector('.art-control-pip-toggle');
-      if (pipBtn) {
-        pipBtn.addEventListener('touchend', (ev) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-          togglePip();
-        });
-      }
-
-      const subBtn = containerEl.querySelector('.art-control-subtitles-toggle');
-      if (subBtn) {
-        subBtn.addEventListener('touchend', (ev) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-          if (!hasConfiguredSubtitle || !art.subtitle) {
-            art.notice.show = 'Video này chưa có phụ đề';
-            return;
-          }
-          art.subtitle.show = !art.subtitle.show;
-          art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
-        });
-      }
-
+      // DOM Elements
       const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
       const centerControls = containerEl.querySelector('.art-yt-center-controls') as HTMLElement | null;
       const btnPlay = containerEl.querySelector('.art-yt-btn-play') as HTMLElement | null;
@@ -741,6 +703,54 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const btnNext = containerEl.querySelector('.art-yt-btn-next') as HTMLElement | null;
       const rippleLeft = containerEl.querySelector('.art-yt-ripple-left') as HTMLElement | null;
       const rippleRight = containerEl.querySelector('.art-yt-ripple-right') as HTMLElement | null;
+      const lockContainer = containerEl.querySelector('.art-layer-lock-action') as HTMLElement | null;
+      const btnLock = containerEl.querySelector('.art-lock-btn') as HTMLElement | null;
+      const hudContainer = containerEl.querySelector('.art-gesture-hud') as HTMLElement | null;
+      const hudIcon = containerEl.querySelector('.art-hud-icon') as HTMLElement | null;
+      const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
+
+      // ==========================================
+      // CHỨC NĂNG 1: KHÓA MÀN HÌNH (LOCK SCREEN MODE)
+      // ==========================================
+      let isScreenLocked = false;
+      if (btnLock && lockContainer) {
+        btnLock.addEventListener('click', (e) => {
+          e.stopPropagation();
+          isScreenLocked = !isScreenLocked;
+          btnLock.innerHTML = isScreenLocked ? LOCK_ICON_HTML : UNLOCK_ICON_HTML;
+          btnLock.style.background = isScreenLocked ? 'rgba(255,0,51,0.8)' : 'rgba(0,0,0,0.55)';
+          art.notice.show = isScreenLocked ? '🔒 Đã khóa màn hình' : '🔓 Đã mở khóa màn hình';
+
+          if (isScreenLocked) {
+            // Khóa toàn bộ
+            if (centerControls) centerControls.style.opacity = '0';
+            art.controls.show = false;
+          } else {
+            if (centerControls) centerControls.style.opacity = '1';
+            art.controls.show = true;
+          }
+        });
+      }
+
+      // ==========================================
+      // CHỨC NĂNG 2: TỰ ẨN NHANH (1.2 GIÂY)
+      // ==========================================
+      let autoHideTimer: any = null;
+      const resetHideTimer = () => {
+        if (autoHideTimer) clearTimeout(autoHideTimer);
+        if (art.playing) {
+          autoHideTimer = setTimeout(() => {
+            if (art.playing) {
+              if (centerControls) {
+                centerControls.style.opacity = '0';
+                centerControls.style.pointerEvents = 'none';
+              }
+              if (lockContainer && isScreenLocked) lockContainer.style.opacity = '0';
+              art.controls.show = false; // Ẩn luôn thanh đáy và thanh tiến trình
+            }
+          }, 1200); // 1.2 GIÂY TỰ ẨN SIÊU GỌN
+        }
+      };
 
       if (overlay && centerControls && btnPlay && btnPrev && btnNext) {
         btnPrev.style.opacity = hasPrev ? '1' : '0.25';
@@ -751,20 +761,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnNext.style.pointerEvents = hasNext ? 'auto' : 'none';
         btnNext.style.cursor = hasNext ? 'pointer' : 'not-allowed';
 
-        let autoHideTimer: any = null;
-        const resetHideTimer = () => {
-          if (autoHideTimer) clearTimeout(autoHideTimer);
-          if (art.playing) {
-            autoHideTimer = setTimeout(() => {
-              if (art.playing) {
-                centerControls.style.opacity = '0';
-                centerControls.style.pointerEvents = 'none';
-              }
-            }, 3500);
-          }
-        };
-
         art.on('control', (state: boolean) => {
+          if (isScreenLocked) return;
           if (art.playing) {
             centerControls.style.opacity = '0';
             centerControls.style.pointerEvents = 'none';
@@ -780,16 +778,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           }
         });
 
-        art.on('setting', (state: boolean) => {
-          if (state) {
-            centerControls.style.opacity = '0';
-            centerControls.style.pointerEvents = 'none';
-          } else if (!art.playing) {
-            centerControls.style.opacity = '1';
-            centerControls.style.pointerEvents = 'auto';
-          }
-        });
-
         art.on('play', () => {
           btnPlay.innerHTML = PAUSE_CENTER_HTML;
           resetHideTimer();
@@ -800,6 +788,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           art.controls.show = true;
           centerControls.style.opacity = '1';
           centerControls.style.pointerEvents = 'auto';
+          if (lockContainer) lockContainer.style.opacity = '1';
           if (autoHideTimer) clearTimeout(autoHideTimer);
         });
 
@@ -808,11 +797,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             const v = art.template.$video as HTMLVideoElement;
             if (v.paused) {
               const promise = v.play();
-              if (promise !== undefined) {
-                promise.catch(() => {
-                  art.play().catch(() => {});
-                });
-              }
+              if (promise !== undefined) promise.catch(() => art.play().catch(() => {}));
             } else {
               v.pause();
             }
@@ -822,10 +807,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         };
 
         btnPlay.addEventListener('click', (e) => {
-          e.stopPropagation();
-          executeDirectPlay();
-        });
-        btnPlay.addEventListener('touchend', (e) => {
           e.stopPropagation();
           executeDirectPlay();
         });
@@ -840,18 +821,99 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           onNextVideoRef.current?.();
         });
 
+        // ==========================================
+        // CHỨC NĂNG 3: VUỐT FULLSCREEN ĐỘ SÁNG & ÂM LƯỢNG (VLC STYLE)
+        // ==========================================
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+        let isVerticalSwiping = false;
+        let swipeTarget: 'brightness' | 'volume' | null = null;
+        let initialBrightnessVal = 100;
+        let initialVolumeVal = 0.85;
+
+        overlay.addEventListener('touchstart', (e: TouchEvent) => {
+          if (isScreenLocked || e.touches.length !== 1) return;
+          const touch = e.touches[0];
+          const rect = overlay.getBoundingClientRect();
+          touchStartX = touch.clientX - rect.left;
+          touchStartY = touch.clientY - rect.top;
+          touchStartTime = Date.now();
+          isVerticalSwiping = false;
+
+          const savedVal = getVideoProgress(video.id);
+          initialBrightnessVal = savedVal?.brightness ?? 100;
+          initialVolumeVal = art.volume ?? 0.85;
+
+          // Phân vùng vuốt: Trái (Độ sáng) | Phải (Âm lượng)
+          if (touchStartX < rect.width * 0.4) swipeTarget = 'brightness';
+          else if (touchStartX > rect.width * 0.6) swipeTarget = 'volume';
+          else swipeTarget = null;
+        }, { passive: true });
+
+        overlay.addEventListener('touchmove', (e: TouchEvent) => {
+          if (isScreenLocked || !swipeTarget || e.touches.length !== 1) return;
+          const touch = e.touches[0];
+          const rect = overlay.getBoundingClientRect();
+          const deltaY = touchStartY - (touch.clientY - rect.top);
+          const deltaX = Math.abs((touch.clientX - rect.left) - touchStartX);
+
+          // Nhận diện vuốt dọc
+          if (Math.abs(deltaY) > 15 && Math.abs(deltaY) > deltaX) {
+            isVerticalSwiping = true;
+            const percentDelta = (deltaY / rect.height) * 150;
+
+            if (swipeTarget === 'brightness') {
+              const nextBrightness = Math.round(Math.max(50, Math.min(200, initialBrightnessVal + percentDelta)));
+              if (art.template?.$video) {
+                art.template.$video.style.filter = `brightness(${nextBrightness}%)`;
+              }
+              saveVideoProgress(video.id, { brightness: nextBrightness });
+              if (hudContainer && hudText && hudIcon) {
+                hudContainer.style.display = 'flex';
+                hudIcon.innerHTML = '☀️';
+                hudText.textContent = `Độ sáng: ${nextBrightness}%`;
+              }
+            } else if (swipeTarget === 'volume') {
+              const nextVol = Math.max(0, Math.min(1, initialVolumeVal + (deltaY / rect.height)));
+              art.volume = nextVol;
+              if (art.template?.$video) art.template.$video.volume = nextVol;
+              saveVideoProgress(video.id, { volume: nextVol });
+              if (hudContainer && hudText && hudIcon) {
+                hudContainer.style.display = 'flex';
+                hudIcon.innerHTML = nextVol === 0 ? '🔇' : '🔊';
+                hudText.textContent = `Âm lượng: ${Math.round(nextVol * 100)}%`;
+              }
+            }
+          }
+        }, { passive: true });
+
+        overlay.addEventListener('touchend', () => {
+          if (hudContainer) {
+            setTimeout(() => { hudContainer.style.display = 'none'; }, 600);
+          }
+        });
+
+        // ==========================================
+        // BỘ CẢM BIẾN CHẠM: CHẠM 1 LẦN ẨN/HIỆN, CHẠM 2 LẦN TUA/FULLSCREEN
+        // ==========================================
         let lastTapTime = 0;
         let lastTapSide: 'left' | 'right' | 'center' | null = null;
         let singleTapTimer: any = null;
 
         overlay.addEventListener('pointerup', (e: PointerEvent) => {
-          const target = e.target as HTMLElement;
+          if (isVerticalSwiping) {
+            isVerticalSwiping = false;
+            return;
+          }
 
+          const target = e.target as HTMLElement;
           if (
             target.closest('.art-setting') ||
             target.closest('.art-settings') ||
             target.closest('.art-bottom') ||
             target.closest('.art-layer-top-actions') ||
+            target.closest('.art-layer-lock-action') ||
             target.closest('button')
           ) {
             return;
@@ -862,9 +924,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return;
           }
 
-          // NẾU VIDEO ĐANG TẠM DỪNG: CHẠM MÀN HÌNH LÀ PHÁT NGAY LẬP TỨC (0MS)
-          if (!art.playing) {
-            executeDirectPlay();
+          // NẾU ĐANG KHÓA MÀN HÌNH: CHỈ BẬT Ổ KHÓA ĐỂ MỞ
+          if (isScreenLocked) {
+            if (lockContainer) {
+              lockContainer.style.opacity = lockContainer.style.opacity === '1' ? '0' : '1';
+              if (lockContainer.style.opacity === '1') resetHideTimer();
+            }
             return;
           }
 
@@ -878,8 +943,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           else if (offsetX > width * 0.70) currentSide = 'right';
           else currentSide = 'center';
 
+          // DOUBLE CLICK (< 300ms)
           const isDoubleClick =
-            now - lastTapTime < 280 &&
+            now - lastTapTime < 300 &&
             lastTapSide === currentSide;
 
           if (isDoubleClick) {
@@ -907,16 +973,24 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             lastTapTime = 0;
             lastTapSide = null;
           } else {
+            // CHẠM 1 LẦN: CHỈ ẨN / HIỆN ĐIỀU KHIỂN (KHÔNG DỪNG PHIM!)
             lastTapTime = now;
             lastTapSide = currentSide;
 
             if (singleTapTimer) clearTimeout(singleTapTimer);
             singleTapTimer = setTimeout(() => {
-              if (art.playing) {
-                art.pause();
-                art.controls.show = true;
+              const isControlsShowing = centerControls.style.opacity === '1';
+              if (isControlsShowing) {
+                centerControls.style.opacity = '0';
+                centerControls.style.pointerEvents = 'none';
+                if (lockContainer) lockContainer.style.opacity = '0';
+                art.controls.show = false;
+              } else {
                 centerControls.style.opacity = '1';
                 centerControls.style.pointerEvents = 'auto';
+                if (lockContainer) lockContainer.style.opacity = '1';
+                art.controls.show = true;
+                resetHideTimer();
               }
               singleTapTimer = null;
             }, 260);
@@ -925,6 +999,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }
     });
 
+    // SCRUBBING TIẾN TRÌNH
     let cleanupScrubListeners: (() => void) | null = null;
     art.on('ready', () => {
       const containerEl = containerRef.current;
@@ -964,8 +1039,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         if (tipEl) {
           tipEl.textContent = formatSeconds(targetSeconds);
           tipEl.style.left = `${ratio * 100}%`;
-          tipEl.style.opacity = '1';
-          tipEl.style.transform = 'scale(1.1)';
         }
 
         art.currentTime = targetSeconds;
@@ -1015,7 +1088,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         window.removeEventListener('touchmove', handleScrubMove);
         window.removeEventListener('touchend', handleScrubEnd);
         window.removeEventListener('touchcancel', handleScrubEnd);
-
         progressEl.removeEventListener('mousedown', handleScrubStart);
         window.removeEventListener('mousemove', handleScrubMove);
         window.removeEventListener('mouseup', handleScrubEnd);
