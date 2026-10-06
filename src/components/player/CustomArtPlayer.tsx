@@ -354,7 +354,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       autoSize: false,
       autoMini: false,
       screenshot: false,
-      setting: true, // Bật module Settings để panel hoạt động
+      setting: true, // Kích hoạt setting engine
       loop: false,
       flip: false,
       aspectRatio: false,
@@ -428,7 +428,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         },
 
         // ==============================================================
-        // NÚT CÀI ĐẶT ĐÍCH THỰC (CHUẨN PIPELINE CONTROLS - CÓ ::before, ::after)
+        // NÚT CÀI ĐẶT DUY NHẤT: CHỐNG TỰ ĐỘNG ĐÓNG BẰNG STOPPROPAGATION
         // ==============================================================
         {
           name: 'custom-setting-btn',
@@ -436,7 +436,11 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           index: 30,
           html: ICON_SETTINGS,
           tooltip: 'Cài đặt',
-          click: () => {
+          click: (_control: any, event: any) => {
+            if (event && typeof event.stopPropagation === 'function') {
+              event.stopPropagation();
+              event.preventDefault();
+            }
             art.setting.show = !art.setting.show;
           },
         },
@@ -542,7 +546,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.controls.remove('playAndPause');
         art.controls.remove('aspectRatio');
         art.controls.remove('flip');
-        art.controls.remove('setting'); // XÓA SỔ NÚT MẶC ĐỊNH BỊ RỖNG CỦA ARTPLAYER
       } catch {}
 
       if (art.template?.$video) {
@@ -585,7 +588,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: CĂNG CHỈNH NÚT VÀ PANEL MENU CHUẨN XÁC
+      // INJECT CSS: ĐẢM BẢO MENU CÀI ĐẶT BẬT LÊN NỔI BẬT NHẤT
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -594,6 +597,11 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
+        /* 1. ẨN NÚT SETTING GỐC ĐỂ TRÁNH BỊ TRÙNG 2 NÚT */
+        .art-video-player .art-control-setting {
+          display: none !important;
+        }
+
         .art-video-player .art-control svg {
           display: inline-flex !important;
           align-items: center !important;
@@ -602,26 +610,30 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           height: 19px !important;
         }
 
-        .art-video-player .art-settings {
-          z-index: 9999 !important;
-          pointer-events: auto !important;
-          bottom: 54px !important;
-          right: 12px !important;
-        }
+        /* 2. ĐỊNH VỊ VÀ ĐƯA BẢNG MENU CÀI ĐẶT LÊN CAO NHẤT */
         .art-video-player .art-setting {
-          z-index: 10000 !important;
+          position: absolute !important;
+          right: 14px !important;
+          bottom: 58px !important;
+          z-index: 99999 !important;
           pointer-events: auto !important;
+          border-radius: 12px !important;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75) !important;
         }
-        .art-video-player .art-setting-inner,
-        .art-video-player .art-setting-panel {
-          padding-bottom: 20px !important;
-          max-height: 280px !important;
-          overflow-y: auto !important;
-          pointer-events: auto !important;
-        }
+
+        /* Khi Setting mở: ẩn overlay Youtube để không bị che hoặc nuốt click */
+        .art-video-player.art-setting-show .art-yt-overlay,
         .art-video-player.art-settings-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
+        }
+
+        .art-video-player .art-setting-inner,
+        .art-video-player .art-setting-panel {
+          padding-bottom: 12px !important;
+          max-height: 280px !important;
+          overflow-y: auto !important;
+          pointer-events: auto !important;
         }
 
         .art-video-player .art-subtitle i,
@@ -640,7 +652,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player.art-is-locked .art-controls,
         .art-video-player.art-is-locked .art-progress,
         .art-video-player.art-is-locked .art-yt-center-controls,
-        .art-video-player.art-is-locked .art-settings,
+        .art-video-player.art-is-locked .art-setting,
         .art-video-player.art-is-locked .art-mask,
         .art-video-player.art-is-locked .art-state {
           display: none !important;
@@ -800,7 +812,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           const target = e.target as HTMLElement;
           if (
             target.closest('.art-setting') ||
-            target.closest('.art-settings') ||
             target.closest('.art-bottom') ||
             target.closest('.art-layer-lock-action') ||
             target.closest('button')
