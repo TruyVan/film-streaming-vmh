@@ -202,21 +202,7 @@ export const VideoDetails: React.FC<VideoDetailsProps> = ({
       >
         {/* Top metadata line inside description box */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold mb-2">
-          <span>Ngày tổ chức: {formatVietnameseDate(video.event_date)}</span>
-          {video.duration && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="font-mono">Thời lượng: {video.duration}</span>
-            </>
-          )}
-          {progress && progress.currentTime > 3 && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="font-mono text-rose-500 font-bold">
-                Đang lưu tại {formatSeconds(progress.currentTime)}
-              </span>
-            </>
-          )}
+          <span>Ngày phát hành: {formatVietnameseDate(video.event_date)}</span>
           {video.tags?.map((tag) => (
             <button
               key={tag}
