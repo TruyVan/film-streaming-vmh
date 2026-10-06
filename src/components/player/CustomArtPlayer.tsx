@@ -340,7 +340,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     };
 
     // ==============================================================
-    // KHỞI TẠO ARTPLAYER (DÙNG ICONS NATIVE CHO SETTING)
+    // KHỞI TẠO ARTPLAYER
     // ==============================================================
     const art = new Artplayer({
       container: containerRef.current,
@@ -354,7 +354,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       autoSize: false,
       autoMini: false,
       screenshot: false,
-      setting: true,
+      setting: true, // Kích hoạt thanh Cài đặt gốc chuẩn
       loop: false,
       flip: false,
       aspectRatio: false,
@@ -374,9 +374,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       hotkey: false,
       highlight: highlights,
 
-      icons: {
-        setting: ICON_SETTINGS,
-      },
+      // ĐÃ LOẠI BỎ KHỐI icons: { setting } ĐỂ TRÁNH LỖI CRASH TYPEERROR
 
       subtitle: {
         url: defaultSub?.url || '',
@@ -558,6 +556,22 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
+      // ==============================================================
+      // GẮN ICON VÀ TOOLTIP CHUẨN CHO NÚT SETTING (ZERO-BUG)
+      // ==============================================================
+      const settingIcon = containerEl.querySelector(
+        '.art-control-setting .art-icon'
+      ) as HTMLElement | null;
+      if (settingIcon) {
+        settingIcon.innerHTML = ICON_SETTINGS;
+      }
+      const settingBtn = containerEl.querySelector(
+        '.art-control-setting'
+      ) as HTMLElement | null;
+      if (settingBtn) {
+        settingBtn.setAttribute('aria-label', 'Cài đặt');
+      }
+
       const playerEl = containerEl.querySelector('.art-video-player') as HTMLElement | null;
       const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
       const centerControls = containerEl.querySelector('.art-yt-center-controls') as HTMLElement | null;
@@ -573,7 +587,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: SỬA LỖI ILLEGAL REASSIGNMENT VÀ Z-INDEX
+      // INJECT CSS: CĂNG CHỈNH NÚT VÀ PANEL MENU CHUẨN XÁC
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -582,7 +596,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        .art-video-player .art-control-setting .art-control-setting-icon,
+        .art-video-player .art-control-setting .art-icon,
+        .art-video-player .art-control-setting .art-icon-setting,
         .art-video-player .art-control-setting svg {
           display: inline-flex !important;
           align-items: center !important;
