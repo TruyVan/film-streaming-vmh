@@ -293,18 +293,17 @@ export default function App() {
     );
   }, [videos, currentVideoId, filteredVideos]);
 
+  const lastSavedHistoryTimeRef = React.useRef<number>(0);
+
   const handleProgressUpdate = useCallback(
     async (updated: VideoProgress) => {
-      // 1. Cập nhật tiến độ cục bộ để vạch đỏ trên giao diện vẫn chạy mượt
       setProgressMap((prev) => ({
         ...prev,
         [updated.videoId]: updated,
       }));
   
-      // 2. CHỈ TÍNH LƯỢT XEM KHI ĐÃ XEM TỐI THIỂU 3 GIÂY (Chống click nhầm)
       if (updated.currentTime < 3) return;
   
-      // 3. NẾU CHƯA CÓ PHIÊN: Tạo đúng 1 lượt xem đầu tiên
       if (!currentWatchSessionIdRef.current) {
         const newSessionId = await createWatchSessionDb(
           updated.videoId,
@@ -312,14 +311,18 @@ export default function App() {
           formatSeconds(updated.duration)
         );
         currentWatchSessionIdRef.current = newSessionId;
+        lastSavedHistoryTimeRef.current = updated.currentTime;
         const history = await fetchWatchHistoryDb();
         setWatchHistory(history);
       } else {
-        // 4. NẾU ĐANG TRONG PHIÊN: Chỉ cập nhật số giây, tuyệt đối không đẻ thêm lượt mới!
-        await updateWatchSessionProgressDb(
-          currentWatchSessionIdRef.current,
-          updated.currentTime
-        );
+        const timeDiff = Math.abs(updated.currentTime - lastSavedHistoryTimeRef.current);
+        if (timeDiff >= 15) {
+          lastSavedHistoryTimeRef.current = updated.currentTime;
+          await updateWatchSessionProgressDb(
+            currentWatchSessionIdRef.current,
+            updated.currentTime
+          );
+        }
       }
     },
     []
