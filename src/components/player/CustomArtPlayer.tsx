@@ -28,28 +28,25 @@ interface CustomArtPlayerProps {
 }
 
 // ==========================================
-// PURE SVG ICONS (FLAT STRINGS CHỐNG LỖI PARSER)
+// PURE SVG ICONS (ĐÃ THÊM POINTER-EVENTS: NONE ĐỂ CHỐNG LỆCH CLICK TARGET)
 // ==========================================
-const ICON_SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
-const ICON_REWIND_10 = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
-const ICON_FORWARD_10 = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>';
-const ICON_SETTINGS = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings preview-icon"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>';
-const ICON_SUBTITLES = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13h4"/><path d="M15 13h2"/><path d="M7 9h2"/><path d="M13 9h4"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>';
-const ICON_PIP = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="1"/></svg>';
-const ICON_MAXIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
-const ICON_MINIMIZE = '<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
-const ICON_LOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock preview-icon"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-const ICON_UNLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-open preview-icon"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
-const ICON_PLAY_CENTER = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="margin-left:3px;"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
-const ICON_PAUSE_CENTER = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-const ICON_PREV = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>';
-const ICON_NEXT = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>';
-const ICON_FAST_FORWARD = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="color:#ffffff;"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>';
-const ICON_REWIND = '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(180deg);color:#ffffff;"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>';
+const ICON_SUN = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
+const ICON_REWIND_10 = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+const ICON_FORWARD_10 = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>';
+const ICON_SETTINGS = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings preview-icon"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICON_SUBTITLES = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13h4"/><path d="M15 13h2"/><path d="M7 9h2"/><path d="M13 9h4"/><rect width="20" height="14" x="2" y="5" rx="2"/></svg>';
+const ICON_PIP = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="1"/></svg>';
+const ICON_MAXIMIZE = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+const ICON_MINIMIZE = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+const ICON_LOCK = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock preview-icon"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+const ICON_UNLOCK = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock-open preview-icon"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+const ICON_PLAY_CENTER = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="margin-left:3px;"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+const ICON_PAUSE_CENTER = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+const ICON_PREV = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5" stroke="currentColor" stroke-width="2.5"/></svg>';
+const ICON_NEXT = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>';
+const ICON_FAST_FORWARD = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="color:#ffffff;"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>';
+const ICON_REWIND = '<svg style="pointer-events:none;" xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(180deg);color:#ffffff;"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>';
 
-// ==========================================
-// LAYER TEMPLATES (KHÔNG LỒNG TEMPLATE STRING)
-// ==========================================
 const LOCK_LAYER_HTML = [
   '<div class="art-layer-lock-action" style="position:absolute;top:16px;right:16px;z-index:90;transition:opacity 0.25s ease;opacity:1;">',
   '  <button type="button" class="art-lock-btn" style="width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,0.65);border:1.5px solid rgba(255,255,255,0.3);color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,0.5);" title="Khóa màn hình">',
@@ -338,9 +335,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }, 150);
     };
 
-    // ==============================================================
-    // KHỞI TẠO ARTPLAYER (HỖ TRỢ THẺ HTML PHỤ ĐỀ: ESCAPE = FALSE)
-    // ==============================================================
     const art = new Artplayer({
       container: containerRef.current,
       url: video.video_url,
@@ -376,7 +370,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       subtitle: {
         url: defaultSub?.url || '',
         type: defaultSub?.url?.endsWith('.vtt') ? 'vtt' : 'srt',
-        escape: false, // BẬT PARSE THẺ HTML: <i>, <b>, <u>, <font>...
+        escape: false,
         style: {
           color: '#ffffff',
           fontSize: '22px',
@@ -431,7 +425,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           index: 30,
           html: ICON_SETTINGS,
           tooltip: 'Cài đặt (Độ sáng, Tốc độ, Phụ đề)',
-          click: () => art.setting.toggle(),
+          click: () => {
+            art.setting.toggle();
+          },
         },
         {
           name: 'subtitles-toggle',
@@ -526,9 +522,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     };
     document.addEventListener('fullscreenchange', handleDocumentFullscreenChange);
 
-    // ==============================================================
-    // READY HANDLER
-    // ==============================================================
     art.on('ready', () => {
       try {
         art.controls.remove('playAndPause');
@@ -575,9 +568,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudIcon = containerEl.querySelector('.art-hud-icon') as HTMLElement | null;
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
-      // ==============================================================
-      // INJECT CSS: SETTINGS & SUBTITLE HTML STYLES
-      // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
         styleTag = document.createElement('style');
@@ -585,7 +575,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        /* Menu Settings nổi lên trên cùng */
+        /* Menu Settings nổi lên trên cùng & ép pointer-events chuẩn xác */
         .art-video-player .art-settings {
           z-index: 150 !important;
           pointer-events: auto !important;
@@ -606,6 +596,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player.art-settings-show .art-yt-overlay {
           display: none !important;
           pointer-events: none !important;
+        }
+
+        /* Đảm bảo nút cài đặt luôn nhận sự kiện bấm */
+        .art-video-player .art-control-setting-bottom-btn {
+          pointer-events: auto !important;
+          z-index: 60 !important;
         }
 
         /* HỖ TRỢ ĐỊNH DẠNG HTML TRONG PHỤ ĐỀ */
@@ -1014,9 +1010,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       }
     });
 
-    // ==========================================
-    // TIẾN TRÌNH & PROGRESS WATCHDOG
-    // ==========================================
     let lastSavedSec = -1;
     art.on('video:timeupdate', () => {
       if (isScrubbingRef.current) return;
@@ -1050,9 +1043,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       callbacksRef.current.onEndedNext?.();
     });
 
-    // ==========================================
-    // KEYBOARD SHORTCUTS
-    // ==========================================
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isLockedRef.current) return;
       const activeEl = document.activeElement;
