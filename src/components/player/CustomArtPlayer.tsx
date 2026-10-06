@@ -597,7 +597,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        /* 1. ẨN NÚT SETTING GỐC ĐỂ TRÁNH BỊ TRÙNG 2 NÚT */
+        /* 1. ẨN NÚT SETTING GỐC ĐỂ TRÁNH BỊ TRÙNG LẶP */
         .art-video-player .art-control-setting {
           display: none !important;
         }
@@ -610,18 +610,34 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           height: 19px !important;
         }
 
-        /* 2. ĐỊNH VỊ VÀ ĐƯA BẢNG MENU CÀI ĐẶT LÊN CAO NHẤT */
+        /* 2. ĐỊNH VỊ MENU CÀI ĐẶT NGAY TRÊN NÚT BÁNH RĂNG (CHUẨN DESKTOP & MOBILE) */
         .art-video-player .art-setting {
-          position: absolute !important;
-          right: 14px !important;
-          bottom: 58px !important;
+          top: auto !important;             /* HỦY BỎ VỊ TRÍ GÓC TRÊN CŨ */
+          bottom: 58px !important;         /* NẰM NGAY TRÊN THANH ĐIỀU KHIỂN DƯỚI */
+          right: 12px !important;          /* CĂN THẲNG HÀNG VỚI CÁC NÚT ĐIỀU KHIỂN PHẢI */
+          left: auto !important;
+          max-width: 280px !important;
+          width: auto !important;
           z-index: 99999 !important;
           pointer-events: auto !important;
           border-radius: 12px !important;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75) !important;
+          background: rgba(18, 18, 18, 0.92) !important;
+          backdrop-filter: blur(14px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8) !important;
         }
 
-        /* Khi Setting mở: ẩn overlay Youtube để không bị che hoặc nuốt click */
+        /* TỐI ƯU CHO MOBILE (MÀN HÌNH NHỎ) */
+        @media (max-width: 768px) {
+          .art-video-player .art-setting {
+            bottom: 50px !important;
+            right: 8px !important;
+            max-width: calc(100vw - 24px) !important;
+            font-size: 13px !important;
+          }
+        }
+
+        /* KHI BẢNG SETTING HIỆN: ẨN OVERLAY ĐỂ KHÔNG NUỐT CLICK TRÊN CẢ MOBILE LẪN PC */
         .art-video-player.art-setting-show .art-yt-overlay,
         .art-video-player.art-settings-show .art-yt-overlay {
           display: none !important;
@@ -630,10 +646,19 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
         .art-video-player .art-setting-inner,
         .art-video-player .art-setting-panel {
-          padding-bottom: 12px !important;
-          max-height: 280px !important;
+          padding-bottom: 8px !important;
+          max-height: 260px !important;
           overflow-y: auto !important;
           pointer-events: auto !important;
+        }
+
+        /* Tùy chỉnh thanh cuộn nhỏ gọn cho menu */
+        .art-video-player .art-setting-panel::-webkit-scrollbar {
+          width: 4px;
+        }
+        .art-video-player .art-setting-panel::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.25);
+          border-radius: 4px;
         }
 
         .art-video-player .art-subtitle i,
@@ -648,6 +673,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           text-decoration: underline !important;
         }
 
+        /* Chế độ khóa màn hình */
         .art-video-player.art-is-locked .art-bottom,
         .art-video-player.art-is-locked .art-controls,
         .art-video-player.art-is-locked .art-progress,
