@@ -28,7 +28,7 @@ interface CustomArtPlayerProps {
 }
 
 // ==========================================
-// PURE SVG ICONS (THANH THOÁT, CHUẨN OUTLINE STROKE)
+// PURE SVG ICONS
 // ==========================================
 const ICON_SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>';
 const ICON_REWIND_10 = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
@@ -296,8 +296,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           return;
         }
 
-        (art as keyof Artplayer) = !(art as any).mini;
-        art.notice.show = (art as any).mini ? 'Đã thu nhỏ góc màn hình' : 'Đã phóng to';
+        const artAny = art as any;
+        artAny.mini = !artAny.mini;
+        art.notice.show = artAny.mini ? 'Đã thu nhỏ góc màn hình' : 'Đã phóng to';
       } catch (err) {
         console.warn('PiP error:', err);
       }
@@ -339,7 +340,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     };
 
     // ==============================================================
-    // KHỞI TẠO ARTPLAYER (DÙNG NATIVE ICONS ĐỂ RENDER CHUẨN SETTING NATIVE)
+    // KHỞI TẠO ARTPLAYER (DÙNG ICONS NATIVE CHO SETTING)
     // ==============================================================
     const art = new Artplayer({
       container: containerRef.current,
@@ -373,7 +374,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       hotkey: false,
       highlight: highlights,
 
-      // TRUYỀN ICON NATIVE TRỰC TIẾP VÀO ĐÂY ĐỂ ARTPLAYER RENDER CHUẨN XÁC
       icons: {
         setting: ICON_SETTINGS,
       },
@@ -573,7 +573,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: ĐẢM BẢO SETTINGS Z-INDEX VÀ NÚT SETTING NATIVE HIỂN THỊ ĐẸP
+      // INJECT CSS: SỬA LỖI ILLEGAL REASSIGNMENT VÀ Z-INDEX
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -582,7 +582,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        /* Đảm bảo nút setting gốc hiển thị SVG chuẩn */
         .art-video-player .art-control-setting .art-control-setting-icon,
         .art-video-player .art-control-setting svg {
           display: inline-flex !important;
@@ -592,7 +591,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           height: 19px !important;
         }
 
-        /* Menu Settings nổi lên trên cùng với Z-Index 9999 */
         .art-video-player .art-settings {
           z-index: 9999 !important;
           pointer-events: auto !important;
@@ -615,7 +613,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           pointer-events: none !important;
         }
 
-        /* HỖ TRỢ ĐỊNH DẠNG HTML TRONG PHỤ ĐỀ */
         .art-video-player .art-subtitle i,
         .art-video-player .art-subtitle em {
           font-style: italic !important;
@@ -628,7 +625,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           text-decoration: underline !important;
         }
 
-        /* CHẾ ĐỘ KHÓA MÀN HÌNH BẤT KHẢ XÂM PHẠM */
         .art-video-player.art-is-locked .art-bottom,
         .art-video-player.art-is-locked .art-controls,
         .art-video-player.art-is-locked .art-progress,
