@@ -354,7 +354,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       autoSize: false,
       autoMini: false,
       screenshot: false,
-      setting: true, // Kích hoạt thanh Cài đặt gốc chuẩn
+      setting: true, // Bật module Settings để panel hoạt động
       loop: false,
       flip: false,
       aspectRatio: false,
@@ -373,8 +373,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       lang: 'vi',
       hotkey: false,
       highlight: highlights,
-
-      // ĐÃ LOẠI BỎ KHỐI icons: { setting } ĐỂ TRÁNH LỖI CRASH TYPEERROR
 
       subtitle: {
         url: defaultSub?.url || '',
@@ -428,6 +426,21 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           tooltip: 'Tua tới 10 giây',
           click: () => seekRelative(10),
         },
+
+        // ==============================================================
+        // NÚT CÀI ĐẶT ĐÍCH THỰC (CHUẨN PIPELINE CONTROLS - CÓ ::before, ::after)
+        // ==============================================================
+        {
+          name: 'custom-setting-btn',
+          position: 'right',
+          index: 30,
+          html: ICON_SETTINGS,
+          tooltip: 'Cài đặt',
+          click: () => {
+            art.setting.show = !art.setting.show;
+          },
+        },
+
         {
           name: 'subtitles-toggle',
           position: 'right',
@@ -529,6 +542,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.controls.remove('playAndPause');
         art.controls.remove('aspectRatio');
         art.controls.remove('flip');
+        art.controls.remove('setting'); // XÓA SỔ NÚT MẶC ĐỊNH BỊ RỖNG CỦA ARTPLAYER
       } catch {}
 
       if (art.template?.$video) {
@@ -556,22 +570,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const containerEl = containerRef.current;
       if (!containerEl) return;
 
-      // ==============================================================
-      // GẮN ICON VÀ TOOLTIP CHUẨN CHO NÚT SETTING (ZERO-BUG)
-      // ==============================================================
-      const settingIcon = containerEl.querySelector(
-        '.art-control-setting .art-icon'
-      ) as HTMLElement | null;
-      if (settingIcon) {
-        settingIcon.innerHTML = ICON_SETTINGS;
-      }
-      const settingBtn = containerEl.querySelector(
-        '.art-control-setting'
-      ) as HTMLElement | null;
-      if (settingBtn) {
-        settingBtn.setAttribute('aria-label', 'Cài đặt');
-      }
-
       const playerEl = containerEl.querySelector('.art-video-player') as HTMLElement | null;
       const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
       const centerControls = containerEl.querySelector('.art-yt-center-controls') as HTMLElement | null;
@@ -596,9 +594,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         containerEl.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-        .art-video-player .art-control-setting .art-icon,
-        .art-video-player .art-control-setting .art-icon-setting,
-        .art-video-player .art-control-setting svg {
+        .art-video-player .art-control svg {
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
