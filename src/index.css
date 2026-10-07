@@ -290,14 +290,15 @@
 .art-video-player .art-settings,
 .art-video-player .art-setting {
   position: absolute !important;
-  top: auto !important;              /* XÓA BỎ VỊ TRÍ GÓC TRÊN CŨ */
-  bottom: 58px !important;          /* GẮN NGAY TRÊN NÚT SETTING Ở ĐÁY */
-  right: 12px !important;           /* CĂN THẲNG LỀ PHẢI */
+  top: auto !important;
+  bottom: 58px !important;
+  right: 12px !important;
   left: auto !important;
-  width: 260px !important;
-  min-width: 260px !important;
+  width: 250px !important;
+  min-width: 250px !important;
   max-width: calc(100% - 24px) !important;
-  max-height: calc(100% - 75px) !important;
+  height: auto !important;             /* Tự co dãn theo nội dung */
+  max-height: 380px !important;
   background: rgba(15, 15, 18, 0.96) !important;
   backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
@@ -305,17 +306,16 @@
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85) !important;
   overflow: hidden !important;
   z-index: 99999 !important;
+  transition: height 0.2s ease !important; /* Mượt mà khi chuyển menu con */
 }
 
-/* TỐI ƯU RIÊNG CHO MOBILE & MÀN HÌNH NHỎ */
 @media (max-width: 768px) {
   .art-video-player .art-settings,
   .art-video-player .art-setting {
     bottom: 50px !important;
     right: 8px !important;
-    width: 240px !important;
-    min-width: 240px !important;
-    max-width: calc(100vw - 20px) !important;
+    width: 230px !important;
+    min-width: 230px !important;
   }
 }
 
@@ -326,18 +326,28 @@
   width: auto !important;
   min-width: 100% !important;
   height: auto !important;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  align-items: flex-start !important; /* Không ép kéo dãn chiều cao vô lý */
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .art-video-player .art-setting-panel {
-  width: 260px !important;
-  min-width: 260px !important;
-  max-width: 260px !important;
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
   overflow-y: auto !important;
-  max-height: 380px !important;
+  max-height: 320px !important;
+  height: auto !important;            /* Co dãn linh hoạt */
   padding: 6px 0 !important;
+}
+
+@media (max-width: 768px) {
+  .art-video-player .art-setting-panel {
+    width: 230px !important;
+    min-width: 230px !important;
+    max-width: 230px !important;
+  }
 }
 
 .art-video-player .art-setting-item {
