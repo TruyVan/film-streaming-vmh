@@ -56,6 +56,7 @@ const LOCK_LAYER_HTML = [
   '    ' + ICON_UNLOCK,
   '  </button>',
   '</div>',
+  '<div class="art-lock-shield" style="display:none;position:absolute;inset:0;z-index:999990;background:transparent;cursor:not-allowed;"></div>',
 ].join('');
 
 const HUD_LAYER_HTML = [
@@ -578,13 +579,14 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       const rippleLeft = containerEl.querySelector('.art-yt-ripple-left') as HTMLElement | null;
       const rippleRight = containerEl.querySelector('.art-yt-ripple-right') as HTMLElement | null;
       const lockContainer = containerEl.querySelector('.art-layer-lock-action') as HTMLElement | null;
+      const lockShield = containerEl.querySelector('.art-lock-shield') as HTMLElement | null;
       const btnLock = containerEl.querySelector('.art-lock-btn') as HTMLElement | null;
       const hudContainer = containerEl.querySelector('.art-gesture-hud') as HTMLElement | null;
       const hudIcon = containerEl.querySelector('.art-hud-icon') as HTMLElement | null;
       const hudText = containerEl.querySelector('.art-hud-text') as HTMLElement | null;
 
       // ==============================================================
-      // INJECT CSS: BẢO VỆ TUYỆT ĐỐI CHẾ ĐỘ LOCK VÀ MENU
+      // INJECT CSS: TUYỆT ĐỐI KHÔNG ẨN .art-video
       // ==============================================================
       let styleTag = containerEl.querySelector('#art-custom-styles') as HTMLStyleElement | null;
       if (!styleTag) {
@@ -623,9 +625,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           text-decoration: underline !important;
         }
 
-        /* KHÓA TUYỆT ĐỐI: CHẶN TOÀN BỘ CHẠM VÀ CLICK VÀO VIDEO KHI KHÓA */
-        .art-video-player.art-is-locked .art-video,
-        .art-video-player.art-is-locked .art-mask,
+        /* KHÓA: PHIM VẪN CHIẾU RÕ RÀNG (KHÔNG ĐƯỢC ẨN .art-video) */
+        .art-video-player.art-is-locked .art-video {
+          display: block !important;
+          pointer-events: none !important;
+        }
+
+        /* ẨN CÁC NÚT ĐIỀU KHIỂN ĐỂ TRÁNH BẤM NHẦM */
         .art-video-player.art-is-locked .art-bottom,
         .art-video-player.art-is-locked .art-controls,
         .art-video-player.art-is-locked .art-progress,
@@ -634,11 +640,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         .art-video-player.art-is-locked .art-setting,
         .art-video-player.art-is-locked .art-state {
           display: none !important;
+          opacity: 0 !important;
           pointer-events: none !important;
         }
 
-        .art-video-player.art-is-locked {
-          cursor: not-allowed !important;
+        .art-video-player.art-is-locked .art-lock-shield {
+          display: block !important;
+          pointer-events: auto !important;
         }
 
         .art-video-player.art-is-locked .art-layer-lock-action {
@@ -649,12 +657,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       `;
 
       // ==============================================================
-      // QUẢN LÝ ẨN/HIỆN PHÍM CHỨC NĂNG (CHUẨN 1 GIÂY TRÊN MOBILE)
+      // QUẢN LÝ ẨN/HIỆN PHÍM CHỨC NĂNG (CHUẨN 2 GIÂY TRÊN CẢ PC & MOBILE)
       // ==============================================================
       let hideTimer: number | null = null;
       let isUiShowing = true;
 
-      const resetControlsTimer = (delay = 1000) => {
+      const scheduleHideUI = (delay = 2000) => {
         if (hideTimer) window.clearTimeout(hideTimer);
         if (art.playing && !isLockedRef.current) {
           hideTimer = window.setTimeout(() => {
@@ -677,7 +685,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           lockContainer.style.pointerEvents = 'auto';
         }
         art.controls.show = true;
-        resetControlsTimer(1200); // Tự ẩn sau 1.2s rất gọn gàng
+        scheduleHideUI(2200); // Giữ trọn 2.2 giây để người dùng bấm nút thoải mái
       };
 
       const hideUI = () => {
@@ -694,9 +702,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         art.controls.show = false;
       };
 
-      containerEl.onmousemove = () => {
-        if (!isLockedRef.current) showUI();
-      };
+      // Chỉ lắng nghe mousemove trên thiết bị có chuột thực thụ (PC/Laptop)
+      const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+      if (hasFinePointer) {
+        containerEl.onmousemove = () => {
+          if (!isLockedRef.current) showUI();
+        };
+      }
 
       art.on('play', () => {
         if (btnPlay) btnPlay.innerHTML = ICON_PAUSE_CENTER;
@@ -727,8 +739,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         lockContainer.style.opacity = '1';
         lockContainer.style.pointerEvents = 'auto';
         if (btnLock) {
-          btnLock.style.transform = 'scale(1.2)';
-          setTimeout(() => { if (btnLock) btnLock.style.transform = 'scale(1)'; }, 200);
+          btnLock.style.transform = 'scale(1.25)';
+          btnLock.style.transition = 'transform 0.15s ease';
+          setTimeout(() => { if (btnLock) btnLock.style.transform = 'scale(1)'; }, 180);
         }
         if (lockBtnPingTimer) window.clearTimeout(lockBtnPingTimer);
         lockBtnPingTimer = window.setTimeout(() => {
@@ -737,6 +750,18 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           }
         }, 1500);
       };
+
+      // Khi chạm vào màn hình lúc khóa, chỉ nháy nút Lock chứ không Play/Pause
+      if (lockShield) {
+        lockShield.onclick = (e) => {
+          e.stopPropagation();
+          pingLockBtn();
+        };
+        lockShield.ontouchstart = (e) => {
+          e.stopPropagation();
+          pingLockBtn();
+        };
+      }
 
       if (btnLock && lockContainer) {
         btnLock.onclick = (e) => {
@@ -781,6 +806,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnPlay.onclick = (e) => {
           e.stopPropagation();
           handleTogglePlay();
+          scheduleHideUI(2000);
         };
       }
 
@@ -788,6 +814,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnPrev.onclick = (e) => {
           e.stopPropagation();
           callbacksRef.current.onPrevVideo?.();
+          scheduleHideUI(2000);
         };
       }
 
@@ -795,26 +822,18 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         btnNext.onclick = (e) => {
           e.stopPropagation();
           callbacksRef.current.onNextVideo?.();
+          scheduleHideUI(2000);
         };
       }
 
       // ==============================================================
-      // GESTURE & TOUCH ENGINE: PHÂN TÁCH RẠCH RÒI VUỐT VÀ CHẠM
+      // GESTURE & TOUCH ENGINE: PHÂN TÁCH HOÀN HẢO VUỐT VÀ CHẠM
       // ==============================================================
       let lastTapTime = 0;
       let lastTapSide: 'left' | 'right' | 'center' | null = null;
-      let singleTapTimer: number | null = null;
       let hasSwipedDuringTouch = false;
 
       if (overlay) {
-        // Chặn tuyệt đối nếu màn hình đang bị khóa
-        overlay.onpointerdown = (e) => {
-          if (isLockedRef.current) {
-            e.stopPropagation();
-            pingLockBtn();
-          }
-        };
-
         overlay.onclick = (e: MouseEvent) => {
           if (isLockedRef.current) {
             e.stopPropagation();
@@ -835,6 +854,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             target.closest('.art-layer-lock-action') ||
             target.closest('button')
           ) {
+            scheduleHideUI(2500);
             return;
           }
 
@@ -856,11 +876,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           const isDoubleClick = now - lastTapTime < 280 && lastTapSide === currentSide;
 
           if (isDoubleClick) {
-            if (singleTapTimer) {
-              window.clearTimeout(singleTapTimer);
-              singleTapTimer = null;
-            }
-
             if (currentSide === 'left') {
               seekRelative(-10);
               if (rippleLeft) {
@@ -883,15 +898,12 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             lastTapTime = now;
             lastTapSide = currentSide;
 
-            if (singleTapTimer) window.clearTimeout(singleTapTimer);
-            singleTapTimer = window.setTimeout(() => {
-              if (isUiShowing) {
-                hideUI();
-              } else {
-                showUI();
-              }
-              singleTapTimer = null;
-            }, 250);
+            // TOGGLE CHUẨN: CHẠM LÀ HIỆN, VÀ GIỮ NGUYÊN 2.2S!
+            if (isUiShowing) {
+              hideUI();
+            } else {
+              showUI();
+            }
           }
         };
 
@@ -908,7 +920,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
           // ĐIỀU KIỆN ĐẶC BIỆT CỦA ANH:
           // Chỉ cho phép vuốt khi phím chức năng ĐANG ẨN!
-          // Nếu UI đang hiện: VÔ HIỆU HÓA VUỐT HOÀN TOÀN!
+          // Nếu UI đang hiện: VÔ HIỆU HÓA VUỐT ĐỂ TẬP TRUNG BẤM NÚT!
           if (isUiShowing) {
             swipeTarget = null;
             return;
@@ -939,7 +951,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
           if (Math.abs(deltaY) > 15 && Math.abs(deltaY) > deltaX) {
             isVerticalSwiping = true;
-            hasSwipedDuringTouch = true; // Đánh dấu đã vuốt, cấm bật UI khi thả tay
+            hasSwipedDuringTouch = true; // Đã vuốt: Cấm kích hoạt bật nút UI khi thả tay
 
             const percentDelta = (deltaY / rect.height) * 150;
 
@@ -1056,6 +1068,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           if (wasPlayingBeforeDrag) {
             art.play().catch(() => {});
           }
+          scheduleHideUI(2000);
         };
 
         progressEl.addEventListener('mousedown', onDragStart);
