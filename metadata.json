@@ -1,6 +1,6 @@
 {
-  "name": "PartyStream — Private VoD Platform",
-  "description": "Dành riêng cho PotterHead Vũ Minh Hoà",
+  "name": "Film Streaming",
+  "description": "Xem mượt, không quảng cáo",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
