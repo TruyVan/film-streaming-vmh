@@ -17,10 +17,16 @@ create table if not exists public.videos (
   video_url text not null,       -- Direct HTTPS link streaming từ Oracle Cloud Nginx VPS (.mp4)
   thumbnail_url text,           -- Link ảnh bìa preview video
   subtitle_url text,            -- Link hoặc Data URI file phụ đề .srt / .vtt
-  tags text[] not null default '{"Sự kiện"}',
+  subtitles jsonb default '[]'::jsonb, -- Danh sách đa phụ đề
+  tags text[] not null default '{"Phim Hay"}',
+  sort_order integer default 0, -- Thứ tự sắp xếp các tập phim (Tập 1 -> Tập N)
+  deleted_at timestamp with time zone default null, -- Xóa tạm 30 ngày (Soft Delete)
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
 );
+
+-- Nếu bảng đã tồn tại, đảm bảo có cột sort_order:
+alter table public.videos add column if not exists sort_order integer default 0;
 
 -- 3. Tạo Trigger tự động cập nhật updated_at khi sửa bản ghi
 create or replace function public.handle_updated_at()
@@ -41,6 +47,8 @@ create trigger set_videos_updated_at
 create index if not exists idx_videos_event_date on public.videos (event_date desc);
 create index if not exists idx_videos_created_at on public.videos (created_at desc);
 create index if not exists idx_videos_tags on public.videos using gin (tags);
+create index if not exists idx_videos_sort_order on public.videos (sort_order asc);
+create index if not exists idx_videos_deleted_at on public.videos (deleted_at);
 
 -- 5. Cấu hình bảo mật Row Level Security (RLS)
 alter table public.videos enable row level security;

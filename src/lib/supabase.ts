@@ -119,21 +119,25 @@ export async function fetchVideos(): Promise<{
  * Thêm một bộ phim mới vào Supabase
  */
 export async function createVideoRecord(input: NewVideoInput): Promise<Video> {
+  const insertPayload: any = {
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    event_date: input.event_date,
+    duration: input.duration.trim() || '00:00:00',
+    video_url: input.video_url.trim(),
+    thumbnail_url: input.thumbnail_url?.trim() || null,
+    subtitle_url: input.subtitle_url?.trim() || null,
+    subtitles: (input as any).subtitles || [], // <-- LƯU ĐA PHỤ ĐỀ JSONB
+    tags: input.tags,
+  };
+
+  if (typeof input.sort_order === 'number') {
+    insertPayload.sort_order = input.sort_order;
+  }
+
   const { data, error } = await supabase
     .from('videos')
-    .insert([
-      {
-        title: input.title.trim(),
-        description: input.description.trim() || null,
-        event_date: input.event_date,
-        duration: input.duration.trim() || '00:00:00',
-        video_url: input.video_url.trim(),
-        thumbnail_url: input.thumbnail_url?.trim() || null,
-        subtitle_url: input.subtitle_url?.trim() || null,
-        subtitles: (input as any).subtitles || [], // <-- LƯU ĐA PHỤ ĐỀ JSONB
-        tags: input.tags,
-      },
-    ])
+    .insert([insertPayload])
     .select()
     .single();
 
@@ -145,26 +149,50 @@ export async function createVideoRecord(input: NewVideoInput): Promise<Video> {
  * Cập nhật thông tin bộ phim hiện có
  */
 export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video> {
+  const updatePayload: any = {
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    event_date: input.event_date,
+    duration: input.duration.trim() || '00:00:00',
+    video_url: input.video_url.trim(),
+    thumbnail_url: input.thumbnail_url?.trim() || null,
+    subtitle_url: input.subtitle_url?.trim() || null,
+    subtitles: (input as any).subtitles || [], // <-- CẬP NHẬT ĐA PHỤ ĐỀ
+    tags: input.tags,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof input.sort_order === 'number') {
+    updatePayload.sort_order = input.sort_order;
+  }
+
   const { data, error } = await supabase
     .from('videos')
-    .update({
-      title: input.title.trim(),
-      description: input.description.trim() || null,
-      event_date: input.event_date,
-      duration: input.duration.trim() || '00:00:00',
-      video_url: input.video_url.trim(),
-      thumbnail_url: input.thumbnail_url?.trim() || null,
-      subtitle_url: input.subtitle_url?.trim() || null,
-      subtitles: (input as any).subtitles || [], // <-- CẬP NHẬT ĐA PHỤ ĐỀ
-      tags: input.tags,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', input.id)
     .select()
     .single();
 
   if (error || !data) throw new Error(error?.message || 'Lỗi cập nhật');
   return data as Video;
+}
+
+/**
+ * Cập nhật thứ tự sắp xếp cho danh sách phim (kéo thả)
+ */
+export async function updateVideoSortOrders(
+  items: { id: string; sort_order: number }[]
+): Promise<void> {
+  for (const item of items) {
+    try {
+      await supabase
+        .from('videos')
+        .update({ sort_order: item.sort_order })
+        .eq('id', item.id);
+    } catch (err: any) {
+      console.warn(`Lỗi cập nhật sort_order cho phim ${item.id}:`, err?.message);
+    }
+  }
 }
 
 /**
@@ -301,8 +329,8 @@ export async function fetchWatchHistoryDb(): Promise<WatchHistoryItem[]> {
     return data.map((h) => ({
       id: h.id,
       videoId: h.video_id,
-      watchedSeconds: h.watched_seconds,
-      duration: h.duration,
+      lastPosition: h.watched_seconds ?? 0,
+      duration: typeof h.duration === 'number' ? h.duration : 0,
       lastWatchedAt: new Date(h.watched_at).getTime(),
     }));
   } catch {

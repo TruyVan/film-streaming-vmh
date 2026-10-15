@@ -18,6 +18,12 @@ import {
   Square,
   AlertTriangle,
   Globe2,
+  GripVertical,
+  ArrowUp,
+  ArrowDown,
+  FolderTree,
+  RefreshCw,
+  FolderPlus,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { NewVideoInput, SubtitleTrack, ThemeMode, UpdateVideoInput, Video } from '../../types/video';
@@ -27,6 +33,7 @@ import {
   restoreVideoRecord,
   softDeleteVideoRecord,
   updateVideoRecord,
+  updateVideoSortOrders,
 } from '../../lib/supabase';
 
 interface AdminDevPortalProps {
@@ -35,6 +42,9 @@ interface AdminDevPortalProps {
   customTopics: string[];
   onVideoAdded: (video: Video) => void;
   onVideoUpdated: (video: Video) => void;
+  onAddTopic?: (topic: string) => Promise<void> | void;
+  onRemoveTopic?: (topic: string) => Promise<void> | void;
+  onVideosReordered?: (updatedVideos: Video[]) => void;
   onGoHome: () => void;
 }
 
@@ -49,6 +59,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   customTopics,
   onVideoAdded,
   onVideoUpdated,
+  onAddTopic,
+  onRemoveTopic,
+  onVideosReordered,
   onGoHome,
 }) => {
   const isLight = themeMode === 'light';
@@ -57,7 +70,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [passcode, setPasscode] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
 
-  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit' | 'categories'>('list');
   const [listFilter, setListFilter] = useState<'active' | 'trash'>('active');
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -70,12 +83,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     new Date().toISOString().split('T')[0]
   );
   const [addDuration, setAddDuration] = useState('00:00:00');
-  const [addSelectedTopics, setAddSelectedTopics] = useState<string[]>([]);
+  const [addCategory, setAddCategory] = useState<string>('');
+  const [inlineNewCategory, setInlineNewCategory] = useState<string>('');
   const [addDescription, setAddDescription] = useState('');
   // DANH SÁCH ĐA PHỤ ĐỀ KHI THÊM
   const [addSubtitles, setAddSubtitles] = useState<SubtitleTrack[]>([]);
 
-  // Upload States
+  // Upload States & Smart Thumbnail extraction
+  const [activeVideoFile, setActiveVideoFile] = useState<File | null>(null);
+  const [thumbnailSeekOffset, setThumbnailSeekOffset] = useState<number>(25);
   const [uploadedVideoFile, setUploadedVideoFile] = useState<{
     name: string;
     sizeMB: string;
@@ -92,10 +108,17 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [editThumbnailUrl, setEditThumbnailUrl] = useState('');
   const [editEventDate, setEditEventDate] = useState('');
   const [editDuration, setEditDuration] = useState('');
-  const [editSelectedTopics, setEditSelectedTopics] = useState<string[]>([]);
+  const [editCategory, setEditCategory] = useState<string>('');
   const [editDescription, setEditDescription] = useState('');
   // DANH SÁCH ĐA PHỤ ĐỀ KHI SỬA
   const [editSubtitles, setEditSubtitles] = useState<SubtitleTrack[]>([]);
+
+  // Quản lý Phân Loại & Kéo Thả Thứ Tự Phim (Tab categories)
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [selectedCatForOrder, setSelectedCatForOrder] = useState<string>('');
+  const [categoryVideosOrder, setCategoryVideosOrder] = useState<Video[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,29 +146,107 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
-  const generateThumbnailFromVideo = (file: File) => {
+  // ==============================================================
+  // THUẬT TOÁN TRÍCH XUẤT ẢNH BÌA THÔNG MINH (CHỐNG MÀN HÌNH ĐEN)
+  // ==============================================================
+  const generateThumbnailFromVideo = (file: File, customSeekTime?: number) => {
+    setActiveVideoFile(file);
     const video = document.createElement('video');
-    video.preload = 'metadata';
+    video.preload = 'auto';
     video.src = URL.createObjectURL(file);
     video.muted = true;
     video.playsInline = true;
 
     video.onloadedmetadata = () => {
-      video.currentTime = Math.min(1, video.duration / 2);
-    };
+      const dur = video.duration || 60;
+      let candidateTimes: number[] = [];
 
-    video.onseeked = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const thumbDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        setAddThumbnailUrl(thumbDataUrl);
-        toast.info('Đã tự động trích xuất ảnh bìa từ video!');
+      if (typeof customSeekTime === 'number' && customSeekTime > 0) {
+        candidateTimes = [Math.min(customSeekTime, Math.max(1, dur - 2))];
+      } else {
+        // Tự động tìm khung hình sáng, tuyệt đối không lấy 0s-1s (gần như luôn là màn hình đen)
+        if (dur > 300) {
+          candidateTimes = [35, 75, 120, 180, Math.floor(dur * 0.15), 20];
+        } else if (dur > 60) {
+          candidateTimes = [15, 30, 45, Math.floor(dur * 0.2), 10];
+        } else {
+          candidateTimes = [
+            Math.max(2, Math.floor(dur * 0.2)),
+            Math.max(3, Math.floor(dur * 0.4)),
+            Math.max(4, Math.floor(dur * 0.6)),
+          ];
+        }
       }
-      URL.revokeObjectURL(video.src);
+
+      let currentProbeIdx = 0;
+      let bestDataUrl = '';
+      let highestBrightness = -1;
+
+      const attemptSeek = (timeSec: number) => {
+        video.currentTime = Math.max(0.5, Math.min(timeSec, dur - 0.5));
+      };
+
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+
+            // Đo độ sáng trung bình (tránh màn hình đen)
+            let totalLuma = 0;
+            const step = Math.max(1, Math.floor(data.length / 400)) * 4; // Lấy mẫu ~400 điểm ảnh
+            let sampleCount = 0;
+            for (let i = 0; i < data.length; i += step) {
+              const r = data[i];
+              const g = data[i + 1];
+              const b = data[i + 2];
+              totalLuma += 0.299 * r + 0.587 * g + 0.114 * b;
+              sampleCount++;
+            }
+            const avgBrightness = sampleCount > 0 ? totalLuma / sampleCount : 0;
+            const currentDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+            if (avgBrightness > highestBrightness) {
+              highestBrightness = avgBrightness;
+              bestDataUrl = currentDataUrl;
+            }
+
+            // Nếu độ sáng > 25 (khung hình rõ nét, không đen) hoặc đã thử hết các mốc
+            if (avgBrightness > 25 || currentProbeIdx >= candidateTimes.length - 1) {
+              const finalUrl = avgBrightness > 20 ? currentDataUrl : bestDataUrl;
+              setAddThumbnailUrl(finalUrl);
+              setThumbnailSeekOffset(candidateTimes[currentProbeIdx]);
+              toast.info(`Đã trích xuất ảnh bìa sắc nét từ giây ${candidateTimes[currentProbeIdx]}s!`);
+              URL.revokeObjectURL(video.src);
+            } else {
+              // Khung hình quá tối (màn hình đen mở đầu), thử mốc kế tiếp
+              currentProbeIdx++;
+              attemptSeek(candidateTimes[currentProbeIdx]);
+            }
+          }
+        } catch (err) {
+          console.warn('Lỗi trích xuất thumbnail:', err);
+          URL.revokeObjectURL(video.src);
+        }
+      };
+
+      attemptSeek(candidateTimes[0]);
     };
+  };
+
+  const handleCycleThumbnail = () => {
+    if (!activeVideoFile) {
+      toast.warning('Chưa có file video để trích xuất lại ảnh bìa.');
+      return;
+    }
+    const nextOffset = thumbnailSeekOffset + 25;
+    setThumbnailSeekOffset(nextOffset);
+    generateThumbnailFromVideo(activeVideoFile, nextOffset);
   };
 
   const autoDetectVideoDuration = (file: File) => {
@@ -167,6 +268,8 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const handleVideoFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setActiveVideoFile(file);
 
     const cleanName = file.name
       .normalize('NFD')
@@ -350,26 +453,12 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       setEditSubtitles([]);
     }
 
-    const validCurrentTopics = (video.tags || []).filter((t) =>
-      customTopics.some((ct) => ct.toLowerCase() === t.toLowerCase())
-    );
-    setEditSelectedTopics(validCurrentTopics);
+    const currentCat = (video.tags && video.tags.length > 0) ? video.tags[0] : '';
+    setEditCategory(currentCat);
 
     setEditDescription(video.description || '');
     setActiveTab('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const toggleTopicSelection = (topic: string, mode: 'add' | 'edit') => {
-    if (mode === 'add') {
-      setAddSelectedTopics((prev) =>
-        prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-      );
-    } else {
-      setEditSelectedTopics((prev) =>
-        prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-      );
-    }
   };
 
   const handleToggleSelectAll = () => {
@@ -408,15 +497,33 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     toast.success(`Đã khôi phục ${targets.length} phim về rạp!`);
   };
 
+  // Xóa vĩnh viễn: Xóa cả trên Supabase LẪN trên ổ cứng VPS Oracle!
   const handleHardDelete = async (targets: string[]) => {
-    if (window.confirm(`CẢNH BÁO: Xóa vĩnh viễn ${targets.length} phim khỏi cơ sở dữ liệu? Hành động này không thể hoàn tác!`)) {
+    if (
+      window.confirm(
+        `CẢNH BÁO: Xóa vĩnh viễn ${targets.length} phim khỏi cơ sở dữ liệu VÀ giải phóng dung lượng ổ cứng VPS? Hành động này không thể hoàn tác!`
+      )
+    ) {
       for (const id of targets) {
-        await hardDeleteVideoRecord(id);
         const v = videos.find((item) => item.id === id);
+
+        // 1. GỬI LỆNH XÓA FILE VẬT LÝ TRÊN Ổ CỨNG VPS ORACLE QUA WEBDAV
+        if (v && v.video_url && (v.video_url.includes('sslip.io') || v.video_url.includes(VOD_BASE_URL))) {
+          try {
+            await fetch(v.video_url, { method: 'DELETE' });
+            console.log(`Đã xóa sạch file trên ổ cứng VPS: ${v.video_url}`);
+          } catch (err) {
+            console.warn('Không thể xóa file vật lý trên VPS (có thể file không tồn tại):', err);
+          }
+        }
+
+        // 2. Xóa bản ghi trong database Supabase
+        await hardDeleteVideoRecord(id);
         if (v) onVideoUpdated({ ...v, deleted_at: 'permanently_deleted' });
       }
+
       setSelectedIds([]);
-      toast.success(`Đã xóa vĩnh viễn ${targets.length} phim.`);
+      toast.success(`Đã xóa vĩnh viễn ${targets.length} phim và giải phóng ổ cứng VPS!`);
     }
   };
 
@@ -427,7 +534,16 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       return;
     }
 
-    const cleanTags = addSelectedTopics.filter((t) => customTopics.includes(t));
+    const finalCategory = addCategory.trim() || inlineNewCategory.trim();
+    if (!finalCategory) {
+      toast.error('Vui lòng chọn hoặc nhập 1 Phân Loại duy nhất cho bộ phim!');
+      return;
+    }
+
+    if (inlineNewCategory.trim() && onAddTopic) {
+      await onAddTopic(inlineNewCategory.trim());
+    }
+
     const validSubs = addSubtitles.filter((s) => s.name.trim() && s.url.trim());
     const defaultSub = validSubs.find((s) => s.default) || validSubs[0];
 
@@ -439,7 +555,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       duration: addDuration.trim() || '00:00:00',
       video_url: addVideoUrl.trim(),
       thumbnail_url: addThumbnailUrl.trim() || undefined,
-      tags: cleanTags,
+      tags: [finalCategory],
       subtitle_url: defaultSub?.url || undefined,
       subtitles: validSubs,
     };
@@ -447,7 +563,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     try {
       const created = await createVideoRecord(payload);
       onVideoAdded(created);
-      toast.success(`Đã đăng bộ phim "${created.title}" với ${validSubs.length} phụ đề!`);
+      toast.success(`Đã đăng bộ phim "${created.title}" thuộc phân loại "${finalCategory}"!`);
 
       setAddTitle('');
       setAddVideoUrl('');
@@ -456,8 +572,12 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       setUploadedVideoFile(null);
       setUploadProgress(null);
       setAddDescription('');
-      setAddSelectedTopics([]);
+      setAddCategory('');
+      setInlineNewCategory('');
+      setActiveVideoFile(null);
+      // Sau khi upload/thêm phim thành công: Quay trở lại danh sách phim
       setActiveTab('list');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi lưu video.');
     } finally {
@@ -469,7 +589,12 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     e.preventDefault();
     if (!editingVideoId) return;
 
-    const cleanTags = editSelectedTopics.filter((t) => customTopics.includes(t));
+    const finalCategory = editCategory.trim();
+    if (!finalCategory) {
+      toast.error('Vui lòng chọn 1 Phân Loại duy nhất cho bộ phim!');
+      return;
+    }
+
     const validSubs = editSubtitles.filter((s) => s.name.trim() && s.url.trim());
     const defaultSub = validSubs.find((s) => s.default) || validSubs[0];
 
@@ -482,7 +607,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       duration: editDuration.trim() || '00:00:00',
       video_url: editVideoUrl.trim(),
       thumbnail_url: editThumbnailUrl.trim() || undefined,
-      tags: cleanTags,
+      tags: [finalCategory],
       subtitle_url: defaultSub?.url || undefined,
       subtitles: validSubs,
     };
@@ -490,12 +615,148 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     try {
       const updated = await updateVideoRecord(payload);
       onVideoUpdated(updated);
-      toast.success(`Đã cập nhật phim "${updated.title}" với ${validSubs.length} phụ đề!`);
+      toast.success(`Đã cập nhật phim "${updated.title}" với phân loại "${finalCategory}"!`);
       setActiveTab('list');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi cập nhật phim.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ==============================================================
+  // QUẢN LÝ PHÂN LOẠI & THỨ TỰ PHIM (KÉO THẢ)
+  // ==============================================================
+  const handleAddNewCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = newCategoryName.trim();
+    if (!clean) return;
+    if (customTopics.some((t) => t.toLowerCase() === clean.toLowerCase())) {
+      toast.warning(`Phân loại "${clean}" đã tồn tại.`);
+      return;
+    }
+    if (onAddTopic) {
+      await onAddTopic(clean);
+      setNewCategoryName('');
+      toast.success(`Đã thêm phân loại "${clean}" thành công!`);
+      if (!selectedCatForOrder) {
+        setSelectedCatForOrder(clean);
+      }
+    }
+  };
+
+  const handleRemoveCategory = async (cat: string) => {
+    if (window.confirm(`Bạn có chắc muốn xóa phân loại "${cat}"? (Các video thuộc phân loại này vẫn được giữ nguyên đầy đủ)`)) {
+      if (onRemoveTopic) {
+        await onRemoveTopic(cat);
+        toast.success(`Đã xóa phân loại "${cat}".`);
+        if (selectedCatForOrder.toLowerCase() === cat.toLowerCase()) {
+          setSelectedCatForOrder('');
+        }
+      }
+    }
+  };
+
+  // Đồng bộ danh sách phim của phân loại đang được chọn để sắp xếp
+  useEffect(() => {
+    if (!selectedCatForOrder) {
+      if (customTopics.length > 0) {
+        setSelectedCatForOrder(customTopics[0]);
+      } else {
+        setCategoryVideosOrder([]);
+        return;
+      }
+    }
+
+    const targetCat = selectedCatForOrder || customTopics[0];
+    const matched = videos
+      .filter((v) => !v.deleted_at && (v.tags || []).some((t) => t.toLowerCase() === targetCat.toLowerCase()))
+      .sort((a, b) => {
+        if (typeof a.sort_order === 'number' && typeof b.sort_order === 'number' && a.sort_order !== b.sort_order) {
+          return a.sort_order - b.sort_order;
+        }
+        const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+        const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+        if (dateA !== dateB) return dateA - dateB;
+        const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return createA - createB;
+      });
+
+    setCategoryVideosOrder(matched);
+  }, [selectedCatForOrder, customTopics, videos]);
+
+  const handleAutoSortOldestFirst = () => {
+    const sorted = [...categoryVideosOrder].sort((a, b) => {
+      const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+      const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+      if (dateA !== dateB) return dateA - dateB;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return createA - createB;
+    });
+    setCategoryVideosOrder(sorted);
+    toast.info('Đã xếp danh sách theo ngày phát hành: Cũ nhất ở trên cùng → Mới nhất ở dưới.');
+  };
+
+  const handleMoveMovie = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= categoryVideosOrder.length) return;
+    const updated = [...categoryVideosOrder];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    setCategoryVideosOrder(updated);
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    const updated = [...categoryVideosOrder];
+    const [draggedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(index, 0, draggedItem);
+    setDraggedIndex(index);
+    setCategoryVideosOrder(updated);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedIndex(null);
+  };
+
+  const handleSaveCategoryOrder = async () => {
+    if (categoryVideosOrder.length === 0) return;
+    setIsSavingOrder(true);
+    try {
+      const itemsToUpdate = categoryVideosOrder.map((v, idx) => ({
+        id: v.id,
+        sort_order: idx + 1,
+      }));
+
+      await updateVideoSortOrders(itemsToUpdate);
+
+      // Cập nhật lại state videos trên client
+      const updatedAll = videos.map((v) => {
+        const found = itemsToUpdate.find((item) => item.id === v.id);
+        if (found) return { ...v, sort_order: found.sort_order };
+        return v;
+      });
+
+      if (onVideosReordered) {
+        onVideosReordered(updatedAll);
+      }
+
+      toast.success(
+        `Đã lưu thứ tự ${categoryVideosOrder.length} tập phim của "${selectedCatForOrder}" thành công!`
+      );
+    } catch (err: any) {
+      toast.error('Lỗi khi lưu thứ tự phim: ' + err.message);
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -686,7 +947,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     setPasscode(e.target.value);
                     setAuthError('');
                   }}
-                  placeholder="Nhập mã PIN (admin2026)"
+                  placeholder="Nhập mã PIN..."
                   className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none transition-colors ${
                     isLight
                       ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
@@ -752,6 +1013,21 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               >
                 <Plus className="w-4 h-4" />
                 <span>Thêm Phim Mới</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('categories')}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'categories'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                }`}
+              >
+                <FolderTree className="w-4 h-4" />
+                <span>Phân Loại & Thứ Tự Phim</span>
               </button>
 
               {activeTab === 'edit' && (
@@ -1055,6 +1331,22 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             style={{ width: `${uploadProgress || 100}%` }}
                           />
                         </div>
+
+                        {uploadProgress === 100 && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                              <Check className="w-4 h-4" />
+                              <span>Đã tải file lên VPS thành công!</span>
+                            </span>
+                            <button
+                              type="submit"
+                              disabled={isSubmitting || !addVideoUrl.trim()}
+                              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md flex items-center gap-1.5 self-end sm:self-auto disabled:opacity-50"
+                            >
+                              <span>{isSubmitting ? 'Đang lưu...' : 'Lưu Phim & Quay Về Danh Sách →'}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1097,23 +1389,36 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       />
                     </div>
 
-                    {/* Vùng Ảnh bìa */}
+                    {/* Vùng Ảnh bìa thông minh */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold">Ảnh Bìa (Thumbnail)</label>
-                        <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1">
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span>Tải ảnh khác từ máy</span>
-                          <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'add')} className="hidden" />
-                        </label>
+                        <div className="flex items-center gap-2">
+                          {activeVideoFile && (
+                            <button
+                              type="button"
+                              onClick={handleCycleThumbnail}
+                              className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                              title="Trích xuất khung hình ở giây khác nếu ảnh hiện tại chưa ưng ý"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Đổi khung hình (+25s)</span>
+                            </button>
+                          )}
+                          <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1 font-medium">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span>Tải ảnh từ máy</span>
+                            <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'add')} className="hidden" />
+                          </label>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         {addThumbnailUrl ? (
-                          <div className="w-24 h-14 rounded-lg overflow-hidden border border-slate-300 dark:border-white/20 shrink-0">
+                          <div className="w-28 h-16 rounded-lg overflow-hidden border border-slate-300 dark:border-white/20 shrink-0 relative group">
                             <img src={addThumbnailUrl} alt="Thumbnail preview" className="w-full h-full object-cover" />
                           </div>
                         ) : (
-                          <div className={`w-24 h-14 rounded-lg flex items-center justify-center text-xs shrink-0 border ${
+                          <div className={`w-28 h-16 rounded-lg flex items-center justify-center text-xs shrink-0 border ${
                             isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-black/40 border-white/10 text-zinc-500'
                           }`}>
                             Chưa có
@@ -1123,7 +1428,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           type="text"
                           value={addThumbnailUrl}
                           onChange={(e) => setAddThumbnailUrl(e.target.value)}
-                          placeholder="Link ảnh bìa hoặc tự trích xuất..."
+                          placeholder="Link ảnh bìa hoặc tự động trích xuất từ video..."
                           className={`flex-1 px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
                             isLight
                               ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
@@ -1166,48 +1471,77 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   {/* KHUNG ĐA PHỤ ĐỀ (MULTI-SUBTITLES) */}
                   {renderSubtitleManager('add')}
 
-                  {/* VÙNG CHỦ ĐỀ / TOPICS */}
+                  {/* VÙNG PHÂN LOẠI (CHỌN DUY NHẤT 1 PHÂN LOẠI) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold">
-                        Chủ đề / Thể loại phim (Chọn từ danh mục hệ thống)
-                      </label>
-                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                        Đã chọn: {addSelectedTopics.length} chủ đề
+                      <div>
+                        <label className="block text-xs font-bold text-rose-500">
+                          Phân Loại Phim (Mỗi bộ phim chỉ thuộc 1 phân loại duy nhất) *
+                        </label>
+                        <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                          Gom các tập phim vào cùng một chuỗi để phát liền mạch (VD: Harry Potter, Stranger Things Mùa 1...)
+                        </p>
+                      </div>
+                      <span className={`text-[11px] font-semibold ${addCategory ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {addCategory ? `✓ Đang chọn: ${addCategory}` : 'Chưa chọn phân loại'}
                       </span>
                     </div>
 
-                    {customTopics.length === 0 ? (
-                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300 text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-                        <span>
-                          Chưa có chủ đề nào được tạo. Vui lòng quay ra Sidebar bấm <strong>"Cấu hình chủ đề..."</strong> để thêm trước khi gắn cho phim nhé!
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {customTopics.map((topic) => {
-                          const isSelected = addSelectedTopics.includes(topic);
-                          return (
-                            <button
-                              key={topic}
-                              type="button"
-                              onClick={() => toggleTopicSelection(topic, 'add')}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                                isSelected
-                                  ? 'bg-rose-600 text-white shadow-xs'
-                                  : isLight
-                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                                  : 'bg-white/10 hover:bg-white/15 text-zinc-300'
-                              }`}
-                            >
-                              {isSelected ? '✓ ' : '+ '}
-                              {topic}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {customTopics.map((topic) => {
+                        const isSelected = addCategory.toLowerCase() === topic.toLowerCase();
+                        return (
+                          <button
+                            key={topic}
+                            type="button"
+                            onClick={() => {
+                              setAddCategory(topic);
+                              setInlineNewCategory('');
+                            }}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+                              isSelected
+                                ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400/50'
+                                : isLight
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
+                                : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                            }`}
+                          >
+                            {isSelected ? '✓ ' : ''}
+                            {topic}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Tạo nhanh phân loại mới nếu chưa có */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={inlineNewCategory}
+                        onChange={(e) => setInlineNewCategory(e.target.value)}
+                        placeholder="+ Hoặc nhập phân loại mới (VD: Stranger Things Mùa 1)..."
+                        className={`flex-1 max-w-md px-3.5 py-2 rounded-xl border text-xs focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
+                      />
+                      {inlineNewCategory.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const clean = inlineNewCategory.trim();
+                            if (clean) {
+                              setAddCategory(clean);
+                              toast.info(`Đã chọn phân loại mới: "${clean}"`);
+                            }
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold cursor-pointer hover:bg-rose-500"
+                        >
+                          Chọn phân loại này
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Mô tả */}
@@ -1217,7 +1551,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       rows={3}
                       value={addDescription}
                       onChange={(e) => setAddDescription(e.target.value)}
-                      placeholder="Mô tả nội dung phim..."
+                      placeholder="Mô tả nội dung phim, các mốc thời gian nổi bật (VD: 01:25 - Mở đầu)..."
                       className={`w-full px-4 py-2.5 rounded-xl border text-xs font-mono focus:outline-none transition-colors ${
                         isLight
                           ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
@@ -1233,7 +1567,11 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       disabled={isSubmitting || !addVideoUrl.trim() || (uploadProgress !== null && uploadProgress < 100)}
                       className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {isSubmitting ? 'Đang lưu vào Supabase...' : !addVideoUrl.trim() ? 'Chờ tải phim xong...' : 'Lưu & Đăng Lên Rạp Phim'}
+                      {isSubmitting
+                        ? 'Đang lưu vào Supabase...'
+                        : !addVideoUrl.trim()
+                        ? 'Chờ tải phim xong...'
+                        : 'Lưu & Đăng Lên Rạp Phim (Quay về danh sách)'}
                     </button>
                   </div>
                 </form>
@@ -1251,7 +1589,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <div>
                     <h2 className="text-base sm:text-lg font-bold">Cập Nhật Thông Tin Phim</h2>
                     <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                      Chỉnh sửa tiêu đề, nạp thêm phụ đề đa ngôn ngữ hoặc thay đổi ảnh bìa.
+                      Chỉnh sửa tiêu đề, phân loại, nạp thêm phụ đề đa ngôn ngữ hoặc thay đổi ảnh bìa.
                     </p>
                   </div>
                   <button
@@ -1364,42 +1702,39 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   {/* KHUNG ĐA PHỤ ĐỀ TRONG FORM SỬA */}
                   {renderSubtitleManager('edit')}
 
-                  {/* CHỦ ĐỀ CHUẨN HOÁ TRONG FORM SỬA */}
+                  {/* PHÂN LOẠI DUY NHẤT TRONG FORM SỬA */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold">Chủ đề của phim (Chọn từ danh mục hệ thống)</label>
-                      <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>Đã chọn: {editSelectedTopics.length}</span>
+                      <label className="block text-xs font-bold text-rose-500">
+                        Phân Loại Của Phim (Chọn 1 phân loại duy nhất) *
+                      </label>
+                      <span className={`text-[11px] font-semibold ${editCategory ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {editCategory ? `✓ Đang chọn: ${editCategory}` : 'Chưa chọn phân loại'}
+                      </span>
                     </div>
 
-                    {customTopics.length === 0 ? (
-                      <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-300 text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-                        <span>Chưa có chủ đề nào trong hệ thống. Vui lòng tạo ở Sidebar trước!</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {customTopics.map((topic) => {
-                          const isSelected = editSelectedTopics.includes(topic);
-                          return (
-                            <button
-                              key={topic}
-                              type="button"
-                              onClick={() => toggleTopicSelection(topic, 'edit')}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                                isSelected
-                                  ? 'bg-rose-600 text-white shadow-xs'
-                                  : isLight
-                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                                  : 'bg-white/10 hover:bg-white/15 text-zinc-300'
-                              }`}
-                            >
-                              {isSelected ? '✓ ' : '+ '}
-                              {topic}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {customTopics.map((topic) => {
+                        const isSelected = editCategory.toLowerCase() === topic.toLowerCase();
+                        return (
+                          <button
+                            key={topic}
+                            type="button"
+                            onClick={() => setEditCategory(topic)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
+                              isSelected
+                                ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400/50'
+                                : isLight
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                : 'bg-white/10 hover:bg-white/15 text-zinc-300'
+                            }`}
+                          >
+                            {isSelected ? '✓ ' : ''}
+                            {topic}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -1431,10 +1766,271 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       disabled={isSubmitting}
                       className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-50"
                     >
-                      {isSubmitting ? 'Đang lưu thay đổi...' : 'Lưu Thay Đổi Phim'}
+                      {isSubmitting ? 'Đang lưu thay đổi...' : 'Lưu Thay Đổi Phim (Quay về danh sách)'}
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {/* TAB 4: QUẢN LÝ PHÂN LOẠI & THỨ TỰ PHIM (KÉO THẢ) */}
+            {activeTab === 'categories' && (
+              <div className="space-y-6">
+                {/* 1. QUẢN LÝ DANH MỤC PHÂN LOẠI */}
+                <div
+                  className={`p-6 sm:p-8 rounded-2xl border space-y-5 transition-colors ${
+                    isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                  }`}
+                >
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                      <FolderPlus className="w-5 h-5 text-rose-500" />
+                      <span>Danh Mục Phân Loại Hệ Thống</span>
+                    </h2>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      Mỗi phân loại đại diện cho một bộ phim/series hoàn chỉnh (VD: Harry Potter, Stranger Things Mùa 1, Gala Dinner...).
+                    </p>
+                  </div>
+
+                  {/* Form thêm phân loại mới */}
+                  <form onSubmit={handleAddNewCategory} className="flex items-center gap-2 max-w-xl">
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Nhập tên phân loại mới (VD: Stranger Things Mùa 1)..."
+                      className={`flex-1 px-4 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                        isLight
+                          ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                          : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                      }`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newCategoryName.trim()}
+                      className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Thêm Phân Loại</span>
+                    </button>
+                  </form>
+
+                  {/* Danh sách phân loại hiện tại */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-600 dark:text-zinc-400">
+                      Danh sách phân loại ({customTopics.length}):
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {customTopics.map((cat) => {
+                        const count = videos.filter(
+                          (v) => !v.deleted_at && (v.tags || []).some((t) => t.toLowerCase() === cat.toLowerCase())
+                        ).length;
+                        const isSelectedForOrder = selectedCatForOrder.toLowerCase() === cat.toLowerCase();
+
+                        return (
+                          <div
+                            key={cat}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                              isSelectedForOrder
+                                ? 'border-rose-400 bg-rose-50/40 dark:bg-rose-500/10'
+                                : isLight
+                                ? 'border-slate-200 bg-slate-50'
+                                : 'border-white/10 bg-white/[0.02]'
+                            }`}
+                          >
+                            <div
+                              onClick={() => setSelectedCatForOrder(cat)}
+                              className="flex items-center gap-2 min-w-0 cursor-pointer flex-1"
+                              title="Bấm để chọn sắp xếp thứ tự phim cho phân loại này"
+                            >
+                              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+                              <span className="text-xs font-bold truncate">{cat}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-500 font-mono font-semibold shrink-0">
+                                {count} phim
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCategory(cat)}
+                              className="text-zinc-400 hover:text-rose-500 p-1 rounded-md cursor-pointer shrink-0 transition-colors"
+                              title={`Xóa phân loại "${cat}" (Phim vẫn được giữ nguyên)`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. SẮP XẾP THỨ TỰ PHIM TRONG PHÂN LOẠI (KÉO THẢ TỪ TRÊN XUỐNG DƯỚI) */}
+                <div
+                  className={`p-6 sm:p-8 rounded-2xl border space-y-5 transition-colors ${
+                    isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/5 dark:border-white/5">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                        <FolderTree className="w-5 h-5 text-rose-500" />
+                        <span>Sắp Xếp Thứ Tự Phim (Từ Cũ Nhất Đến Mới Nhất)</span>
+                      </h2>
+                      <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        Kéo thả trực tiếp hoặc dùng nút mũi tên để xếp phim từ Tập 1 (trên cùng) xuống Tập cuối (dưới cùng).
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleAutoSortOldestFirst}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                          isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
+                        }`}
+                        title="Tự động xếp theo ngày phát hành từ cũ nhất ở trên xuống mới nhất ở dưới"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Xếp Tự Động: Cũ → Mới</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveCategoryOrder}
+                        disabled={isSavingOrder || categoryVideosOrder.length === 0}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-40"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>{isSavingOrder ? 'Đang lưu...' : 'Lưu Thứ Tự Phim'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Chọn phân loại để sắp xếp */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold shrink-0">Chọn Phân Loại:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {customTopics.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setSelectedCatForOrder(cat)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            selectedCatForOrder.toLowerCase() === cat.toLowerCase()
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : isLight
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                              : 'bg-white/5 hover:bg-white/10 text-zinc-300'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Danh sách phim kéo thả */}
+                  {categoryVideosOrder.length === 0 ? (
+                    <div className={`text-center py-12 rounded-xl border border-dashed text-xs ${
+                      isLight ? 'border-slate-300 text-slate-400' : 'border-white/10 text-zinc-500'
+                    }`}>
+                      Chưa có bộ phim nào thuộc phân loại &quot;{selectedCatForOrder || 'này'}&quot;.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {categoryVideosOrder.map((film, index) => (
+                        <div
+                          key={film.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDrop={handleDrop}
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-grab active:cursor-grabbing select-none ${
+                            draggedIndex === index
+                              ? 'opacity-40 border-rose-500'
+                              : isLight
+                              ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                              : 'bg-[#18181c] hover:bg-white/[0.05] border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Grip drag handle icon */}
+                            <GripVertical className="w-4 h-4 text-zinc-400 shrink-0 cursor-grab" />
+
+                            {/* Badge thứ tự Tập */}
+                            <span className="w-14 h-7 rounded-md bg-rose-600/15 text-rose-500 text-xs font-mono font-bold flex items-center justify-center shrink-0">
+                              Tập {index + 1}
+                            </span>
+
+                            {/* Thumbnail */}
+                            <div className="w-20 h-12 rounded-md overflow-hidden bg-black/40 shrink-0 border border-slate-200 dark:border-white/10">
+                              {film.thumbnail_url ? (
+                                <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                  <Film className="w-4 h-4" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Title & Metadata */}
+                            <div className="min-w-0">
+                              <h4 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                {film.title}
+                              </h4>
+                              <p className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                                Ngày: {film.event_date} {film.duration && `• Thời lượng: ${film.duration}`}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Quick Up/Down buttons */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveMovie(index, index - 1)}
+                              disabled={index === 0}
+                              className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                isLight
+                                  ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
+                                  : 'border-white/15 hover:bg-white/10 text-white'
+                              }`}
+                              title="Di chuyển lên trên"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveMovie(index, index + 1)}
+                              disabled={index === categoryVideosOrder.length - 1}
+                              className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                isLight
+                                  ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
+                                  : 'border-white/15 hover:bg-white/10 text-white'
+                              }`}
+                              title="Di chuyển xuống dưới"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* SQL instruction tip */}
+                  <div className={`p-4 rounded-xl border text-xs leading-relaxed ${
+                    isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+                  }`}>
+                    <div className="font-bold mb-1 flex items-center gap-1.5">
+                      <span>💡 Lệnh SQL trên Supabase (nếu bảng videos chưa có cột sort_order):</span>
+                    </div>
+                    <code className="block p-2 rounded bg-black/10 dark:bg-black/40 font-mono text-[11px] select-all">
+                      ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
+                    </code>
+                  </div>
+                </div>
               </div>
             )}
           </div>

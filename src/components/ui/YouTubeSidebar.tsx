@@ -21,7 +21,6 @@ interface YouTubeSidebarProps {
   favoritesCount: number;
   historyCount: number;
   customTopics?: string[];
-  onOpenTopicManager?: () => void;
   onSelectHomeTab: (tab: PlaylistTab, category?: string) => void;
   onCloseMobile: () => void;
   onOpenDevManage: () => void;
@@ -37,7 +36,6 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
   favoritesCount,
   historyCount,
   customTopics = [],
-  onOpenTopicManager,
   onSelectHomeTab,
   onCloseMobile,
   onOpenDevManage,
@@ -128,7 +126,7 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
           <span>Khám phá chủ đề</span>
         </div>
 
-        {/* DANH SÁCH CHỦ ĐỀ (/tags/:slug) */}
+        {/* DANH SÁCH PHÂN LOẠI (/tags/:slug) */}
         <div className="space-y-1 mt-1">
           {customTopics.map((topic) => {
             const isActive =
@@ -151,20 +149,6 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
               </button>
             );
           })}
-
-          {onOpenTopicManager && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpenTopicManager();
-                onItemClick?.();
-              }}
-              className="w-full flex items-center gap-3 px-3.5 py-2 mt-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
-            >
-              <SlidersHorizontal className="w-4 h-4 shrink-0" />
-              <span>Cấu hình chủ đề...</span>
-            </button>
-          )}
         </div>
       </div>
 

@@ -35,7 +35,6 @@ import { CustomArtPlayer } from './components/player/CustomArtPlayer';
 import { VideoDetails } from './components/ui/VideoDetails';
 import { PlaylistSidebar } from './components/ui/PlaylistSidebar';
 import { AdminDevPortal } from './components/ui/AdminDevPortal';
-import { TopicManagerModal } from './components/ui/TopicManagerModal';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
 
 const THEME_STORAGE_KEY = 'partystream_theme_mode_v1';
@@ -68,7 +67,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [playlistTab, setPlaylistTab] = useState<PlaylistTab>('all');
-  const [isTopicModalOpen, setIsTopicModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Dữ liệu đồng bộ trực tiếp từ Supabase
@@ -293,6 +291,43 @@ export default function App() {
     );
   }, [videos, currentVideoId, filteredVideos]);
 
+  // Chuỗi phim thuộc cùng Phân Loại với phim đang xem (để xem liền mạch từ Tập 1 -> Tập N)
+  const seriesVideos = useMemo(() => {
+    if (!currentVideo) return [];
+    const currentCategory =
+      currentVideo.tags && currentVideo.tags.length > 0 ? currentVideo.tags[0] : '';
+    const available = videos.filter((v) => !v.deleted_at);
+
+    let list = available;
+    if (currentCategory) {
+      const matched = available.filter((v) =>
+        (v.tags || []).some(
+          (t) =>
+            t.toLowerCase() === currentCategory.toLowerCase() ||
+            slugify(t) === slugify(currentCategory)
+        )
+      );
+      if (matched.length > 0) list = matched;
+    }
+
+    // Sắp xếp theo sort_order nếu có, fallback theo ngày phát hành / ngày tạo cũ nhất -> mới nhất (Tập 1 -> Tập N)
+    return [...list].sort((a, b) => {
+      if (
+        typeof a.sort_order === 'number' &&
+        typeof b.sort_order === 'number' &&
+        a.sort_order !== b.sort_order
+      ) {
+        return a.sort_order - b.sort_order;
+      }
+      const dateA = a.event_date ? new Date(a.event_date).getTime() : 0;
+      const dateB = b.event_date ? new Date(b.event_date).getTime() : 0;
+      if (dateA !== dateB) return dateA - dateB;
+      const createA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const createB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return createA - createB;
+    });
+  }, [videos, currentVideo]);
+
   const lastSavedHistoryTimeRef = React.useRef<number>(0);
 
   const handleProgressUpdate = useCallback(
@@ -436,7 +471,6 @@ export default function App() {
           favoritesCount={favoriteIds.length}
           historyCount={watchHistory.length}
           customTopics={customTopics}
-          onOpenTopicManager={() => setIsTopicModalOpen(true)}
           onSelectHomeTab={handleSelectSidebarItem}
           onCloseMobile={() => setIsSidebarOpen(false)}
           onOpenDevManage={() => navigateTo('/admin')}
@@ -449,6 +483,9 @@ export default function App() {
             customTopics={customTopics}
             onVideoAdded={handleVideoAdded}
             onVideoUpdated={handleVideoUpdated}
+            onAddTopic={handleAddTopic}
+            onRemoveTopic={handleRemoveTopic}
+            onVideosReordered={(updated) => setVideos(updated)}
             onGoHome={() => navigateTo('/')}
           />
         ) : currentPage === 'home' ? (
@@ -464,7 +501,6 @@ export default function App() {
             searchQuery={searchQuery}
             customTopics={customTopics}
             isLoading={isLoading}
-            onOpenTopicManager={() => setIsTopicModalOpen(true)}
             onSelectVideo={handleSelectVideo}
             onToggleFavorite={handleToggleFavorite}
             onPlaylistTabChange={(tab) => {
@@ -485,9 +521,9 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
               <div className="lg:col-span-8 min-w-0 w-full space-y-3">
                 {currentVideo && (() => {
-                  const currentIndex = filteredVideos.findIndex((v) => v.id === currentVideo.id);
+                  const currentIndex = seriesVideos.findIndex((v) => v.id === currentVideo.id);
                   const hasPrev = currentIndex > 0;
-                  const hasNext = currentIndex >= 0 && currentIndex < filteredVideos.length - 1;
+                  const hasNext = currentIndex >= 0 && currentIndex < seriesVideos.length - 1;
                 
                   return (
                     <>
@@ -501,10 +537,13 @@ export default function App() {
                         hasPrev={hasPrev}
                         hasNext={hasNext}
                         onPrevVideo={() => {
-                          if (hasPrev) handleSelectVideo(filteredVideos[currentIndex - 1]);
+                          if (hasPrev) handleSelectVideo(seriesVideos[currentIndex - 1]);
                         }}
                         onNextVideo={() => {
-                          if (hasNext) handleSelectVideo(filteredVideos[currentIndex + 1]);
+                          if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
+                        }}
+                        onEndedNext={() => {
+                          if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
                         }}
                       />
                       <VideoDetails  
@@ -528,7 +567,7 @@ export default function App() {
 
               <div className="lg:col-span-4 min-w-0 w-full">
                 <PlaylistSidebar
-                  videos={filteredVideos}
+                  videos={seriesVideos}
                   allVideosCount={videos.length}
                   currentVideoId={currentVideo?.id || ''}
                   themeMode={themeMode}
@@ -538,6 +577,11 @@ export default function App() {
                   playlistTab={playlistTab}
                   searchQuery={searchQuery}
                   activeCategory={activeCategory}
+                  categoryName={
+                    currentVideo?.tags && currentVideo.tags.length > 0
+                      ? currentVideo.tags[0]
+                      : undefined
+                  }
                   isLoading={isLoading}
                   onPlaylistTabChange={(tab) => {
                     if (tab === 'favorites') navigateTo('/favorites');
@@ -549,6 +593,7 @@ export default function App() {
                   onRemoveHistoryItem={handleRemoveHistoryItem}
                   onClearAllHistory={handleClearAllHistory}
                   onClearFilters={() => navigateTo('/')}
+                  onGoHome={() => navigateTo('/')}
                 />
               </div>
             </div>
@@ -568,17 +613,6 @@ export default function App() {
           else navigateTo('/');
         }}
         onToggleTheme={handleToggleThemeMode}
-      />
-
-      <TopicManagerModal
-        isOpen={isTopicModalOpen}
-        onClose={() => setIsTopicModalOpen(false)}
-        topics={customTopics}
-        allVideos={videos}
-        themeMode={themeMode}
-        onAddTopic={handleAddTopic}
-        onRemoveTopic={handleRemoveTopic}
-        onResetTopics={handleResetTopics}
       />
 
       <ToastContainer

@@ -16,6 +16,7 @@ export interface Video {
   subtitle_url?: string | null;
   subtitles?: SubtitleTrack[]; // <-- Danh sách đa phụ đề
   tags?: string[];
+  sort_order?: number;
   deleted_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -67,7 +68,9 @@ export interface NewVideoInput {
   video_url: string;
   thumbnail_url?: string;
   subtitle_url?: string;
+  subtitles?: SubtitleTrack[];
   tags: string[];
+  sort_order?: number;
 }
 
 export interface UpdateVideoInput {
@@ -79,5 +82,7 @@ export interface UpdateVideoInput {
   video_url: string;
   thumbnail_url?: string;
   subtitle_url?: string;
+  subtitles?: SubtitleTrack[];
   tags: string[];
+  sort_order?: number;
 }

@@ -390,10 +390,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       moreVideoAttr: {
         crossOrigin: 'anonymous',
         preload: 'auto',
-        playsinline: 'true',
+        playsInline: 'true',
         'webkit-playsinline': 'true',
         'x5-playsinline': 'true',
-      },
+      } as any,
 
       layers: [
         {

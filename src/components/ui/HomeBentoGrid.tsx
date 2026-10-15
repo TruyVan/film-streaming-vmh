@@ -34,7 +34,7 @@ interface HomeBentoGridProps {
   searchQuery: string;
   customTopics: string[];
   isLoading?: boolean;
-  onOpenTopicManager: () => void;
+  onOpenTopicManager?: () => void;
   onSelectVideo: (video: Video) => void;
   onToggleFavorite: (videoId: string) => void;
   onPlaylistTabChange: (tab: PlaylistTab) => void;
@@ -183,7 +183,7 @@ export const HomeBentoGrid: React.FC<HomeBentoGridProps> = ({
         if (!item.video) return false;
         if (!q) return true;
         const inTitle = item.video.title.toLowerCase().includes(q);
-        const inTags = item.video.tags.some((t) =>
+        const inTags = (item.video.tags || []).some((t) =>
           t.toLowerCase().includes(q)
         );
         return inTitle || inTags;
@@ -379,7 +379,7 @@ export const HomeBentoGrid: React.FC<HomeBentoGridProps> = ({
                     {/* Left: Compact 16:9 Thumbnail (Chuẩn YouTube Mobile) */}
                     <div className="relative w-32 sm:w-40 md:w-44 shrink-0 aspect-video rounded-lg sm:rounded-xl overflow-hidden bg-black shadow-xs">
                       <VideoThumbnail
-                        src={video.thumbnail_url}
+                        src={video.thumbnail_url || null}
                         alt={video.title}
                       />
 
@@ -596,7 +596,7 @@ export const HomeBentoGrid: React.FC<HomeBentoGridProps> = ({
                     {/* 16:9 Thumbnail with Duration and Progress Bar */}
                     <div className="relative aspect-video w-full rounded-xl sm:rounded-2xl overflow-hidden bg-black shadow-2xs">
                       <VideoThumbnail
-                        src={video.thumbnail_url}
+                        src={video.thumbnail_url || null}
                         alt={video.title}
                       />
 

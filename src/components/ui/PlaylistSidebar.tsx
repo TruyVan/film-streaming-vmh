@@ -30,6 +30,7 @@ interface PlaylistSidebarProps {
   playlistTab: PlaylistTab;
   searchQuery: string;
   activeCategory: string;
+  categoryName?: string;
   isLoading?: boolean;
   onPlaylistTabChange: (tab: PlaylistTab) => void;
   onSelectVideo: (video: Video) => void;
@@ -37,6 +38,7 @@ interface PlaylistSidebarProps {
   onRemoveHistoryItem: (historyId: string) => void;
   onClearAllHistory: () => void;
   onClearFilters: () => void;
+  onGoHome?: () => void;
 }
 
 const ThumbnailWithFallback: React.FC<{
@@ -78,6 +80,7 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
   playlistTab,
   searchQuery,
   activeCategory,
+  categoryName,
   isLoading = false,
   onPlaylistTabChange,
   onSelectVideo,
@@ -85,6 +88,7 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
   onRemoveHistoryItem,
   onClearAllHistory,
   onClearFilters,
+  onGoHome,
 }) => {
   const isLight = themeMode === 'light';
   const hasActiveFilter = Boolean(
@@ -92,30 +96,43 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
   );
 
   return (
-    <aside className="w-full flex flex-col">
-      {/* Header Danh sách phát / Video liên quan */}
-      <div className="flex items-center justify-between pb-3 px-0.5">
-        <div className="flex items-center gap-2">
-          <Film className="w-4 h-4 text-rose-500" />
-          <h2 className="font-display text-sm font-bold tracking-tight">
-            Danh sách phát ({videos.length})
-          </h2>
-        </div>
+    <aside className="w-full flex flex-col space-y-3">
+      {/* Header Danh sách phát cùng Phân Loại */}
+      <div
+        className={`p-3 rounded-2xl border transition-colors ${
+          isLight
+            ? 'bg-white border-slate-200/80 shadow-xs'
+            : 'bg-[#18181c] border-white/10'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Film className="w-4 h-4 text-rose-500 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="font-display text-xs sm:text-sm font-bold tracking-tight truncate">
+                {categoryName ? `Bộ: ${categoryName}` : 'Danh sách phát'}
+              </h2>
+              <p className="text-[11px] opacity-65 truncate">
+                {videos.length} tập phim liên mạch
+              </p>
+            </div>
+          </div>
 
-        {hasActiveFilter && (
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className={`h-7 px-2.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 cursor-pointer transition-colors ${
-              isLight
-                ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
-                : 'bg-white/10 hover:bg-white/15 text-zinc-200'
-            }`}
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>Bỏ lọc</span>
-          </button>
-        )}
+          {onGoHome && (
+            <button
+              type="button"
+              onClick={onGoHome}
+              className={`h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
+                isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  : 'bg-white/10 hover:bg-white/15 text-zinc-200'
+              }`}
+              title="Quay lại trang chủ để chọn phim hoặc bộ khác"
+            >
+              <span>Về trang chủ</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SKELETON LOADING (Chờ API) */}
@@ -202,7 +219,7 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
                 {/* Left 168px x 94px YouTube Compact Thumbnail */}
                 <div className="relative w-36 sm:w-40 aspect-video rounded-lg overflow-hidden bg-black shrink-0">
                   <ThumbnailWithFallback
-                    src={item.thumbnail_url}
+                    src={item.thumbnail_url || null}
                     alt={item.title}
                   />
 
@@ -230,6 +247,17 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
 
                 {/* Right Video Title & Channel Info */}
                 <div className="flex-1 min-w-0 pr-6">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-500 font-mono">
+                      Tập {videos.findIndex((v) => v.id === item.id) + 1}
+                    </span>
+                    {item.tags?.[0] && (
+                      <span className="text-[10px] text-zinc-400 font-medium truncate">
+                        {item.tags[0]}
+                      </span>
+                    )}
+                  </div>
+
                   <h3
                     className={`text-xs font-semibold leading-snug line-clamp-2 ${
                       isPlaying
