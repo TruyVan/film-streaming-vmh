@@ -49,14 +49,61 @@ const VideoThumbnail: React.FC<{
   alt: string;
 }> = ({ src, alt }) => {
   const [hasError, setHasError] = useState(false);
+  const [isBlackFrame, setIsBlackFrame] = useState(false);
 
-  if (!src || hasError) {
+  // Kiểm tra nếu ảnh load lên mà là khung hình đen xì (do bug lấy giây thứ 1 cũ)
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    try {
+      const img = e.currentTarget;
+      if (!img.naturalWidth || !img.naturalHeight) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 16;
+      canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+        let totalLuma = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        const avgLuma = totalLuma / (16 * 16);
+        // Nếu độ sáng trung bình < 18: chắc chắn là ảnh đen xì
+        if (avgLuma < 18) {
+          setIsBlackFrame(true);
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi CORS canvas nếu có
+    }
+  };
+
+  if (!src || hasError || isBlackFrame) {
     return (
-      <div className="w-full h-full bg-gradient-to-br from-[#F2BBC9] via-[#C9CFF2] to-[#A0DBF2] flex flex-col items-center justify-center p-3 text-center">
-        <Film className="w-8 h-8 text-slate-800/70 mb-1" />
-        <span className="text-xs font-medium text-slate-800 line-clamp-1">
-          {alt}
-        </span>
+      <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-slate-950 via-[#181824] to-[#2a1320] flex flex-col items-center justify-between p-3 select-none text-center border border-white/5">
+        <div className="w-full flex items-center justify-between opacity-50 text-[10px] font-mono text-zinc-300">
+          <span className="flex items-center gap-1">
+            <Film className="w-3 h-3 text-rose-500" />
+            <span>RẠP PHIM</span>
+          </span>
+          <span className="px-1.5 py-0.5 rounded bg-white/10 text-[9px]">Poster</span>
+        </div>
+
+        <div className="flex flex-col items-center justify-center my-auto px-2">
+          <div className="w-10 h-10 rounded-full bg-rose-600/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mb-2 shadow-sm group-hover:scale-110 transition-transform">
+            <Film className="w-5 h-5" />
+          </div>
+          <span className="text-xs font-bold text-zinc-100 line-clamp-2 leading-tight">
+            {alt}
+          </span>
+        </div>
+
+        <div className="w-full text-center">
+          <span className="text-[10px] text-rose-400/80 font-medium">
+            ✦ Đang cập nhật poster
+          </span>
+        </div>
       </div>
     );
   }
@@ -66,6 +113,7 @@ const VideoThumbnail: React.FC<{
       src={src}
       alt={alt}
       referrerPolicy="no-referrer"
+      onLoad={handleImageLoad}
       onError={() => setHasError(true)}
       className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200"
     />

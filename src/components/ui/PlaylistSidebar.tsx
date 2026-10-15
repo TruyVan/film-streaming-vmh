@@ -46,13 +46,48 @@ const ThumbnailWithFallback: React.FC<{
   alt: string;
 }> = ({ src, alt }) => {
   const [hasError, setHasError] = useState(false);
+  const [isBlackFrame, setIsBlackFrame] = useState(false);
 
-  if (!src || hasError) {
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    try {
+      const img = e.currentTarget;
+      if (!img.naturalWidth || !img.naturalHeight) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 16;
+      canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+        let totalLuma = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        const avgLuma = totalLuma / (16 * 16);
+        if (avgLuma < 18) {
+          setIsBlackFrame(true);
+        }
+      }
+    } catch {}
+  };
+
+  if (!src || hasError || isBlackFrame) {
     return (
-      <div className="w-full h-full bg-gradient-to-br from-[#F2BBC9] via-[#C9CFF2] to-[#A0DBF2] flex flex-col items-center justify-center p-2 text-center">
-        <Film className="w-5 h-5 text-slate-800/80 mb-1" />
-        <span className="text-[10px] text-slate-800 line-clamp-1 px-1">
-          {alt}
+      <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-slate-950 via-[#161622] to-[#25101d] flex flex-col items-center justify-between p-2 select-none text-center border border-white/5">
+        <div className="w-full flex items-center justify-between opacity-50 text-[9px] font-mono text-zinc-300">
+          <Film className="w-2.5 h-2.5 text-rose-500" />
+          <span>Poster</span>
+        </div>
+
+        <div className="flex flex-col items-center justify-center my-auto px-1">
+          <span className="text-[11px] font-bold text-zinc-100 line-clamp-2 leading-tight">
+            {alt}
+          </span>
+        </div>
+
+        <span className="text-[9px] text-rose-400/80 font-medium">
+          Đang cập nhật
         </span>
       </div>
     );
@@ -63,6 +98,7 @@ const ThumbnailWithFallback: React.FC<{
       src={src}
       alt={alt}
       referrerPolicy="no-referrer"
+      onLoad={handleImageLoad}
       onError={() => setHasError(true)}
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
     />

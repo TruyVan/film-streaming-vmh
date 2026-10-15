@@ -55,6 +55,67 @@ const VOD_BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ORACLE_VOD_BASE_URL) ||
   'https://158.101.153.49.sslip.io';
 
+const AdminThumbnailPreview: React.FC<{
+  src: string | null | undefined;
+  title: string;
+  isLight: boolean;
+}> = ({ src, title }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isBlackFrame, setIsBlackFrame] = useState(false);
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    try {
+      const img = e.currentTarget;
+      if (!img.naturalWidth || !img.naturalHeight) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 16;
+      canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+        let totalLuma = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          totalLuma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        const avgLuma = totalLuma / (16 * 16);
+        if (avgLuma < 18) {
+          setIsBlackFrame(true);
+        }
+      }
+    } catch {}
+  };
+
+  if (!src || hasError || isBlackFrame) {
+    return (
+      <div className="w-full h-full relative overflow-hidden bg-gradient-to-br from-slate-950 via-[#161622] to-[#25101d] flex flex-col items-center justify-between p-1.5 select-none text-center border border-white/5">
+        <div className="w-full flex items-center justify-between opacity-50 text-[9px] font-mono text-zinc-300">
+          <Film className="w-2.5 h-2.5 text-rose-500" />
+          <span>Poster</span>
+        </div>
+        <span className="text-[10px] font-bold text-zinc-100 line-clamp-2 leading-tight px-0.5">
+          {title}
+        </span>
+        <span className="text-[8px] text-rose-400 font-medium">
+          Đang cập nhật
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={title}
+      referrerPolicy="no-referrer"
+      onLoad={handleImageLoad}
+      onError={() => setHasError(true)}
+      className="w-full h-full object-cover"
+    />
+  );
+};
+
 export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   themeMode,
   videos,
@@ -131,6 +192,10 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   // Phân trang danh sách phim (Local Pagination: 5, 10, 25, 50)
   const [listPageSize, setListPageSize] = useState<number>(10);
   const [listCurrentPage, setListCurrentPage] = useState<number>(1);
+
+  // Tự động quét và sửa các thumbnail bị đen
+  const [isAutoFixingThumbnails, setIsAutoFixingThumbnails] = useState<boolean>(false);
+  const [fixProgressText, setFixProgressText] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -259,6 +324,106 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     const nextOffset = thumbnailSeekOffset + 25;
     setThumbnailSeekOffset(nextOffset);
     generateThumbnailFromVideo(activeVideoFile, nextOffset);
+  };
+
+  // Trích xuất ảnh bìa trực tiếp từ link video trên VPS Oracle (hỗ trợ phục hồi ảnh đen)
+  const extractThumbnailFromVideoUrl = (videoUrl: string, seekSec = 35): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!videoUrl) return reject(new Error('Chưa có link video'));
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.preload = 'auto';
+      video.src = videoUrl;
+      video.muted = true;
+      video.playsInline = true;
+
+      const timer = window.setTimeout(() => {
+        reject(new Error('Quá thời gian tải video từ VPS (timeout 15s)'));
+      }, 15000);
+
+      video.onloadedmetadata = () => {
+        const dur = video.duration || 60;
+        const targetTime = Math.min(seekSec, Math.max(2, dur - 5));
+        video.currentTime = targetTime;
+      };
+
+      video.onseeked = () => {
+        window.clearTimeout(timer);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 1280;
+          canvas.height = video.videoHeight || 720;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            resolve(dataUrl);
+          } else {
+            reject(new Error('Không thể khởi tạo canvas'));
+          }
+        } catch (err: any) {
+          reject(err);
+        }
+      };
+
+      video.onerror = () => {
+        window.clearTimeout(timer);
+        reject(new Error('Lỗi tải video từ VPS (vui lòng kiểm tra link)'));
+      };
+    });
+  };
+
+  const handleAutoFixAllBlackThumbnails = async () => {
+    const candidates = videos.filter(
+      (v) => !v.deleted_at && v.video_url && (!v.thumbnail_url || v.thumbnail_url.length < 500)
+    );
+
+    if (candidates.length === 0) {
+      toast.info('Tất cả các bộ phim hiện tại đều đã có ảnh bìa sắc nét!');
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Tìm thấy ${candidates.length} bộ phim chưa có ảnh bìa hoặc bị đen. Bạn có muốn tự động kết nối VPS để chụp ảnh bìa sắc nét cho các phim này và lưu vào Supabase?`
+      )
+    ) {
+      return;
+    }
+
+    setIsAutoFixingThumbnails(true);
+    let successCount = 0;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const v = candidates[i];
+      setFixProgressText(`Đang sửa ${i + 1}/${candidates.length}: ${v.title}...`);
+      try {
+        const newThumb = await extractThumbnailFromVideoUrl(v.video_url, 35);
+        if (newThumb) {
+          const updated = await updateVideoRecord({
+            id: v.id,
+            title: v.title,
+            description: v.description || '',
+            event_date: v.event_date,
+            duration: v.duration || '00:00:00',
+            video_url: v.video_url,
+            thumbnail_url: newThumb,
+            tags: v.tags || [],
+            subtitle_url: v.subtitle_url || undefined,
+            subtitles: v.subtitles || [],
+            sort_order: v.sort_order,
+          });
+          onVideoUpdated(updated);
+          successCount++;
+        }
+      } catch (err: any) {
+        console.warn(`Không thể trích xuất cho ${v.title}:`, err?.message);
+      }
+    }
+
+    setIsAutoFixingThumbnails(false);
+    setFixProgressText('');
+    toast.success(`Đã tự động trích xuất và cập nhật ảnh bìa cho ${successCount} bộ phim lên Supabase!`);
   };
 
   const autoDetectVideoDuration = (file: File) => {
@@ -1156,6 +1321,18 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       >
                         Thùng rác ({trashedVideos.length})
                       </button>
+
+                      {/* Nút tự động quét và sửa các ảnh bìa bị đen */}
+                      <button
+                        type="button"
+                        disabled={isAutoFixingThumbnails}
+                        onClick={handleAutoFixAllBlackThumbnails}
+                        className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        title="Tự động kết nối VPS chụp ảnh bìa cho các phim chưa có ảnh hoặc bị đen"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isAutoFixingThumbnails ? 'animate-spin' : ''}`} />
+                        <span>{isAutoFixingThumbnails ? fixProgressText || 'Đang quét...' : '⚡ Sửa Thumbnail Bị Đen'}</span>
+                      </button>
                     </div>
 
                     {selectedIds.length > 0 && (
@@ -1329,13 +1506,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                               </button>
 
                               <div className="w-32 h-18 rounded-lg overflow-hidden bg-black/40 shrink-0 relative border border-slate-200 dark:border-white/10">
-                                {video.thumbnail_url ? (
-                                  <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                    <Film className="w-6 h-6" />
-                                  </div>
-                                )}
+                                <AdminThumbnailPreview src={video.thumbnail_url} title={video.title} isLight={isLight} />
                                 <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-black/80 text-white">
                                   {video.duration || '00:00:00'}
                                 </span>
@@ -1857,11 +2028,35 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold">Ảnh Bìa (Thumbnail)</label>
-                        <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1">
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span>Tải ảnh từ máy</span>
-                          <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'edit')} className="hidden" />
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!editVideoUrl) {
+                                toast.warning('Chưa có link video để trích xuất.');
+                                return;
+                              }
+                              try {
+                                toast.info('Đang nạp video từ VPS để chụp khung hình (35s)...');
+                                const thumb = await extractThumbnailFromVideoUrl(editVideoUrl, 35);
+                                setEditThumbnailUrl(thumb);
+                                toast.success('Đã chụp khung hình sắc nét từ video thành công!');
+                              } catch (err: any) {
+                                toast.error(err.message || 'Lỗi trích xuất từ video VPS');
+                              }
+                            }}
+                            className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                            title="Tự động mở video trên VPS và chụp khung hình ở giây 35"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>⚡ Chụp từ video VPS</span>
+                          </button>
+                          <label className="text-xs text-rose-500 hover:underline cursor-pointer flex items-center gap-1 font-medium">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span>Tải ảnh từ máy</span>
+                            <input type="file" accept="image/*" onChange={(e) => handleCustomThumbnailUpload(e, 'edit')} className="hidden" />
+                          </label>
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         {editThumbnailUrl ? (
@@ -2263,13 +2458,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
                               {/* Thumbnail */}
                               <div className="w-20 h-12 rounded-md overflow-hidden bg-black/40 shrink-0 border border-slate-200 dark:border-white/10">
-                                {film.thumbnail_url ? (
-                                  <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                    <Film className="w-4 h-4" />
-                                  </div>
-                                )}
+                                <AdminThumbnailPreview src={film.thumbnail_url} title={film.title} isLight={isLight} />
                               </div>
 
                               {/* Title & Metadata */}
