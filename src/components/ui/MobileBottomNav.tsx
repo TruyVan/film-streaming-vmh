@@ -3,7 +3,7 @@ import { Home, Bookmark, History } from 'lucide-react';
 import { PlaylistTab, ThemeMode } from '../../types/video';
 
 interface MobileBottomNavProps {
-  currentPage: 'home' | 'watch' | 'admin';
+  currentPage: 'home' | 'watch' | 'admin' | 'settings';
   themeMode: ThemeMode;
   playlistTab: PlaylistTab;
   favoritesCount: number;

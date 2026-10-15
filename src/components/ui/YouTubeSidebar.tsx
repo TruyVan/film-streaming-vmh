@@ -14,7 +14,7 @@ import { ThemeSwitch } from './ThemeSwitch';
 
 interface YouTubeSidebarProps {
   isOpen: boolean;
-  currentPage: 'home' | 'watch' | 'admin';
+  currentPage: 'home' | 'watch' | 'admin' | 'settings';
   themeMode: ThemeMode;
   onToggleThemeMode: () => void;
   playlistTab: PlaylistTab;

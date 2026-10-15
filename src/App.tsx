@@ -39,7 +39,7 @@ import { VideoDetails } from './components/ui/VideoDetails';
 import { PlaylistSidebar } from './components/ui/PlaylistSidebar';
 import { AdminDevPortal } from './components/ui/AdminDevPortal';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
-import { SettingsModal } from './components/ui/SettingsModal';
+import { SettingsPage, SettingsSubTab } from './components/settings/SettingsPage';
 import { CanvaThemeHome } from './components/themes/canva/CanvaThemeHome';
 import { CanvaThemeEditor } from './components/themes/canva/CanvaThemeEditor';
 import { PowerPointThemeHome } from './components/themes/powerpoint/PowerPointThemeHome';
@@ -60,7 +60,8 @@ export const slugify = (text: string) =>
 export default function App() {
   // Dữ liệu Video từ Supabase (Không mock)
   const [videos, setVideos] = useState<Video[]>([]);
-  const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'admin'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'settings'>('home');
+  const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('general');
   const currentWatchSessionIdRef = React.useRef<string | null>(null);
   const [currentVideoId, setCurrentVideoId] = useState<string>('');
 
@@ -83,7 +84,6 @@ export default function App() {
     return 'default';
   });
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isSwitchingTheme, setIsSwitchingTheme] = useState<boolean>(false);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
@@ -109,8 +109,17 @@ export default function App() {
     const params = new URLSearchParams(search);
     const vId = params.get('v');
 
-    if (pathname === '/admin') {
-      setCurrentPage('admin');
+    if (pathname === '/admin' || pathname === '/settings/admin') {
+      setCurrentPage('settings');
+      setSettingsSubTab('admin');
+      setIsSidebarOpen(false);
+    } else if (pathname === '/settings/theme') {
+      setCurrentPage('settings');
+      setSettingsSubTab('theme');
+      setIsSidebarOpen(false);
+    } else if (pathname === '/settings' || pathname === '/settings/general') {
+      setCurrentPage('settings');
+      setSettingsSubTab('general');
       setIsSidebarOpen(false);
     } else if (vId || pathname === '/watch') {
       if (vId) setCurrentVideoId(vId);
@@ -529,10 +538,14 @@ export default function App() {
         isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      {/* 1. ADMIN DEV PORTAL VIEW (Universal across all themes) */}
-      {currentPage === 'admin' ? (
-        <AdminDevPortal
+      {/* 1. SETTINGS DEDICATED PAGE (/settings, /settings/general, /settings/theme, /settings/admin) */}
+      {currentPage === 'settings' ? (
+        <SettingsPage
+          initialSubTab={settingsSubTab}
+          currentTheme={uiTheme}
+          onChangeTheme={handleChangeTheme}
           themeMode={themeMode}
+          onToggleThemeMode={handleToggleThemeMode}
           videos={videos}
           customTopics={customTopics}
           isLoading={isLoading}
@@ -543,6 +556,7 @@ export default function App() {
           onRenameTopic={handleRenameTopic}
           onVideosReordered={(updated) => setVideos(updated)}
           onGoHome={() => navigateTo('/')}
+          onNavigateSubTab={(sub) => navigateTo(`/settings/${sub}`)}
         />
       ) : uiTheme === 'canva' ? (
         /* 2. CANVA THEME VIEW */
@@ -564,7 +578,7 @@ export default function App() {
             }}
             onSearchChange={setSearchQuery}
             onToggleFavorite={handleToggleFavorite}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigateTo('/settings/general')}
             onToggleThemeMode={handleToggleThemeMode}
             onOpenEditor={() => {
               if (currentVideo) handleSelectVideo(currentVideo);
@@ -582,7 +596,7 @@ export default function App() {
             externalSeekTime={externalSeekTime}
             onSelectVideo={handleSelectVideo}
             onGoHome={() => navigateTo('/')}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigateTo('/settings/general')}
             onToggleThemeMode={handleToggleThemeMode}
             isFavorite={favoriteIds.includes(currentVideo.id)}
             onToggleFavorite={handleToggleFavorite}
@@ -609,7 +623,7 @@ export default function App() {
             }}
             onSearchChange={setSearchQuery}
             onToggleFavorite={handleToggleFavorite}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigateTo('/settings/general')}
             onToggleThemeMode={handleToggleThemeMode}
             onOpenEditor={() => {
               if (currentVideo) handleSelectVideo(currentVideo);
@@ -627,7 +641,7 @@ export default function App() {
             externalSeekTime={externalSeekTime}
             onSelectVideo={handleSelectVideo}
             onGoHome={() => navigateTo('/')}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigateTo('/settings/general')}
             onToggleThemeMode={handleToggleThemeMode}
             isFavorite={favoriteIds.includes(currentVideo.id)}
             onToggleFavorite={handleToggleFavorite}
@@ -653,7 +667,7 @@ export default function App() {
             onSelectCategory={(cat) => {
               navigateTo(`/tags/${slugify(cat)}`);
             }}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => navigateTo('/settings/general')}
           />
 
           <div className="flex-1 flex w-full">
@@ -669,8 +683,8 @@ export default function App() {
               customTopics={customTopics}
               onSelectHomeTab={handleSelectSidebarItem}
               onCloseMobile={() => setIsSidebarOpen(false)}
-              onOpenDevManage={() => navigateTo('/admin')}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenDevManage={() => navigateTo('/settings/admin')}
+              onOpenSettings={() => navigateTo('/settings/general')}
             />
 
             {currentPage === 'home' ? (
@@ -802,18 +816,7 @@ export default function App() {
         </>
       )}
 
-      {/* 5. UNIFIED SETTINGS MODAL */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        currentTheme={uiTheme}
-        onChangeTheme={handleChangeTheme}
-        themeMode={themeMode}
-        onToggleThemeMode={handleToggleThemeMode}
-        onOpenAdmin={() => navigateTo('/admin')}
-      />
-
-      {/* 6. SMOOTH BLUR TRANSITION LAYER WHEN SWITCHING THEMES */}
+      {/* 5. SMOOTH BLUR TRANSITION LAYER WHEN SWITCHING THEMES */}
       {isSwitchingTheme && (
         <div className="fixed inset-0 z-[70000] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center pointer-events-none transition-opacity duration-300">
           <div className="w-12 h-12 rounded-2xl bg-rose-600/20 text-rose-500 border border-rose-500/30 flex items-center justify-center animate-spin mb-3 shadow-lg">

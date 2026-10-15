@@ -169,12 +169,12 @@ film-streaming-vmh/
      * Dựa trên bộ mockup PowerPoint Web với thanh tiêu đề đỏ/cam (`#D83B01`), dải lệnh Ribbon (Home, Slide Show, View) và thanh trạng thái StatusBar.
      * **Trang chủ PowerPoint (`PowerPointThemeHome`):** Giao diện Backstage View chuyên nghiệp, danh mục bài trình chiếu/phim bộ, bảng danh sách các tập phim gần đây.
      * **Khung chiếu phim (`PowerPointThemeEditor`):** Khung Player nằm vừa vặn bên trong Slide Canvas 16:9. Cột SlideThumbnails bên trái hiển thị danh sách các tập phim trong bộ (Tập 1, Tập 2...). Phía dưới là ngăn Slide Notes chứa mô tả chi tiết phim và các mốc khoảnh khắc bookmark.
-* **Nút Cài Đặt Hệ Thống Thống Nhất (`SettingsModal`):**
-  * Tích hợp nút **"Cài Đặt"** tiện lợi ở Header và Sidebar trên cả 3 giao diện.
-  * Mở hộp thoại trung tâm cho phép:
-    * Chuyển đổi qua lại giữa 3 Theme hiển thị (Mặc định, Canva, PowerPoint).
-    * Bật/tắt chế độ màu **Sáng (Light)** / **Tối (Dark)**.
-    * Nút tắt bảo mật truy cập nhanh vào **Quản Trị Rạp Phim (Admin Dev Portal)**.
+* **Trang Cài Đặt Hệ Thống Chuyên Dụng (`SettingsPage` với URL Slugs):**
+  * Không sử dụng popup tạm thời, Cài đặt được xây dựng thành **một trang độc lập toàn màn hình** với hệ thống đường dẫn con (Sub-slugs) rõ ràng:
+    * `/settings/general`: Cài đặt chung, chuyển đổi chế độ màu Sáng/Tối, dọn dẹp bộ nhớ đệm LocalStorage, thông tin phiên bản.
+    * `/settings/theme`: Trung tâm lựa chọn và kích hoạt 3 giao diện hiển thị (Mặc định, Canva, PowerPoint) kèm danh sách tính năng và thẻ preview.
+    * `/settings/admin`: Admin Dev Portal (quản trị phim, nạp video lên VPS, xóa tạm, hard delete, quản lý phân loại và sắp xếp tập phim).
+  * Hỗ trợ chuyển hướng tự động từ `/admin` sang `/settings/admin`.
   * Tích hợp **Lớp phủ mờ chuyển cảnh (Blur Transition Layer)** khi đổi theme giúp trải nghiệm mượt mà, không giật màn hình.
   * Lưu trữ trạng thái theme vào `localStorage` (`film_ui_theme_v1`).
 * **Danh sách phát theo Phân Loại độc quyền (Seamless Series Playlist):**
