@@ -157,7 +157,26 @@ film-streaming-vmh/
 
 ---
 
-### 2. Trải nghiệm YouTube-Style & Phát Phim Liền Mạch
+### 2. Trải nghiệm Đa Giao Diện (Multi-Theme System) & Phát Phim Liền Mạch
+* **Hệ thống 3 Giao diện hiển thị độc quyền (3 Display Themes):**
+  1. **📺 Mặc định (YouTube Style):**
+     * Giao diện nguyên bản quen thuộc với lưới Bento Grid, Up-Next sidebar và thanh trượt YouTube Drawer.
+  2. **🎨 Canva Design (Thiết kế & Giảng dạy trực quan):**
+     * Dựa trên bộ mockup Canva với dải màu gradient tím-xanh (`#00c4cc` -> `#7d2ae8`), thanh công cụ CanvaToolbar, sidebar công cụ bên trái.
+     * **Trang chủ Canva (`CanvaThemeHome`):** Hero banner rực rỡ "Hôm nay bạn muốn thưởng thức phim gì?", thanh tìm kiếm bo tròn, các thẻ phim phong cách thiết kế Canva.
+     * **Khung chiếu phim (`CanvaThemeEditor`):** Khung Player (`CustomArtPlayer`) được đặt nằm gọn bên trong Slide Canvas 16:9 với tính năng thu phóng (Zoom 40% - 120%). Danh sách các slide ở thanh Filmstrip chân trang chính là chuỗi các tập phim thuộc cùng phân loại! Bấm vào bất kỳ slide nào để chuyển tập tức thì.
+  3. **📊 Microsoft PowerPoint (Trình chiếu Web Office 365):**
+     * Dựa trên bộ mockup PowerPoint Web với thanh tiêu đề đỏ/cam (`#D83B01`), dải lệnh Ribbon (Home, Slide Show, View) và thanh trạng thái StatusBar.
+     * **Trang chủ PowerPoint (`PowerPointThemeHome`):** Giao diện Backstage View chuyên nghiệp, danh mục bài trình chiếu/phim bộ, bảng danh sách các tập phim gần đây.
+     * **Khung chiếu phim (`PowerPointThemeEditor`):** Khung Player nằm vừa vặn bên trong Slide Canvas 16:9. Cột SlideThumbnails bên trái hiển thị danh sách các tập phim trong bộ (Tập 1, Tập 2...). Phía dưới là ngăn Slide Notes chứa mô tả chi tiết phim và các mốc khoảnh khắc bookmark.
+* **Nút Cài Đặt Hệ Thống Thống Nhất (`SettingsModal`):**
+  * Tích hợp nút **"Cài Đặt"** tiện lợi ở Header và Sidebar trên cả 3 giao diện.
+  * Mở hộp thoại trung tâm cho phép:
+    * Chuyển đổi qua lại giữa 3 Theme hiển thị (Mặc định, Canva, PowerPoint).
+    * Bật/tắt chế độ màu **Sáng (Light)** / **Tối (Dark)**.
+    * Nút tắt bảo mật truy cập nhanh vào **Quản Trị Rạp Phim (Admin Dev Portal)**.
+  * Tích hợp **Lớp phủ mờ chuyển cảnh (Blur Transition Layer)** khi đổi theme giúp trải nghiệm mượt mà, không giật màn hình.
+  * Lưu trữ trạng thái theme vào `localStorage` (`film_ui_theme_v1`).
 * **Danh sách phát theo Phân Loại độc quyền (Seamless Series Playlist):**
   * Khi bấm xem một bộ phim, cột Danh sách phát bên phải sẽ **tự động tải toàn bộ các tập phim thuộc cùng Phân Loại** với phim đó (Ví dụ: xem *Harry Potter 1* thì danh sách bên phải tự gom đủ trọn bộ *Harry Potter 1, 2, 3... 8* theo đúng thứ tự).
   * Bộ nút điều khiển trung tâm và phím tắt của player cho phép chuyển tập trước / tập kế tiếp mượt mà; khi kết thúc một tập phim, hệ thống sẽ **tự động chuyển sang tập tiếp theo**.

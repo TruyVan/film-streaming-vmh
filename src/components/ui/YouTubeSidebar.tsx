@@ -7,6 +7,7 @@ import {
   Key,
   SlidersHorizontal,
   FolderHeart,
+  Settings,
 } from 'lucide-react';
 import { PlaylistTab, ThemeMode } from '../../types/video';
 import { ThemeSwitch } from './ThemeSwitch';
@@ -24,6 +25,7 @@ interface YouTubeSidebarProps {
   onSelectHomeTab: (tab: PlaylistTab, category?: string) => void;
   onCloseMobile: () => void;
   onOpenDevManage: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
@@ -39,6 +41,7 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
   onSelectHomeTab,
   onCloseMobile,
   onOpenDevManage,
+  onOpenSettings,
 }) => {
   const isLight = themeMode === 'light';
 
@@ -152,8 +155,30 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
         </div>
       </div>
 
-      {/* FOOTER: Theme Switch & Nút Admin Dev Portal (/admin) */}
+      {/* FOOTER: Cài đặt hệ thống, Theme Switch & Nút Admin Dev Portal (/admin) */}
       <div className="pt-4 mt-4 border-t border-black/10 dark:border-white/10 space-y-2">
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={() => {
+              onOpenSettings();
+              onItemClick?.();
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              isLight
+                ? 'bg-rose-500/10 hover:bg-rose-500/15 text-rose-600 border border-rose-500/20'
+                : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20'
+            }`}
+            title="Cài đặt hệ thống & Đổi giao diện"
+          >
+            <Settings className="w-4 h-4 text-rose-500 shrink-0" />
+            <div className="flex-1 text-left">
+              <div>Cài Đặt Hệ Thống</div>
+              <div className="text-[10px] font-normal opacity-75">Đổi theme, sáng/tối & quản trị</div>
+            </div>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => onToggleThemeMode()}

@@ -62,3 +62,6 @@ Thumbs.db
 .stylelintcache
 coverage/
 .turbo/
+
+# 9. Thư mục mockups & test theme
+src/test-theme/

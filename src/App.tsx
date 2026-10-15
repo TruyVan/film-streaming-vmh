@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
+import { Sparkles } from 'lucide-react';
 import {
   PlaylistTab,
   ThemeMode,
   TimestampBookmark,
+  UITheme,
   Video,
   VideoProgress,
   WatchHistoryItem,
@@ -37,8 +39,14 @@ import { VideoDetails } from './components/ui/VideoDetails';
 import { PlaylistSidebar } from './components/ui/PlaylistSidebar';
 import { AdminDevPortal } from './components/ui/AdminDevPortal';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
+import { SettingsModal } from './components/ui/SettingsModal';
+import { CanvaThemeHome } from './components/themes/canva/CanvaThemeHome';
+import { CanvaThemeEditor } from './components/themes/canva/CanvaThemeEditor';
+import { PowerPointThemeHome } from './components/themes/powerpoint/PowerPointThemeHome';
+import { PowerPointThemeEditor } from './components/themes/powerpoint/PowerPointThemeEditor';
 
 const THEME_STORAGE_KEY = 'film_theme_mode_v1';
+const UI_THEME_STORAGE_KEY = 'film_ui_theme_v1';
 
 // Chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
 export const slugify = (text: string) =>
@@ -63,6 +71,20 @@ export default function App() {
     }
     return 'light';
   });
+
+  // Giao diện hiển thị (3 themes: 'default' | 'canva' | 'powerpoint')
+  const [uiTheme, setUiTheme] = useState<UITheme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem(UI_THEME_STORAGE_KEY);
+      if (saved === 'default' || saved === 'canva' || saved === 'powerpoint') {
+        return saved as UITheme;
+      }
+    }
+    return 'default';
+  });
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isSwitchingTheme, setIsSwitchingTheme] = useState<boolean>(false);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -252,6 +274,19 @@ export default function App() {
     await addTopicDb('Harry Potter');
     await addTopicDb('Phim Hay');
     setCustomTopics(['Harry Potter', 'Phim Hay']);
+  }, []);
+
+  const handleChangeTheme = useCallback((newTheme: UITheme) => {
+    setIsSwitchingTheme(true);
+    setUiTheme(newTheme);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(UI_THEME_STORAGE_KEY, newTheme);
+      } catch {}
+    }
+    window.setTimeout(() => {
+      setIsSwitchingTheme(false);
+    }, 280);
   }, []);
 
   const handleSearchSubmit = useCallback(
@@ -494,180 +529,301 @@ export default function App() {
         isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      <Header
-        themeMode={themeMode}
-        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onGoHome={() => {
-          setSearchQuery('');
-          navigateTo('/');
-        }}
-        videos={videos}
-        customTopics={customTopics}
-        onSearchSubmit={handleSearchSubmit}
-        onSelectVideo={handleSelectVideo}
-        onSelectCategory={(cat) => {
-          navigateTo(`/tags/${slugify(cat)}`);
-        }}
-      />
-
-      <div className="flex-1 flex w-full">
-        <YouTubeSidebar
-          isOpen={isSidebarOpen}
-          currentPage={currentPage}
+      {/* 1. ADMIN DEV PORTAL VIEW (Universal across all themes) */}
+      {currentPage === 'admin' ? (
+        <AdminDevPortal
           themeMode={themeMode}
-          onToggleThemeMode={handleToggleThemeMode}
-          playlistTab={playlistTab}
-          activeCategory={activeCategory}
-          favoritesCount={favoriteIds.length}
-          historyCount={watchHistory.length}
+          videos={videos}
           customTopics={customTopics}
-          onSelectHomeTab={handleSelectSidebarItem}
-          onCloseMobile={() => setIsSidebarOpen(false)}
-          onOpenDevManage={() => navigateTo('/admin')}
+          isLoading={isLoading}
+          onVideoAdded={handleVideoAdded}
+          onVideoUpdated={handleVideoUpdated}
+          onAddTopic={handleAddTopic}
+          onRemoveTopic={handleRemoveTopic}
+          onRenameTopic={handleRenameTopic}
+          onVideosReordered={(updated) => setVideos(updated)}
+          onGoHome={() => navigateTo('/')}
         />
-
-        {currentPage === 'admin' ? (
-          <AdminDevPortal
-            themeMode={themeMode}
-            videos={videos}
-            customTopics={customTopics}
-            isLoading={isLoading}
-            onVideoAdded={handleVideoAdded}
-            onVideoUpdated={handleVideoUpdated}
-            onAddTopic={handleAddTopic}
-            onRemoveTopic={handleRemoveTopic}
-            onRenameTopic={handleRenameTopic}
-            onVideosReordered={(updated) => setVideos(updated)}
-            onGoHome={() => navigateTo('/')}
-          />
-        ) : currentPage === 'home' ? (
-          <HomeBentoGrid
+      ) : uiTheme === 'canva' ? (
+        /* 2. CANVA THEME VIEW */
+        currentPage === 'home' ? (
+          <CanvaThemeHome
             videos={filteredVideos}
             allVideos={videos}
             themeMode={themeMode}
             progressMap={progressMap}
             favoriteIds={favoriteIds}
-            watchHistory={watchHistory}
-            playlistTab={playlistTab}
+            customTopics={customTopics}
             activeCategory={activeCategory}
             searchQuery={searchQuery}
-            customTopics={customTopics}
             isLoading={isLoading}
             onSelectVideo={handleSelectVideo}
-            onToggleFavorite={handleToggleFavorite}
-            onPlaylistTabChange={(tab) => {
-              if (tab === 'favorites') navigateTo('/favorites');
-              else if (tab === 'history') navigateTo('/history');
-              else navigateTo('/');
-            }}
             onCategoryChange={(cat) => {
               if (cat === 'ALL') navigateTo('/');
               else navigateTo(`/tags/${slugify(cat)}`);
             }}
-            onRemoveHistoryItem={handleRemoveHistoryItem}
-            onClearAllHistory={handleClearAllHistory}
-            onClearFilters={() => navigateTo('/')}
+            onSearchChange={setSearchQuery}
+            onToggleFavorite={handleToggleFavorite}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onToggleThemeMode={handleToggleThemeMode}
+            onOpenEditor={() => {
+              if (currentVideo) handleSelectVideo(currentVideo);
+              else if (videos.length > 0) handleSelectVideo(videos[0]);
+            }}
           />
         ) : (
-          <main className="flex-1 w-full min-w-0 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 pb-20 md:pb-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
-              <div className="lg:col-span-8 min-w-0 w-full space-y-3">
-                {currentVideo && (() => {
-                  const currentIndex = seriesVideos.findIndex((v) => v.id === currentVideo.id);
-                  const hasPrev = currentIndex > 0;
-                  const hasNext = currentIndex >= 0 && currentIndex < seriesVideos.length - 1;
-                
-                  return (
-                    <>
-                      <CustomArtPlayer
-                        video={currentVideo}
-                        themeMode={themeMode}
-                        timestampBookmarks={timestampBookmarks}
-                        onProgressUpdate={handleProgressUpdate}
-                        onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
-                        externalSeekTime={externalSeekTime}
-                        hasPrev={hasPrev}
-                        hasNext={hasNext}
-                        onPrevVideo={() => {
-                          if (hasPrev) handleSelectVideo(seriesVideos[currentIndex - 1]);
-                        }}
-                        onNextVideo={() => {
-                          if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
-                        }}
-                        onEndedNext={() => {
-                          if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
-                        }}
-                      />
-                      <VideoDetails  
-                        video={currentVideo}
-                        themeMode={themeMode}
-                        progress={progressMap[currentVideo.id] || null}
-                        isFavorite={favoriteIds.includes(currentVideo.id)}
-                        timestampBookmarks={timestampBookmarks}
-                        activeTag={activeCategory}
-                        onToggleFavorite={handleToggleFavorite}
-                        onAddTimestampBookmark={handleAddTimestampBookmark}
-                        onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
-                        onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
-                        onSeekTo={handleSeekTo}
-                        onResetProgress={handleResetProgress}
-                      />
-                    </>
-                  );
-                })()}
-              </div>
+          <CanvaThemeEditor
+            video={currentVideo}
+            seriesVideos={seriesVideos}
+            themeMode={themeMode}
+            timestampBookmarks={timestampBookmarks}
+            onProgressUpdate={handleProgressUpdate}
+            onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
+            externalSeekTime={externalSeekTime}
+            onSelectVideo={handleSelectVideo}
+            onGoHome={() => navigateTo('/')}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onToggleThemeMode={handleToggleThemeMode}
+            isFavorite={favoriteIds.includes(currentVideo.id)}
+            onToggleFavorite={handleToggleFavorite}
+            onResetProgress={handleResetProgress}
+          />
+        )
+      ) : uiTheme === 'powerpoint' ? (
+        /* 3. POWERPOINT THEME VIEW */
+        currentPage === 'home' ? (
+          <PowerPointThemeHome
+            videos={filteredVideos}
+            allVideos={videos}
+            themeMode={themeMode}
+            progressMap={progressMap}
+            favoriteIds={favoriteIds}
+            customTopics={customTopics}
+            activeCategory={activeCategory}
+            searchQuery={searchQuery}
+            isLoading={isLoading}
+            onSelectVideo={handleSelectVideo}
+            onCategoryChange={(cat) => {
+              if (cat === 'ALL') navigateTo('/');
+              else navigateTo(`/tags/${slugify(cat)}`);
+            }}
+            onSearchChange={setSearchQuery}
+            onToggleFavorite={handleToggleFavorite}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onToggleThemeMode={handleToggleThemeMode}
+            onOpenEditor={() => {
+              if (currentVideo) handleSelectVideo(currentVideo);
+              else if (videos.length > 0) handleSelectVideo(videos[0]);
+            }}
+          />
+        ) : (
+          <PowerPointThemeEditor
+            video={currentVideo}
+            seriesVideos={seriesVideos}
+            themeMode={themeMode}
+            timestampBookmarks={timestampBookmarks}
+            onProgressUpdate={handleProgressUpdate}
+            onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
+            externalSeekTime={externalSeekTime}
+            onSelectVideo={handleSelectVideo}
+            onGoHome={() => navigateTo('/')}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onToggleThemeMode={handleToggleThemeMode}
+            isFavorite={favoriteIds.includes(currentVideo.id)}
+            onToggleFavorite={handleToggleFavorite}
+            onResetProgress={handleResetProgress}
+          />
+        )
+      ) : (
+        /* 4. DEFAULT THEME VIEW (YouTube Style) */
+        <>
+          <Header
+            themeMode={themeMode}
+            onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onGoHome={() => {
+              setSearchQuery('');
+              navigateTo('/');
+            }}
+            videos={videos}
+            customTopics={customTopics}
+            onSearchSubmit={handleSearchSubmit}
+            onSelectVideo={handleSelectVideo}
+            onSelectCategory={(cat) => {
+              navigateTo(`/tags/${slugify(cat)}`);
+            }}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
 
-              <div className="lg:col-span-4 min-w-0 w-full">
-                <PlaylistSidebar
-                  videos={seriesVideos}
-                  allVideosCount={videos.length}
-                  currentVideoId={currentVideo?.id || ''}
-                  themeMode={themeMode}
-                  progressMap={progressMap}
-                  favoriteIds={favoriteIds}
-                  watchHistory={watchHistory}
-                  playlistTab={playlistTab}
-                  searchQuery={searchQuery}
-                  activeCategory={activeCategory}
-                  categoryName={
-                    currentVideo?.tags && currentVideo.tags.length > 0
-                      ? currentVideo.tags[0]
-                      : undefined
-                  }
-                  isLoading={isLoading}
-                  onPlaylistTabChange={(tab) => {
-                    if (tab === 'favorites') navigateTo('/favorites');
-                    else if (tab === 'history') navigateTo('/history');
-                    else navigateTo('/');
-                  }}
-                  onSelectVideo={handleSelectVideo}
-                  onToggleFavorite={handleToggleFavorite}
-                  onRemoveHistoryItem={handleRemoveHistoryItem}
-                  onClearAllHistory={handleClearAllHistory}
-                  onClearFilters={() => navigateTo('/')}
-                  onGoHome={() => navigateTo('/')}
-                />
-              </div>
-            </div>
-          </main>
-        )}
-      </div>
+          <div className="flex-1 flex w-full">
+            <YouTubeSidebar
+              isOpen={isSidebarOpen}
+              currentPage={currentPage}
+              themeMode={themeMode}
+              onToggleThemeMode={handleToggleThemeMode}
+              playlistTab={playlistTab}
+              activeCategory={activeCategory}
+              favoritesCount={favoriteIds.length}
+              historyCount={watchHistory.length}
+              customTopics={customTopics}
+              onSelectHomeTab={handleSelectSidebarItem}
+              onCloseMobile={() => setIsSidebarOpen(false)}
+              onOpenDevManage={() => navigateTo('/admin')}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
 
-      <MobileBottomNav
-        currentPage={currentPage}
+            {currentPage === 'home' ? (
+              <HomeBentoGrid
+                videos={filteredVideos}
+                allVideos={videos}
+                themeMode={themeMode}
+                progressMap={progressMap}
+                favoriteIds={favoriteIds}
+                watchHistory={watchHistory}
+                playlistTab={playlistTab}
+                activeCategory={activeCategory}
+                searchQuery={searchQuery}
+                customTopics={customTopics}
+                isLoading={isLoading}
+                onSelectVideo={handleSelectVideo}
+                onToggleFavorite={handleToggleFavorite}
+                onPlaylistTabChange={(tab) => {
+                  if (tab === 'favorites') navigateTo('/favorites');
+                  else if (tab === 'history') navigateTo('/history');
+                  else navigateTo('/');
+                }}
+                onCategoryChange={(cat) => {
+                  if (cat === 'ALL') navigateTo('/');
+                  else navigateTo(`/tags/${slugify(cat)}`);
+                }}
+                onRemoveHistoryItem={handleRemoveHistoryItem}
+                onClearAllHistory={handleClearAllHistory}
+                onClearFilters={() => navigateTo('/')}
+              />
+            ) : (
+              <main className="flex-1 w-full min-w-0 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 pb-20 md:pb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 lg:gap-5 items-start w-full">
+                  <div className="lg:col-span-8 min-w-0 w-full space-y-3">
+                    {currentVideo && (() => {
+                      const currentIndex = seriesVideos.findIndex((v) => v.id === currentVideo.id);
+                      const hasPrev = currentIndex > 0;
+                      const hasNext = currentIndex >= 0 && currentIndex < seriesVideos.length - 1;
+                    
+                      return (
+                        <>
+                          <CustomArtPlayer
+                            video={currentVideo}
+                            themeMode={themeMode}
+                            timestampBookmarks={timestampBookmarks}
+                            onProgressUpdate={handleProgressUpdate}
+                            onQuickBookmarkTime={handleQuickBookmarkFromPlayer}
+                            externalSeekTime={externalSeekTime}
+                            hasPrev={hasPrev}
+                            hasNext={hasNext}
+                            onPrevVideo={() => {
+                              if (hasPrev) handleSelectVideo(seriesVideos[currentIndex - 1]);
+                            }}
+                            onNextVideo={() => {
+                              if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
+                            }}
+                            onEndedNext={() => {
+                              if (hasNext) handleSelectVideo(seriesVideos[currentIndex + 1]);
+                            }}
+                          />
+                          <VideoDetails  
+                            video={currentVideo}
+                            themeMode={themeMode}
+                            progress={progressMap[currentVideo.id] || null}
+                            isFavorite={favoriteIds.includes(currentVideo.id)}
+                            timestampBookmarks={timestampBookmarks}
+                            activeTag={activeCategory}
+                            onToggleFavorite={handleToggleFavorite}
+                            onAddTimestampBookmark={handleAddTimestampBookmark}
+                            onRemoveTimestampBookmark={handleRemoveTimestampBookmark}
+                            onTagClick={(tag) => navigateTo(`/tags/${slugify(tag)}`)}
+                            onSeekTo={handleSeekTo}
+                            onResetProgress={handleResetProgress}
+                          />
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="lg:col-span-4 min-w-0 w-full">
+                    <PlaylistSidebar
+                      videos={seriesVideos}
+                      allVideosCount={videos.length}
+                      currentVideoId={currentVideo?.id || ''}
+                      themeMode={themeMode}
+                      progressMap={progressMap}
+                      favoriteIds={favoriteIds}
+                      watchHistory={watchHistory}
+                      playlistTab={playlistTab}
+                      searchQuery={searchQuery}
+                      activeCategory={activeCategory}
+                      categoryName={
+                        currentVideo?.tags && currentVideo.tags.length > 0
+                          ? currentVideo.tags[0]
+                          : undefined
+                      }
+                      isLoading={isLoading}
+                      onPlaylistTabChange={(tab) => {
+                        if (tab === 'favorites') navigateTo('/favorites');
+                        else if (tab === 'history') navigateTo('/history');
+                        else navigateTo('/');
+                      }}
+                      onSelectVideo={handleSelectVideo}
+                      onToggleFavorite={handleToggleFavorite}
+                      onRemoveHistoryItem={handleRemoveHistoryItem}
+                      onClearAllHistory={handleClearAllHistory}
+                      onClearFilters={() => navigateTo('/')}
+                      onGoHome={() => navigateTo('/')}
+                    />
+                  </div>
+                </div>
+              </main>
+            )}
+          </div>
+
+          <MobileBottomNav
+            currentPage={currentPage}
+            themeMode={themeMode}
+            playlistTab={playlistTab}
+            favoritesCount={favoriteIds.length}
+            historyCount={watchHistory.length}
+            onSelectTab={(tab) => {
+              if (tab === 'favorites') navigateTo('/favorites');
+              else if (tab === 'history') navigateTo('/history');
+              else navigateTo('/');
+            }}
+            onToggleTheme={handleToggleThemeMode}
+          />
+        </>
+      )}
+
+      {/* 5. UNIFIED SETTINGS MODAL */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentTheme={uiTheme}
+        onChangeTheme={handleChangeTheme}
         themeMode={themeMode}
-        playlistTab={playlistTab}
-        favoritesCount={favoriteIds.length}
-        historyCount={watchHistory.length}
-        onSelectTab={(tab) => {
-          if (tab === 'favorites') navigateTo('/favorites');
-          else if (tab === 'history') navigateTo('/history');
-          else navigateTo('/');
-        }}
-        onToggleTheme={handleToggleThemeMode}
+        onToggleThemeMode={handleToggleThemeMode}
+        onOpenAdmin={() => navigateTo('/admin')}
       />
+
+      {/* 6. SMOOTH BLUR TRANSITION LAYER WHEN SWITCHING THEMES */}
+      {isSwitchingTheme && (
+        <div className="fixed inset-0 z-[70000] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center pointer-events-none transition-opacity duration-300">
+          <div className="w-12 h-12 rounded-2xl bg-rose-600/20 text-rose-500 border border-rose-500/30 flex items-center justify-center animate-spin mb-3 shadow-lg">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div className="text-white font-bold text-sm tracking-wide shadow-xs">
+            Đang chuyển đổi giao diện...
+          </div>
+        </div>
+      )}
 
       <ToastContainer
         position="top-right"

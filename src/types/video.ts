@@ -60,6 +60,8 @@ export type ViewMode = 'default' | 'cinema';
 
 export type ThemeMode = 'light' | 'dark';
 
+export type UITheme = 'default' | 'canva' | 'powerpoint';
+
 export interface NewVideoInput {
   title: string;
   description: string;

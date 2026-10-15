@@ -7,6 +7,7 @@ import {
   Film,
   FolderHeart,
   CornerDownLeft,
+  Settings,
 } from 'lucide-react';
 import { ThemeMode, Video } from '../../types/video';
 
@@ -21,6 +22,7 @@ interface HeaderProps {
   onSearchSubmit?: (query: string) => void;
   onSelectVideo?: (video: Video) => void;
   onSelectCategory?: (category: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchSubmit,
   onSelectVideo,
   onSelectCategory,
+  onOpenSettings,
 }) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(() =>
     Boolean(searchQuery && searchQuery.trim())
@@ -363,8 +366,8 @@ export const Header: React.FC<HeaderProps> = ({
             </a>
           </div>
 
-          {/* Right Action: Nút mở rộng tìm kiếm */}
-          <div className="flex items-center">
+          {/* Right Action: Nút mở rộng tìm kiếm & Nút Cài đặt */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={handleOpenSearch}
@@ -385,6 +388,23 @@ export const Header: React.FC<HeaderProps> = ({
                 {searchQuery ? `"${searchQuery}"` : 'Tìm kiếm'}
               </span>
             </button>
+
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                aria-label="Cài đặt hệ thống"
+                title="Cài đặt hệ thống & Đổi giao diện"
+                className={`h-9 px-3 sm:px-3.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  isLight
+                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/30'
+                    : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30'
+                }`}
+              >
+                <Settings className="w-4 h-4 text-rose-500" />
+                <span className="hidden sm:inline">Cài Đặt</span>
+              </button>
+            )}
           </div>
         </div>
       )}
