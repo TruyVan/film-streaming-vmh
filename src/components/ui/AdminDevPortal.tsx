@@ -40,6 +40,7 @@ interface AdminDevPortalProps {
   themeMode: ThemeMode;
   videos: Video[];
   customTopics: string[];
+  isLoading?: boolean;
   onVideoAdded: (video: Video) => void;
   onVideoUpdated: (video: Video) => void;
   onAddTopic?: (topic: string) => Promise<void> | void;
@@ -58,6 +59,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   themeMode,
   videos,
   customTopics,
+  isLoading = false,
   onVideoAdded,
   onVideoUpdated,
   onAddTopic,
@@ -789,7 +791,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
         sort_order: idx + 1,
       }));
 
-      await updateVideoSortOrders(itemsToUpdate);
+      const res = await updateVideoSortOrders(itemsToUpdate);
 
       // Cập nhật lại state videos trên client
       const updatedAll = videos.map((v) => {
@@ -802,9 +804,16 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
         onVideosReordered(updatedAll);
       }
 
-      toast.success(
-        `Đã lưu thứ tự ${categoryVideosOrder.length} tập phim của "${selectedCatForOrder}" thành công!`
-      );
+      if (res && res.needsSqlMigration) {
+        alert(
+          `LƯU Ý QUAN TRỌNG VỀ DATABASE SUPABASE:\n${res.message}\n\nHãy mở Supabase -> SQL Editor -> dán lệnh trên và bấm RUN để thứ tự phim được lưu vĩnh viễn trên Supabase!`
+        );
+        toast.error('Chưa thể lưu lên Supabase vì database chưa có cột sort_order! Hãy chạy lệnh SQL.');
+      } else {
+        toast.success(
+          `Đã lưu vĩnh viễn thứ tự ${categoryVideosOrder.length} tập phim của "${selectedCatForOrder}" lên Supabase!`
+        );
+      }
     } catch (err: any) {
       toast.error('Lỗi khi lưu thứ tự phim: ' + err.message);
     } finally {
@@ -1233,7 +1242,58 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   </div>
 
                   <div className="space-y-3">
-                    {paginatedDisplayList.length === 0 ? (
+                    {isLoading ? (
+                      /* SKELETON LOADING KHI CHỜ DỮ LIỆU TỪ SUPABASE */
+                      Array.from({ length: Math.min(listPageSize, 6) }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse transition-colors ${
+                            isLight
+                              ? 'bg-slate-100/70 border-slate-200'
+                              : 'bg-white/[0.03] border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div
+                              className={`w-32 h-18 rounded-lg shrink-0 ${
+                                isLight ? 'bg-slate-200' : 'bg-white/10'
+                              }`}
+                            />
+                            <div className="space-y-2 flex-1 min-w-0">
+                              <div
+                                className={`h-4 rounded w-3/5 ${
+                                  isLight ? 'bg-slate-200' : 'bg-white/10'
+                                }`}
+                              />
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`h-3 rounded w-20 ${
+                                    isLight ? 'bg-slate-200/80' : 'bg-white/5'
+                                  }`}
+                                />
+                                <div
+                                  className={`h-3 rounded w-16 ${
+                                    isLight ? 'bg-slate-200/60' : 'bg-white/5'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div
+                              className={`w-14 h-8 rounded-lg ${
+                                isLight ? 'bg-slate-200' : 'bg-white/10'
+                              }`}
+                            />
+                            <div
+                              className={`w-16 h-8 rounded-lg ${
+                                isLight ? 'bg-slate-200' : 'bg-white/10'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      ))
+                    ) : paginatedDisplayList.length === 0 ? (
                       <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
                         Không có bộ phim nào trong danh sách này.
                       </div>
@@ -1984,7 +2044,27 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {customTopics.map((cat) => {
+                      {isLoading ? (
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-2 animate-pulse ${
+                              isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/[0.03] border-white/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 flex-1">
+                              <div className={`w-2.5 h-2.5 rounded-full ${isLight ? 'bg-slate-300' : 'bg-white/20'}`} />
+                              <div className={`h-4 rounded w-3/5 ${isLight ? 'bg-slate-300' : 'bg-white/20'}`} />
+                            </div>
+                            <div className={`w-12 h-5 rounded-full ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
+                          </div>
+                        ))
+                      ) : customTopics.length === 0 ? (
+                        <div className={`col-span-full text-center py-6 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
+                          Chưa có phân loại nào. Hãy nhập tên phân loại mới ở trên và bấm &quot;Thêm&quot;.
+                        </div>
+                      ) : (
+                        customTopics.map((cat) => {
                         const count = videos.filter(
                           (v) => !v.deleted_at && (v.tags || []).some((t) => t.toLowerCase() === cat.toLowerCase())
                         ).length;
@@ -2081,7 +2161,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             )}
                           </div>
                         );
-                      })}
+                      }))}
                     </div>
                   </div>
 
@@ -2129,7 +2209,27 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                     </div>
 
                     {/* Danh sách phim kéo thả */}
-                    {categoryVideosOrder.length === 0 ? (
+                    {isLoading ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: 4 }).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-3 animate-pulse ${
+                              isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#18181c] border-white/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className={`w-14 h-7 rounded-md ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
+                              <div className={`w-20 h-12 rounded-md ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
+                              <div className="space-y-2 flex-1">
+                                <div className={`h-4 rounded w-1/2 ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
+                                <div className={`h-3 rounded w-1/4 ${isLight ? 'bg-slate-200/70' : 'bg-white/5'}`} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : categoryVideosOrder.length === 0 ? (
                       <div className={`text-center py-10 rounded-xl border border-dashed text-xs ${
                         isLight ? 'border-slate-300 text-slate-400' : 'border-white/10 text-zinc-500'
                       }`}>

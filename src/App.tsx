@@ -533,6 +533,7 @@ export default function App() {
             themeMode={themeMode}
             videos={videos}
             customTopics={customTopics}
+            isLoading={isLoading}
             onVideoAdded={handleVideoAdded}
             onVideoUpdated={handleVideoUpdated}
             onAddTopic={handleAddTopic}

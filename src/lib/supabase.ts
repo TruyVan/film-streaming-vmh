@@ -178,21 +178,47 @@ export async function updateVideoRecord(input: UpdateVideoInput): Promise<Video>
 }
 
 /**
- * Cập nhật thứ tự sắp xếp cho danh sách phim (kéo thả)
+ * Cập nhật thứ tự sắp xếp cho danh sách phim (lưu trực tiếp lên Supabase)
  */
 export async function updateVideoSortOrders(
   items: { id: string; sort_order: number }[]
-): Promise<void> {
+): Promise<{ success: boolean; needsSqlMigration?: boolean; message?: string }> {
+  let hasMissingColumnError = false;
+  let lastErrorMessage = '';
+
   for (const item of items) {
-    try {
-      await supabase
-        .from('videos')
-        .update({ sort_order: item.sort_order })
-        .eq('id', item.id);
-    } catch (err: any) {
-      console.warn(`Lỗi cập nhật sort_order cho phim ${item.id}:`, err?.message);
+    const { error } = await supabase
+      .from('videos')
+      .update({ sort_order: item.sort_order })
+      .eq('id', item.id);
+
+    if (error) {
+      console.error(`Lỗi Supabase khi cập nhật sort_order cho phim ${item.id}:`, error.message);
+      lastErrorMessage = error.message;
+      if (
+        error.message.includes('sort_order') ||
+        error.message.includes('does not exist') ||
+        (error as any).code === '42703'
+      ) {
+        hasMissingColumnError = true;
+      }
     }
   }
+
+  if (hasMissingColumnError) {
+    return {
+      success: false,
+      needsSqlMigration: true,
+      message:
+        'Bảng "videos" trên Supabase chưa có cột "sort_order". Bạn chỉ cần mở SQL Editor trên Supabase và chạy lệnh: ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0; CREATE INDEX IF NOT EXISTS idx_videos_sort_order ON public.videos (sort_order ASC);',
+    };
+  }
+
+  if (lastErrorMessage) {
+    throw new Error(`Lỗi cập nhật thứ tự trên Supabase: ${lastErrorMessage}`);
+  }
+
+  return { success: true };
 }
 
 /**
