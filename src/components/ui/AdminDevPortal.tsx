@@ -428,11 +428,13 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     if (activeXhrRef.current) {
       activeXhrRef.current.abort();
       activeXhrRef.current = null;
-      setUploadProgress(null);
-      setUploadedVideoFile(null);
-      setAddVideoUrl('');
-      toast.info('Đã hủy tải phim.');
     }
+    setUploadProgress(null);
+    setUploadedVideoFile(null);
+    setAddVideoUrl('');
+    setAddThumbnailUrl('');
+    setActiveVideoFile(null);
+    toast.info('Đã xóa file vừa nạp.');
   };
 
   // Mở Form SỬA PHIM: Tự động chuyển đổi phụ đề đơn cũ sang mảng đa phụ đề
@@ -1317,11 +1319,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           <div className="flex items-center gap-3">
                             <span className="font-mono text-slate-500 dark:text-zinc-400">{uploadSpeed}</span>
                             <span className="text-rose-500 font-mono text-sm">{uploadProgress}%</span>
-                            {uploadProgress !== 100 && (
-                              <button type="button" onClick={handleCancelUpload} className="text-zinc-400 hover:text-rose-500">
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={handleCancelUpload}
+                              className="text-zinc-400 hover:text-rose-500 p-0.5 cursor-pointer transition-colors"
+                              title="Xóa file vừa nạp để chọn file khác"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
 
@@ -1331,22 +1336,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                             style={{ width: `${uploadProgress || 100}%` }}
                           />
                         </div>
-
-                        {uploadProgress === 100 && (
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                              <Check className="w-4 h-4" />
-                              <span>Đã tải file lên VPS thành công!</span>
-                            </span>
-                            <button
-                              type="submit"
-                              disabled={isSubmitting || !addVideoUrl.trim()}
-                              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md flex items-center gap-1.5 self-end sm:self-auto disabled:opacity-50"
-                            >
-                              <span>{isSubmitting ? 'Đang lưu...' : 'Lưu Phim & Quay Về Danh Sách →'}</span>
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -1571,7 +1560,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         ? 'Đang lưu vào Supabase...'
                         : !addVideoUrl.trim()
                         ? 'Chờ tải phim xong...'
-                        : 'Lưu & Đăng Lên Rạp Phim (Quay về danh sách)'}
+                        : 'Lưu & Đăng Lên Rạp Phim'}
                     </button>
                   </div>
                 </form>
@@ -1766,7 +1755,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       disabled={isSubmitting}
                       className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-50"
                     >
-                      {isSubmitting ? 'Đang lưu thay đổi...' : 'Lưu Thay Đổi Phim (Quay về danh sách)'}
+                      {isSubmitting ? 'Đang lưu thay đổi...' : 'Lưu Thay Đổi Phim'}
                     </button>
                   </div>
                 </form>
