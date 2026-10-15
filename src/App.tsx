@@ -254,6 +254,16 @@ export default function App() {
     setCustomTopics(['Harry Potter', 'Phim Hay']);
   }, []);
 
+  const handleSearchSubmit = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      if (currentPage !== 'home') {
+        navigateTo('/');
+      }
+    },
+    [currentPage, navigateTo]
+  );
+
   const handleSelectVideo = useCallback(
     (video: Video) => {
       // Reset phiên xem cũ khi đổi phim
@@ -489,7 +499,17 @@ export default function App() {
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onGoHome={() => navigateTo('/')}
+        onGoHome={() => {
+          setSearchQuery('');
+          navigateTo('/');
+        }}
+        videos={videos}
+        customTopics={customTopics}
+        onSearchSubmit={handleSearchSubmit}
+        onSelectVideo={handleSelectVideo}
+        onSelectCategory={(cat) => {
+          navigateTo(`/tags/${slugify(cat)}`);
+        }}
       />
 
       <div className="flex-1 flex w-full">
