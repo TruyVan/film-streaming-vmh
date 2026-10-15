@@ -13,6 +13,7 @@ import {
   fetchTopicsDb,
   addTopicDb,
   removeTopicDb,
+  renameTopicDb,
   fetchFavoritesDb,
   toggleFavoriteDb,
   fetchWatchHistoryDb,
@@ -215,6 +216,37 @@ export default function App() {
     setCustomTopics((prev) => prev.filter((t) => t.toLowerCase() !== topic.toLowerCase()));
     setActiveCategory((prev) => (prev.toLowerCase() === topic.toLowerCase() ? 'ALL' : prev));
   }, []);
+
+  const handleRenameTopic = useCallback(
+    async (oldName: string, newName: string) => {
+      const cleanOld = oldName.trim();
+      const cleanNew = newName.trim();
+      if (!cleanOld || !cleanNew || cleanOld.toLowerCase() === cleanNew.toLowerCase()) return;
+
+      await renameTopicDb(cleanOld, cleanNew);
+
+      // Cập nhật customTopics
+      setCustomTopics((prev) =>
+        prev.map((t) => (t.toLowerCase() === cleanOld.toLowerCase() ? cleanNew : t))
+      );
+
+      // Cập nhật videos state
+      setVideos((prev) =>
+        prev.map((v) => {
+          if ((v.tags || []).some((t) => t.toLowerCase() === cleanOld.toLowerCase())) {
+            return {
+              ...v,
+              tags: (v.tags || []).map((t) =>
+                t.toLowerCase() === cleanOld.toLowerCase() ? cleanNew : t
+              ),
+            };
+          }
+          return v;
+        })
+      );
+    },
+    []
+  );
 
   const handleResetTopics = useCallback(async () => {
     await addTopicDb('Harry Potter');
@@ -485,6 +517,7 @@ export default function App() {
             onVideoUpdated={handleVideoUpdated}
             onAddTopic={handleAddTopic}
             onRemoveTopic={handleRemoveTopic}
+            onRenameTopic={handleRenameTopic}
             onVideosReordered={(updated) => setVideos(updated)}
             onGoHome={() => navigateTo('/')}
           />

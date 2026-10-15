@@ -44,6 +44,7 @@ interface AdminDevPortalProps {
   onVideoUpdated: (video: Video) => void;
   onAddTopic?: (topic: string) => Promise<void> | void;
   onRemoveTopic?: (topic: string) => Promise<void> | void;
+  onRenameTopic?: (oldName: string, newName: string) => Promise<void> | void;
   onVideosReordered?: (updatedVideos: Video[]) => void;
   onGoHome: () => void;
 }
@@ -61,6 +62,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   onVideoUpdated,
   onAddTopic,
   onRemoveTopic,
+  onRenameTopic,
   onVideosReordered,
   onGoHome,
 }) => {
@@ -119,6 +121,14 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   const [categoryVideosOrder, setCategoryVideosOrder] = useState<Video[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // Sửa tên phân loại
+  const [editingCatName, setEditingCatName] = useState<string | null>(null);
+  const [editingCatInput, setEditingCatInput] = useState<string>('');
+
+  // Phân trang danh sách phim (Local Pagination: 5, 10, 25, 50)
+  const [listPageSize, setListPageSize] = useState<number>(10);
+  const [listCurrentPage, setListCurrentPage] = useState<number>(1);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -660,6 +670,46 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     }
   };
 
+  const handleStartRenameCategory = (e: React.MouseEvent, cat: string) => {
+    e.stopPropagation();
+    setEditingCatName(cat);
+    setEditingCatInput(cat);
+  };
+
+  const handleCancelRenameCategory = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingCatName(null);
+    setEditingCatInput('');
+  };
+
+  const handleSaveRenameCategory = async (e: React.MouseEvent | React.FormEvent, oldName: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const cleanNew = editingCatInput.trim();
+    if (!cleanNew) {
+      toast.warning('Tên phân loại không được để trống.');
+      return;
+    }
+    if (cleanNew.toLowerCase() === oldName.toLowerCase()) {
+      setEditingCatName(null);
+      return;
+    }
+    if (customTopics.some((t) => t.toLowerCase() === cleanNew.toLowerCase())) {
+      toast.warning(`Phân loại "${cleanNew}" đã tồn tại.`);
+      return;
+    }
+
+    if (onRenameTopic) {
+      await onRenameTopic(oldName, cleanNew);
+      toast.success(`Đã đổi tên phân loại thành "${cleanNew}"!`);
+      if (selectedCatForOrder.toLowerCase() === oldName.toLowerCase()) {
+        setSelectedCatForOrder(cleanNew);
+      }
+      setEditingCatName(null);
+      setEditingCatInput('');
+    }
+  };
+
   // Đồng bộ danh sách phim của phân loại đang được chọn để sắp xếp
   useEffect(() => {
     if (!selectedCatForOrder) {
@@ -1043,235 +1093,355 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               )}
             </div>
 
-            {/* TAB 1: DANH SÁCH PHIM */}
-            {activeTab === 'list' && (
-              <div
-                className={`p-6 rounded-2xl border space-y-4 transition-colors ${
-                  isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
-                }`}
-              >
-                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
-                  isLight ? 'border-slate-200' : 'border-white/10'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setListFilter('active');
-                        setSelectedIds([]);
-                      }}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                        listFilter === 'active'
-                          ? 'bg-rose-600 text-white'
-                          : isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          : 'bg-white/5 hover:bg-white/10 text-zinc-400'
-                      }`}
-                    >
-                      Đang hiển thị ({activeVideos.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setListFilter('trash');
-                        setSelectedIds([]);
-                      }}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                        listFilter === 'trash'
-                          ? 'bg-amber-600 text-white'
-                          : isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          : 'bg-white/5 hover:bg-white/10 text-zinc-400'
-                      }`}
-                    >
-                      Thùng rác ({trashedVideos.length})
-                    </button>
-                  </div>
+            {/* TAB 1: DANH SÁCH PHIM (CÓ PHÂN TRANG LOCAL 5-10-25-50) */}
+            {activeTab === 'list' && (() => {
+              const totalListItems = currentDisplayList.length;
+              const totalListPages = Math.max(1, Math.ceil(totalListItems / listPageSize));
+              const safeListPage = Math.min(Math.max(1, listCurrentPage), totalListPages);
+              const paginatedDisplayList = currentDisplayList.slice(
+                (safeListPage - 1) * listPageSize,
+                safeListPage * listPageSize
+              );
 
-                  {selectedIds.length > 0 && (
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
-                      isLight ? 'bg-rose-50 border border-rose-200' : 'bg-white/10'
-                    }`}>
-                      <span className="text-xs font-bold text-rose-500">
-                        Đã chọn {selectedIds.length} phim:
-                      </span>
-                      {listFilter === 'active' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleSoftDelete(selectedIds)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-semibold cursor-pointer"
-                        >
-                          Xóa tạm đã chọn
-                        </button>
-                      ) : (
-                        <>
+              return (
+                <div
+                  className={`p-6 rounded-2xl border space-y-4 transition-colors ${
+                    isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+                  }`}
+                >
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
+                    isLight ? 'border-slate-200' : 'border-white/10'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setListFilter('active');
+                          setSelectedIds([]);
+                          setListCurrentPage(1);
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                          listFilter === 'active'
+                            ? 'bg-rose-600 text-white'
+                            : isLight
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            : 'bg-white/5 hover:bg-white/10 text-zinc-400'
+                        }`}
+                      >
+                        Đang hiển thị ({activeVideos.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setListFilter('trash');
+                          setSelectedIds([]);
+                          setListCurrentPage(1);
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                          listFilter === 'trash'
+                            ? 'bg-amber-600 text-white'
+                            : isLight
+                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            : 'bg-white/5 hover:bg-white/10 text-zinc-400'
+                        }`}
+                      >
+                        Thùng rác ({trashedVideos.length})
+                      </button>
+                    </div>
+
+                    {selectedIds.length > 0 && (
+                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl ${
+                        isLight ? 'bg-rose-50 border border-rose-200' : 'bg-white/10'
+                      }`}>
+                        <span className="text-xs font-bold text-rose-500">
+                          Đã chọn {selectedIds.length} phim:
+                        </span>
+                        {listFilter === 'active' ? (
                           <button
                             type="button"
-                            onClick={() => handleRestore(selectedIds)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300 text-xs font-semibold cursor-pointer"
+                            onClick={() => handleSoftDelete(selectedIds)}
+                            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-semibold cursor-pointer"
                           >
-                            Khôi phục đã chọn
+                            Xóa tạm đã chọn
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleHardDelete(selectedIds)}
-                            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-300 text-xs font-semibold cursor-pointer"
-                          >
-                            Xóa hẳn đã chọn
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {currentDisplayList.length > 0 && (
-                  <div className={`flex items-center gap-2 px-3 py-1 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectAll}
-                      className={`flex items-center gap-1.5 cursor-pointer ${isLight ? 'hover:text-slate-900' : 'hover:text-white'}`}
-                    >
-                      {selectedIds.length === currentDisplayList.length ? (
-                        <CheckSquare className="w-4 h-4 text-rose-500" />
-                      ) : (
-                        <Square className="w-4 h-4" />
-                      )}
-                      <span>Chọn tất cả ({currentDisplayList.length})</span>
-                    </button>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {currentDisplayList.length === 0 ? (
-                    <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
-                      Không có bộ phim nào trong danh sách này.
-                    </div>
-                  ) : (
-                    currentDisplayList.map((video) => {
-                      const isSelected = selectedIds.includes(video.id);
-                      const subCount = video.subtitles?.length || (video.subtitle_url ? 1 : 0);
-
-                      return (
-                        <div
-                          key={video.id}
-                          className={`p-3 rounded-xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                            isSelected
-                              ? isLight
-                                ? 'border-rose-300 bg-rose-50/50'
-                                : 'border-rose-500/50 bg-rose-500/5'
-                              : isLight
-                              ? 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/70'
-                              : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
+                        ) : (
+                          <>
                             <button
                               type="button"
-                              onClick={() => handleToggleSelectItem(video.id)}
-                              className={`cursor-pointer shrink-0 ${isLight ? 'text-slate-400 hover:text-slate-900' : 'text-zinc-400 hover:text-white'}`}
+                              onClick={() => handleRestore(selectedIds)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300 text-xs font-semibold cursor-pointer"
                             >
-                              {isSelected ? (
-                                <CheckSquare className="w-4 h-4 text-rose-500" />
-                              ) : (
-                                <Square className="w-4 h-4" />
-                              )}
+                              Khôi phục đã chọn
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => handleHardDelete(selectedIds)}
+                              className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-300 text-xs font-semibold cursor-pointer"
+                            >
+                              Xóa hẳn đã chọn
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                            <div className="w-32 h-18 rounded-lg overflow-hidden bg-black/40 shrink-0 relative border border-slate-200 dark:border-white/10">
-                              {video.thumbnail_url ? (
-                                <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                  <Film className="w-6 h-6" />
-                                </div>
-                              )}
-                              <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-black/80 text-white">
-                                {video.duration || '00:00:00'}
-                              </span>
-                            </div>
+                  {/* Thanh điều khiển chọn tất cả & số lượng phim trên trang */}
+                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 py-1 text-xs ${
+                    isLight ? 'text-slate-500' : 'text-zinc-400'
+                  }`}>
+                    {currentDisplayList.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleToggleSelectAll}
+                        className={`flex items-center gap-1.5 cursor-pointer ${isLight ? 'hover:text-slate-900' : 'hover:text-white'}`}
+                      >
+                        {selectedIds.length === currentDisplayList.length ? (
+                          <CheckSquare className="w-4 h-4 text-rose-500" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                        <span>Chọn tất cả ({currentDisplayList.length})</span>
+                      </button>
+                    ) : <div />}
 
-                            <div className="min-w-0 space-y-1">
-                              <h3 className={`text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                                {video.title}
-                              </h3>
-                              <div className={`flex flex-wrap items-center gap-3 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                                <span className="flex items-center gap-1 font-mono">
-                                  <Calendar className="w-3.5 h-3.5" />
-                                  {video.event_date}
-                                </span>
-                                {subCount > 0 && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
-                                    <Globe2 className="w-3 h-3" />
-                                    <span>{subCount} phụ đề</span>
-                                  </span>
+                    {/* Phân trang: Chọn 5-10-25-50 (Mặc định 10) */}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <span>Hiển thị mỗi trang:</span>
+                      <div className="flex items-center gap-1">
+                        {[5, 10, 25, 50].map((size) => (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => {
+                              setListPageSize(size);
+                              setListCurrentPage(1);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              listPageSize === size
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : isLight
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                : 'bg-white/5 hover:bg-white/10 text-zinc-300'
+                            }`}
+                          >
+                            {size}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {paginatedDisplayList.length === 0 ? (
+                      <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
+                        Không có bộ phim nào trong danh sách này.
+                      </div>
+                    ) : (
+                      paginatedDisplayList.map((video) => {
+                        const isSelected = selectedIds.includes(video.id);
+                        const subCount = video.subtitles?.length || (video.subtitle_url ? 1 : 0);
+
+                        return (
+                          <div
+                            key={video.id}
+                            className={`p-3 rounded-xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                              isSelected
+                                ? isLight
+                                  ? 'border-rose-300 bg-rose-50/50'
+                                  : 'border-rose-500/50 bg-rose-500/5'
+                                : isLight
+                                ? 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/70'
+                                : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSelectItem(video.id)}
+                                className={`cursor-pointer shrink-0 ${isLight ? 'text-slate-400 hover:text-slate-900' : 'text-zinc-400 hover:text-white'}`}
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-rose-500" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
                                 )}
-                                <div className="flex flex-wrap gap-1">
-                                  {(video.tags || []).map((t) => (
-                                    <span
-                                      key={t}
-                                      className={`px-1.5 py-0.5 rounded text-[10px] ${
-                                        isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-zinc-300'
-                                      }`}
-                                    >
-                                      #{t}
+                              </button>
+
+                              <div className="w-32 h-18 rounded-lg overflow-hidden bg-black/40 shrink-0 relative border border-slate-200 dark:border-white/10">
+                                {video.thumbnail_url ? (
+                                  <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                    <Film className="w-6 h-6" />
+                                  </div>
+                                )}
+                                <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-black/80 text-white">
+                                  {video.duration || '00:00:00'}
+                                </span>
+                              </div>
+
+                              <div className="min-w-0 space-y-1">
+                                <h3 className={`text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                  {video.title}
+                                </h3>
+                                <div className={`flex flex-wrap items-center gap-3 text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                                  <span className="flex items-center gap-1 font-mono">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    {video.event_date}
+                                  </span>
+                                  {subCount > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                                      <Globe2 className="w-3 h-3" />
+                                      <span>{subCount} phụ đề</span>
                                     </span>
-                                  ))}
+                                  )}
+                                  <div className="flex flex-wrap gap-1">
+                                    {(video.tags || []).map((t) => (
+                                      <span
+                                        key={t}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                          isLight ? 'bg-rose-500/15 text-rose-600' : 'bg-rose-500/20 text-rose-400'
+                                        }`}
+                                      >
+                                        {t}
+                                      </span>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            {listFilter === 'active' ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartEdit(video)}
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                                    isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-800' : 'bg-white/10 hover:bg-white/20 text-white'
-                                  }`}
-                                >
-                                  <Edit3 className="w-3.5 h-3.5 text-rose-500" />
-                                  <span>Sửa</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSoftDelete([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-500 text-xs font-semibold cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Xóa tạm</span>
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRestore([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500 text-xs font-semibold cursor-pointer"
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                  <span>Khôi phục</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleHardDelete([video.id])}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-500 text-xs font-semibold cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span>Xóa hẳn</span>
-                                </button>
-                              </>
-                            )}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {listFilter === 'active' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEdit(video)}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                                      isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-800' : 'bg-white/10 hover:bg-white/20 text-white'
+                                    }`}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-rose-500" />
+                                    <span>Sửa</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSoftDelete([video.id])}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-500 text-xs font-semibold cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Xóa tạm</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRestore([video.id])}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500 text-xs font-semibold cursor-pointer"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Khôi phục</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleHardDelete([video.id])}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-500 text-xs font-semibold cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Xóa hẳn</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Thanh điều hướng chuyển trang (Pagination Controls) */}
+                  {totalListItems > 0 && (
+                    <div className={`pt-4 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                      isLight ? 'border-slate-200 text-slate-600' : 'border-white/10 text-zinc-400'
+                    }`}>
+                      <div>
+                        <span>
+                          Hiển thị {(safeListPage - 1) * listPageSize + 1} - {Math.min(safeListPage * listPageSize, totalListItems)} trên tổng số {totalListItems} phim
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 self-end sm:self-auto">
+                        <button
+                          type="button"
+                          disabled={safeListPage <= 1}
+                          onClick={() => setListCurrentPage(1)}
+                          className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                            safeListPage <= 1
+                              ? 'opacity-30 cursor-not-allowed border-transparent'
+                              : isLight
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          }`}
+                          title="Trang đầu"
+                        >
+                          « Đầu
+                        </button>
+                        <button
+                          type="button"
+                          disabled={safeListPage <= 1}
+                          onClick={() => setListCurrentPage((p) => Math.max(1, p - 1))}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                            safeListPage <= 1
+                              ? 'opacity-30 cursor-not-allowed border-transparent'
+                              : isLight
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          }`}
+                        >
+                          ‹ Trước
+                        </button>
+
+                        <span className="px-3 py-1.5 rounded-lg font-bold font-mono bg-rose-600 text-white shadow-xs">
+                          Trang {safeListPage} / {totalListPages}
+                        </span>
+
+                        <button
+                          type="button"
+                          disabled={safeListPage >= totalListPages}
+                          onClick={() => setListCurrentPage((p) => Math.min(totalListPages, p + 1))}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                            safeListPage >= totalListPages
+                              ? 'opacity-30 cursor-not-allowed border-transparent'
+                              : isLight
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          }`}
+                        >
+                          Sau ›
+                        </button>
+                        <button
+                          type="button"
+                          disabled={safeListPage >= totalListPages}
+                          onClick={() => setListCurrentPage(totalListPages)}
+                          className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                            safeListPage >= totalListPages
+                              ? 'opacity-30 cursor-not-allowed border-transparent'
+                              : isLight
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                              : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                          }`}
+                          title="Trang cuối"
+                        >
+                          Cuối »
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* TAB 2: THÊM PHIM MỚI */}
             {activeTab === 'add' && (
@@ -1762,262 +1932,302 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               </div>
             )}
 
-            {/* TAB 4: QUẢN LÝ PHÂN LOẠI & THỨ TỰ PHIM (KÉO THẢ) */}
+            {/* TAB 4: QUẢN LÝ PHÂN LOẠI & THỨ TỰ PHIM (TINH GỌN & THỐNG NHẤT) */}
             {activeTab === 'categories' && (
               <div className="space-y-6">
-                {/* 1. QUẢN LÝ DANH MỤC PHÂN LOẠI */}
+                {/* KHUNG QUẢN LÝ PHÂN LOẠI THỐNG NHẤT */}
                 <div
-                  className={`p-6 sm:p-8 rounded-2xl border space-y-5 transition-colors ${
+                  className={`p-6 sm:p-8 rounded-2xl border space-y-6 transition-colors ${
                     isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
                   }`}
                 >
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                      <FolderPlus className="w-5 h-5 text-rose-500" />
-                      <span>Danh Mục Phân Loại Hệ Thống</span>
-                    </h2>
-                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                      Mỗi phân loại đại diện cho một bộ phim/series hoàn chỉnh (VD: Harry Potter, Stranger Things Mùa 1, Gala Dinner...).
-                    </p>
+                  {/* Top Bar: Tiêu đề + Form thêm phân loại mới */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-black/5 dark:border-white/5">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                        <FolderTree className="w-5 h-5 text-rose-500" />
+                        <span>Quản Lý Phân Loại & Thứ Tự Phim</span>
+                      </h2>
+                      <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        Chọn phân loại để xem và sắp xếp các tập phim bên dưới. Hỗ trợ đổi tên và xóa phân loại.
+                      </p>
+                    </div>
+
+                    {/* Form thêm phân loại mới */}
+                    <form onSubmit={handleAddNewCategory} className="flex items-center gap-2 max-w-md w-full md:w-auto">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Tên phân loại mới (VD: Stranger Things Mùa 1)..."
+                        className={`flex-1 px-3.5 py-2 rounded-xl border text-xs focus:outline-none transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                            : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                        }`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newCategoryName.trim()}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Thêm</span>
+                      </button>
+                    </form>
                   </div>
 
-                  {/* Form thêm phân loại mới */}
-                  <form onSubmit={handleAddNewCategory} className="flex items-center gap-2 max-w-xl">
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="Nhập tên phân loại mới (VD: Stranger Things Mùa 1)..."
-                      className={`flex-1 px-4 py-2.5 rounded-xl border text-xs focus:outline-none transition-colors ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
-                          : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
-                      }`}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!newCategoryName.trim()}
-                      className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Thêm Phân Loại</span>
-                    </button>
-                  </form>
-
-                  {/* Danh sách phân loại hiện tại */}
+                  {/* Danh sách thẻ phân loại tinh gọn */}
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-slate-600 dark:text-zinc-400">
-                      Danh sách phân loại ({customTopics.length}):
+                      Danh sách phân loại ({customTopics.length}) — Bấm vào để chọn & sắp xếp các tập:
                     </label>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {customTopics.map((cat) => {
                         const count = videos.filter(
                           (v) => !v.deleted_at && (v.tags || []).some((t) => t.toLowerCase() === cat.toLowerCase())
                         ).length;
-                        const isSelectedForOrder = selectedCatForOrder.toLowerCase() === cat.toLowerCase();
+                        const isSelected = selectedCatForOrder.toLowerCase() === cat.toLowerCase();
+                        const isEditingThis = editingCatName?.toLowerCase() === cat.toLowerCase();
 
                         return (
                           <div
                             key={cat}
-                            className={`p-3 rounded-xl border flex items-center justify-between gap-2 transition-all ${
-                              isSelectedForOrder
-                                ? 'border-rose-400 bg-rose-50/40 dark:bg-rose-500/10'
+                            className={`p-3 rounded-xl border transition-all ${
+                              isSelected
+                                ? 'border-rose-500 bg-rose-500/10 shadow-sm ring-1 ring-rose-500/40'
                                 : isLight
-                                ? 'border-slate-200 bg-slate-50'
-                                : 'border-white/10 bg-white/[0.02]'
+                                ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100/60'
+                                : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.05]'
                             }`}
                           >
-                            <div
-                              onClick={() => setSelectedCatForOrder(cat)}
-                              className="flex items-center gap-2 min-w-0 cursor-pointer flex-1"
-                              title="Bấm để chọn sắp xếp thứ tự phim cho phân loại này"
-                            >
-                              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
-                              <span className="text-xs font-bold truncate">{cat}</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-500 font-mono font-semibold shrink-0">
-                                {count} phim
-                              </span>
-                            </div>
+                            {isEditingThis ? (
+                              /* Inline Rename Mode */
+                              <form
+                                onSubmit={(e) => handleSaveRenameCategory(e, cat)}
+                                className="flex items-center gap-1.5"
+                              >
+                                <input
+                                  type="text"
+                                  value={editingCatInput}
+                                  onChange={(e) => setEditingCatInput(e.target.value)}
+                                  className={`flex-1 px-2.5 py-1 rounded-lg border text-xs font-bold focus:outline-none ${
+                                    isLight
+                                      ? 'bg-white border-rose-400 text-slate-900'
+                                      : 'bg-[#18181c] border-rose-500 text-white'
+                                  }`}
+                                  autoFocus
+                                />
+                                <button
+                                  type="submit"
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                                  title="Lưu tên mới"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelRenameCategory}
+                                  className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-white/10 text-xs cursor-pointer hover:opacity-80"
+                                  title="Hủy"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                              </form>
+                            ) : (
+                              /* Normal Card Display */
+                              <div className="flex items-center justify-between gap-2">
+                                <div
+                                  onClick={() => setSelectedCatForOrder(cat)}
+                                  className="flex items-center gap-2 min-w-0 cursor-pointer flex-1 select-none"
+                                  title="Bấm để chọn phân loại này"
+                                >
+                                  <span
+                                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                      isSelected ? 'bg-rose-600' : 'bg-rose-400/60'
+                                    }`}
+                                  />
+                                  <span className={`text-xs font-bold truncate ${isSelected ? 'text-rose-600 dark:text-rose-400' : ''}`}>
+                                    {cat}
+                                  </span>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-500 font-mono font-semibold shrink-0">
+                                    {count} phim
+                                  </span>
+                                </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveCategory(cat)}
-                              className="text-zinc-400 hover:text-rose-500 p-1 rounded-md cursor-pointer shrink-0 transition-colors"
-                              title={`Xóa phân loại "${cat}" (Phim vẫn được giữ nguyên)`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {/* Nút sửa tên phân loại */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleStartRenameCategory(e, cat)}
+                                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                                    title={`Sửa tên phân loại "${cat}"`}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {/* Nút xóa phân loại */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveCategory(cat)}
+                                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                                    title={`Xóa phân loại "${cat}" (Phim vẫn được giữ nguyên)`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                </div>
 
-                {/* 2. SẮP XẾP THỨ TỰ PHIM TRONG PHÂN LOẠI (KÉO THẢ TỪ TRÊN XUỐNG DƯỚI) */}
-                <div
-                  className={`p-6 sm:p-8 rounded-2xl border space-y-5 transition-colors ${
-                    isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/5 dark:border-white/5">
-                    <div>
-                      <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                        <FolderTree className="w-5 h-5 text-rose-500" />
-                        <span>Sắp Xếp Thứ Tự Phim (Từ Cũ Nhất Đến Mới Nhất)</span>
-                      </h2>
-                      <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                        Kéo thả trực tiếp hoặc dùng nút mũi tên để xếp phim từ Tập 1 (trên cùng) xuống Tập cuối (dưới cùng).
-                      </p>
-                    </div>
+                  {/* SẮP XẾP THỨ TỰ PHIM TRONG PHÂN LOẠI ĐANG CHỌN */}
+                  <div className="pt-4 border-t border-black/5 dark:border-white/5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-bold flex items-center gap-2">
+                          <span className="text-rose-500">Thứ Tự Phim Trong Bộ:</span>
+                          <span className="font-extrabold text-base underline decoration-rose-500">
+                            {selectedCatForOrder || 'Chưa chọn'}
+                          </span>
+                          <span className="text-xs opacity-65 font-normal">
+                            ({categoryVideosOrder.length} tập phim)
+                          </span>
+                        </h3>
+                        <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                          Kéo thả trực tiếp hoặc bấm nút mũi tên để xếp phim từ Tập 1 (trên cùng) xuống Tập cuối (dưới cùng).
+                        </p>
+                      </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={handleAutoSortOldestFirst}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                          isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
-                        }`}
-                        title="Tự động xếp theo ngày phát hành từ cũ nhất ở trên xuống mới nhất ở dưới"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
-                        <span>Xếp Tự Động: Cũ → Mới</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleSaveCategoryOrder}
-                        disabled={isSavingOrder || categoryVideosOrder.length === 0}
-                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-40"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>{isSavingOrder ? 'Đang lưu...' : 'Lưu Thứ Tự Phim'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Chọn phân loại để sắp xếp */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold shrink-0">Chọn Phân Loại:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {customTopics.map((cat) => (
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
-                          key={cat}
                           type="button"
-                          onClick={() => setSelectedCatForOrder(cat)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            selectedCatForOrder.toLowerCase() === cat.toLowerCase()
-                              ? 'bg-rose-600 text-white shadow-xs'
-                              : isLight
-                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                              : 'bg-white/5 hover:bg-white/10 text-zinc-300'
+                          onClick={handleAutoSortOldestFirst}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                            isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
                           }`}
+                          title="Tự động xếp theo ngày phát hành từ cũ nhất ở trên xuống mới nhất ở dưới"
                         >
-                          {cat}
+                          <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Xếp Tự Động: Cũ → Mới</span>
                         </button>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Danh sách phim kéo thả */}
-                  {categoryVideosOrder.length === 0 ? (
-                    <div className={`text-center py-12 rounded-xl border border-dashed text-xs ${
-                      isLight ? 'border-slate-300 text-slate-400' : 'border-white/10 text-zinc-500'
-                    }`}>
-                      Chưa có bộ phim nào thuộc phân loại &quot;{selectedCatForOrder || 'này'}&quot;.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {categoryVideosOrder.map((film, index) => (
-                        <div
-                          key={film.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={(e) => handleDragOver(e, index)}
-                          onDrop={handleDrop}
-                          className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-grab active:cursor-grabbing select-none ${
-                            draggedIndex === index
-                              ? 'opacity-40 border-rose-500'
-                              : isLight
-                              ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                              : 'bg-[#18181c] hover:bg-white/[0.05] border-white/10'
-                          }`}
+                        <button
+                          type="button"
+                          onClick={handleSaveCategoryOrder}
+                          disabled={isSavingOrder || categoryVideosOrder.length === 0}
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-40"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Grip drag handle icon */}
-                            <GripVertical className="w-4 h-4 text-zinc-400 shrink-0 cursor-grab" />
+                          <Check className="w-4 h-4" />
+                          <span>{isSavingOrder ? 'Đang lưu...' : 'Lưu Thứ Tự Phim'}</span>
+                        </button>
+                      </div>
+                    </div>
 
-                            {/* Badge thứ tự Tập */}
-                            <span className="w-14 h-7 rounded-md bg-rose-600/15 text-rose-500 text-xs font-mono font-bold flex items-center justify-center shrink-0">
-                              Tập {index + 1}
-                            </span>
+                    {/* Danh sách phim kéo thả */}
+                    {categoryVideosOrder.length === 0 ? (
+                      <div className={`text-center py-10 rounded-xl border border-dashed text-xs ${
+                        isLight ? 'border-slate-300 text-slate-400' : 'border-white/10 text-zinc-500'
+                      }`}>
+                        Chưa có bộ phim nào thuộc phân loại &quot;{selectedCatForOrder || 'này'}&quot;.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {categoryVideosOrder.map((film, index) => (
+                          <div
+                            key={film.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDrop={handleDrop}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-grab active:cursor-grabbing select-none ${
+                              draggedIndex === index
+                                ? 'opacity-40 border-rose-500'
+                                : isLight
+                                ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                                : 'bg-[#18181c] hover:bg-white/[0.05] border-white/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              {/* Grip drag handle icon */}
+                              <GripVertical className="w-4 h-4 text-zinc-400 shrink-0 cursor-grab" />
 
-                            {/* Thumbnail */}
-                            <div className="w-20 h-12 rounded-md overflow-hidden bg-black/40 shrink-0 border border-slate-200 dark:border-white/10">
-                              {film.thumbnail_url ? (
-                                <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                  <Film className="w-4 h-4" />
-                                </div>
-                              )}
+                              {/* Badge thứ tự Tập */}
+                              <span className="w-14 h-7 rounded-md bg-rose-600/15 text-rose-500 text-xs font-mono font-bold flex items-center justify-center shrink-0">
+                                Tập {index + 1}
+                              </span>
+
+                              {/* Thumbnail */}
+                              <div className="w-20 h-12 rounded-md overflow-hidden bg-black/40 shrink-0 border border-slate-200 dark:border-white/10">
+                                {film.thumbnail_url ? (
+                                  <img src={film.thumbnail_url} alt={film.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                    <Film className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Title & Metadata */}
+                              <div className="min-w-0">
+                                <h4 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                  {film.title}
+                                </h4>
+                                <p className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                                  Ngày: {film.event_date} {film.duration && `• Thời lượng: ${film.duration}`}
+                                </p>
+                              </div>
                             </div>
 
-                            {/* Title & Metadata */}
-                            <div className="min-w-0">
-                              <h4 className={`text-xs sm:text-sm font-bold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                                {film.title}
-                              </h4>
-                              <p className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                                Ngày: {film.event_date} {film.duration && `• Thời lượng: ${film.duration}`}
-                              </p>
+                            {/* Quick Up/Down buttons */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveMovie(index, index - 1)}
+                                disabled={index === 0}
+                                className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                  isLight
+                                    ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
+                                    : 'border-white/15 hover:bg-white/10 text-white'
+                                }`}
+                                title="Di chuyển lên trên"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveMovie(index, index + 1)}
+                                disabled={index === categoryVideosOrder.length - 1}
+                                className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                                  isLight
+                                    ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
+                                    : 'border-white/15 hover:bg-white/10 text-white'
+                                }`}
+                                title="Di chuyển xuống dưới"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
+                        ))}
+                      </div>
+                    )}
 
-                          {/* Quick Up/Down buttons */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveMovie(index, index - 1)}
-                              disabled={index === 0}
-                              className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
-                                isLight
-                                  ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
-                                  : 'border-white/15 hover:bg-white/10 text-white'
-                              }`}
-                              title="Di chuyển lên trên"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveMovie(index, index + 1)}
-                              disabled={index === categoryVideosOrder.length - 1}
-                              className={`p-1.5 rounded-lg border text-xs cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
-                                isLight
-                                  ? 'border-slate-300 hover:bg-slate-200 text-slate-700'
-                                  : 'border-white/15 hover:bg-white/10 text-white'
-                              }`}
-                              title="Di chuyển xuống dưới"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                    {/* SQL instruction tip */}
+                    <div className={`p-4 rounded-xl border text-xs leading-relaxed ${
+                      isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+                    }`}>
+                      <div className="font-bold mb-1 flex items-center gap-1.5">
+                        <span>💡 Lệnh SQL trên Supabase (nếu bảng videos chưa có cột sort_order):</span>
+                      </div>
+                      <code className="block p-2 rounded bg-black/10 dark:bg-black/40 font-mono text-[11px] select-all">
+                        ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
+                      </code>
                     </div>
-                  )}
-
-                  {/* SQL instruction tip */}
-                  <div className={`p-4 rounded-xl border text-xs leading-relaxed ${
-                    isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
-                  }`}>
-                    <div className="font-bold mb-1 flex items-center gap-1.5">
-                      <span>💡 Lệnh SQL trên Supabase (nếu bảng videos chưa có cột sort_order):</span>
-                    </div>
-                    <code className="block p-2 rounded bg-black/10 dark:bg-black/40 font-mono text-[11px] select-all">
-                      ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
-                    </code>
                   </div>
                 </div>
               </div>

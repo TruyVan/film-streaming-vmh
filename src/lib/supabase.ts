@@ -279,6 +279,47 @@ export async function removeTopicDb(name: string): Promise<void> {
   }
 }
 
+export async function renameTopicDb(oldName: string, newName: string): Promise<void> {
+  const cleanOld = oldName.trim();
+  const cleanNew = newName.trim();
+  if (!cleanOld || !cleanNew || cleanOld.toLowerCase() === cleanNew.toLowerCase()) return;
+
+  // 1. Cập nhật trong bảng topics
+  const { error: topicError } = await supabase
+    .from('topics')
+    .update({ name: cleanNew })
+    .eq('name', cleanOld);
+
+  if (topicError) {
+    try {
+      await supabase.from('topics').insert([{ name: cleanNew }]);
+      await supabase.from('topics').delete().eq('name', cleanOld);
+    } catch {}
+  }
+
+  // 2. Cập nhật tất cả các video đang có tags chứa oldName
+  try {
+    const { data: matchedVideos } = await supabase
+      .from('videos')
+      .select('id, tags')
+      .contains('tags', [cleanOld]);
+
+    if (matchedVideos && matchedVideos.length > 0) {
+      for (const v of matchedVideos) {
+        const nextTags = (v.tags || []).map((t: string) =>
+          t.toLowerCase() === cleanOld.toLowerCase() ? cleanNew : t
+        );
+        await supabase
+          .from('videos')
+          .update({ tags: nextTags })
+          .eq('id', v.id);
+      }
+    }
+  } catch (err: any) {
+    console.warn('Lỗi cập nhật tags video khi đổi tên phân loại:', err?.message);
+  }
+}
+
 // =========================================================================
 // 5. DATA ACCESS LAYER: FAVORITES / YÊU THÍCH
 // =========================================================================
