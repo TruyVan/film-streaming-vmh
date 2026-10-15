@@ -1,4 +1,4 @@
-# Film Streaming / PartyStream — Private VoD Platform
+# Film Streaming — Private VoD Platform
 
 > **Nền tảng phát Video VoD nội bộ & Rạp chiếu phim trực tuyến chất lượng cao**  
 > Kiến trúc kết hợp: **Vercel** (Frontend SPA CDN) + **Supabase** (PostgreSQL BaaS & RLS) + **Oracle Cloud** (Nginx MP4 Streaming VPS).  
@@ -251,17 +251,17 @@ sudo ufw reload
 sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 
 # Tạo cấu trúc thư mục chứa video, phụ đề và ảnh bìa
-sudo mkdir -p /var/www/partystream/{videos,subtitles,thumbnails}
-sudo chown -R www-data:www-data /var/www/partystream
-sudo chmod -R 775 /var/www/partystream
+sudo mkdir -p /var/www/filmstreaming/{videos,subtitles,thumbnails}
+sudo chown -R www-data:www-data /var/www/filmstreaming
+sudo chmod -R 775 /var/www/filmstreaming
 ```
 
 #### 1.4. Áp dụng cấu hình Nginx từ dự án
-1. Sao chép nội dung file `nginx/oracle-cloud-vod.conf` vào `/etc/nginx/sites-available/partystream-vod.conf`.
+1. Sao chép nội dung file `nginx/oracle-cloud-vod.conf` vào `/etc/nginx/sites-available/film-vod.conf`.
 2. Thay thế `vod.yourcompany.vn` bằng tên miền (hoặc IP / tên miền sslip.io) của bạn.
 3. Kích hoạt site và xin chứng chỉ SSL:
 ```bash
-sudo ln -s /etc/nginx/sites-available/partystream-vod.conf /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/film-vod.conf /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
@@ -273,7 +273,7 @@ sudo certbot --nginx -d vod.yourcompany.vn
 Bạn có thể tải trực tiếp qua giao diện **Admin Dev Portal** trên web, hoặc dùng `scp`/SFTP:
 ```bash
 # Tải video từ máy cá nhân lên VPS qua SCP:
-scp film_part1.mp4 ubuntu@<IP_VPS>:/var/www/partystream/videos/
+scp film_part1.mp4 ubuntu@<IP_VPS>:/var/www/filmstreaming/videos/
 ```
 Sau khi tải lên, video có thể phát ngay lập tức qua URL dạng:  
 `https://vod.yourcompany.vn/videos/film_part1.mp4`
@@ -283,7 +283,7 @@ Sau khi tải lên, video có thể phát ngay lập tức qua URL dạng:
 ### Bước 2: Cấu hình Cơ sở dữ liệu trên Supabase
 
 1. Đăng ký/Đăng nhập tài khoản tại [supabase.com](https://supabase.com) và bấm **New Project**.
-2. Đặt tên dự án (ví dụ: `partystream-db`), chọn Database Password và chọn Region gần nhất (ví dụ: `Singapore - ap-southeast-1`).
+2. Đặt tên dự án (ví dụ: `film-streaming-db`), chọn Database Password và chọn Region gần nhất (ví dụ: `Singapore - ap-southeast-1`).
 3. Sau khi dự án khởi tạo xong:
    * Vào mục **SQL Editor** ở thanh menu bên trái.
    * Mở file `supabase/schema.sql` trong mã nguồn dự án này, copy toàn bộ nội dung và dán vào SQL Editor.

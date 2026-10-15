@@ -220,7 +220,7 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
               <span className="w-7 h-5 rounded-md bg-[#ff0033] text-white flex items-center justify-center">
                 <span className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
               </span>
-              <span className="font-display text-base font-extrabold tracking-tight">PartyStream</span>
+              <span className="font-display text-base font-extrabold tracking-tight">Harry Potter Tube</span>
             </div>
             <button
               type="button"
@@ -250,7 +250,7 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
                 <span className="w-7 h-5 rounded-md bg-[#ff0033] text-white flex items-center justify-center">
                   <span className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[7px] border-l-white ml-0.5" />
                 </span>
-                <span className="font-display text-base font-extrabold tracking-tight">PartyStream</span>
+                <span className="font-display text-base font-extrabold tracking-tight">Harry Potter Tube</span>
               </div>
               <button
                 type="button"

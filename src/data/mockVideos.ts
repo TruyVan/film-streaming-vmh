@@ -21,7 +21,7 @@ const sampleSrtGala =
 
 4
 00:00:16,000 --> 00:00:22,000
-[PartyStream]: Nền tảng chia sẻ và lưu trữ video sự kiện nội bộ chuẩn HD`);
+[Film Streaming]: Nền tảng chia sẻ và lưu trữ video sự kiện nội bộ chuẩn HD`);
 
 const sampleSrtTeambuilding =
   'data:text/plain;charset=utf-8,' +

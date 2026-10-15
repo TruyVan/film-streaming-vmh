@@ -1,4 +1,4 @@
-const TOPICS_STORAGE_KEY = 'partystream_custom_topics_v1';
+const TOPICS_STORAGE_KEY = 'film_custom_topics_v1';
 
 export const DEFAULT_TOPICS: string[] = [
   'Teambuilding',

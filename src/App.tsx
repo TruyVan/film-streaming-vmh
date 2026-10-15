@@ -37,7 +37,7 @@ import { PlaylistSidebar } from './components/ui/PlaylistSidebar';
 import { AdminDevPortal } from './components/ui/AdminDevPortal';
 import { MobileBottomNav } from './components/ui/MobileBottomNav';
 
-const THEME_STORAGE_KEY = 'partystream_theme_mode_v1';
+const THEME_STORAGE_KEY = 'film_theme_mode_v1';
 
 // Chuẩn hóa chuỗi thành Slug URL chuẩn (vd: "Harry Potter" -> "harry-potter")
 export const slugify = (text: string) =>

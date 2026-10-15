@@ -1,5 +1,5 @@
 -- ==============================================================================
--- PARTYSTREAM — SUPABASE POSTGRESQL SCHEMA & INITIAL SEED DATA
+-- FILM STREAMING — SUPABASE POSTGRESQL SCHEMA & INITIAL SEED DATA
 -- Kiến trúc: Supabase Database (PostgreSQL) + Row Level Security (RLS)
 -- Sử dụng: Mở Supabase Dashboard -> SQL Editor -> Dán toàn bộ nội dung này và bấm RUN
 -- ==============================================================================

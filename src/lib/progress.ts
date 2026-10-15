@@ -4,10 +4,10 @@ import {
   WatchHistoryItem,
 } from '../types/video';
 
-const PROGRESS_KEY_PREFIX = 'partystream_progress_';
-const FAVORITES_STORAGE_KEY = 'partystream_favorites_v1';
-const HISTORY_STORAGE_KEY = 'partystream_watch_history_v1';
-const TIMESTAMP_BOOKMARKS_KEY = 'partystream_moment_bookmarks_v1';
+const PROGRESS_KEY_PREFIX = 'film_progress_';
+const FAVORITES_STORAGE_KEY = 'film_favorites_v1';
+const HISTORY_STORAGE_KEY = 'film_watch_history_v1';
+const TIMESTAMP_BOOKMARKS_KEY = 'film_moment_bookmarks_v1';
 
 export function getVideoProgress(videoId: string): VideoProgress | null {
   if (typeof window === 'undefined') return null;

@@ -22,7 +22,7 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
 export const isSupabaseConnected: boolean = Boolean(supabaseUrl && supabaseAnonKey);
 
 // 2. MÃ SQL SCHEMA TOÀN DIỆN CHO TOÀN BỘ RẠP PHIM
-export const SUPABASE_SCHEMA_SQL = `-- PartyStream PostgreSQL Production Schema
+export const SUPABASE_SCHEMA_SQL = `-- Film Streaming PostgreSQL Production Schema
 create extension if not exists "pgcrypto";
 
 -- Bảng 1: Danh sách Phim & Video (Hỗ trợ Soft Delete 30 ngày)

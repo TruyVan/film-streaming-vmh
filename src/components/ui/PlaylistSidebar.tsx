@@ -275,7 +275,7 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
                       isLight ? 'text-slate-600' : 'text-zinc-400'
                     }`}
                   >
-                    <div className="truncate">PartyStream Nội Bộ</div>
+                    <div className="truncate">{item.tags?.[0] || 'Phim Tuyển Chọn'}</div>
                     <div className="font-mono mt-0.5">
                       {formatVietnameseDate(item.event_date)}
                     </div>

@@ -418,7 +418,7 @@ export const HomeBentoGrid: React.FC<HomeBentoGridProps> = ({
                           isLight ? 'text-slate-600' : 'text-zinc-400'
                         }`}
                       >
-                        PartyStream · {primaryTag}
+                        {primaryTag}
                       </div>
 
                       <div
@@ -662,7 +662,7 @@ export const HomeBentoGrid: React.FC<HomeBentoGridProps> = ({
                         }`}
                       >
                         <div className="truncate">
-                          PartyStream · {primaryTag}
+                          {primaryTag}
                         </div>
                         <div className="font-mono flex flex-wrap items-center gap-x-1.5">
                           <span>{formatVietnameseDate(video.event_date)}</span>
