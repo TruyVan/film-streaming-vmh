@@ -497,35 +497,101 @@
 }
 
 /* ==============================================================
- * FIX TOOLTIPS BỊ CHE KHUẤT / CẮT CỤT Ở SÁT 2 MÉP TRÌNH PHÁT ARTPLAYER
+ * ARTPLAYER TOOLTIPS: PHONG CÁCH YOUTUBE & KHÔNG BỊ TRÀN VIỀN
  * ============================================================== */
-.art-video-player .art-controls-right .art-control:last-child::after,
-.art-video-player .art-control-fullscreen-toggle::after {
-  left: auto !important;
-  right: -4px !important;
-  transform: none !important;
+.art-video-player [class*='hint--']:after {
+  background: rgba(28, 28, 28, 0.95) !important;
+  color: #ffffff !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+  letter-spacing: 0.01em !important;
   white-space: nowrap !important;
+  pointer-events: none !important;
 }
 
-.art-video-player .art-controls-right .art-control:last-child::before,
-.art-video-player .art-control-fullscreen-toggle::before {
+.art-video-player [class*='hint--']:before {
+  border-top-color: rgba(28, 28, 28, 0.95) !important;
+}
+
+/* Nút sát cạnh phải (Toàn màn hình): Căn lùi sang trái để không bị tràn viền phải */
+.art-video-player .art-control-fullscreen-toggle.hint--top:after {
   left: auto !important;
-  right: 14px !important;
+  right: -2px !important;
+  transform: translateX(0) !important;
+}
+.art-video-player .art-control-fullscreen-toggle.hint--top:hover:after {
+  transform: translateX(0) translateY(-8px) !important;
+}
+.art-video-player .art-control-fullscreen-toggle.hint--top:before {
+  left: auto !important;
+  right: 12px !important;
   transform: none !important;
 }
+.art-video-player .art-control-fullscreen-toggle.hint--top:hover:before {
+  transform: translateY(-8px) !important;
+}
 
-.art-video-player .art-controls-left .art-control:first-child::after,
-.art-video-player .art-control-rewind-10s::after {
-  left: -4px !important;
+/* Nút PIP cạnh nút Fullscreen: Căn lùi nhẹ để không che lấp */
+.art-video-player .art-control-pip-toggle.hint--top:after {
+  left: auto !important;
+  right: -8px !important;
+  transform: translateX(0) !important;
+}
+.art-video-player .art-control-pip-toggle.hint--top:hover:after {
+  transform: translateX(0) translateY(-8px) !important;
+}
+.art-video-player .art-control-pip-toggle.hint--top:before {
+  left: auto !important;
+  right: 12px !important;
+  transform: none !important;
+}
+.art-video-player .art-control-pip-toggle.hint--top:hover:before {
+  transform: translateY(-8px) !important;
+}
+
+/* Nút sát cạnh trái (Tua lùi 10s): Căn lùi sang phải để không bị tràn viền trái */
+.art-video-player .art-control-rewind-10s.hint--top:after {
+  left: -2px !important;
+  right: auto !important;
+  transform: translateX(0) !important;
+}
+.art-video-player .art-control-rewind-10s.hint--top:hover:after {
+  transform: translateX(0) translateY(-8px) !important;
+}
+.art-video-player .art-control-rewind-10s.hint--top:before {
+  left: 12px !important;
   right: auto !important;
   transform: none !important;
-  white-space: nowrap !important;
+}
+.art-video-player .art-control-rewind-10s.hint--top:hover:before {
+  transform: translateY(-8px) !important;
 }
 
-.art-video-player .art-controls-left .art-control:first-child::before,
-.art-video-player .art-control-rewind-10s::before {
-  left: 14px !important;
-  right: auto !important;
+/* Tooltip cho nút Khóa màn hình ở góc trên phải */
+.art-video-player .art-lock-btn.hint--bottom-left:after {
+  right: 0 !important;
+  left: auto !important;
+  top: 100% !important;
+  bottom: auto !important;
+  transform: translateX(0) !important;
+}
+.art-video-player .art-lock-btn.hint--bottom-left:hover:after {
+  transform: translateX(0) translateY(8px) !important;
+}
+.art-video-player .art-lock-btn.hint--bottom-left:before {
+  right: 12px !important;
+  left: auto !important;
+  top: 100% !important;
+  bottom: auto !important;
+  border-bottom-color: rgba(28, 28, 28, 0.95) !important;
+  border-top-color: transparent !important;
   transform: none !important;
+}
+.art-video-player .art-lock-btn.hint--bottom-left:hover:before {
+  transform: translateY(8px) !important;
 }
 

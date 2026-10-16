@@ -212,7 +212,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       ) as HTMLElement | null;
       if (btn) {
         btn.innerHTML = isFullscreen ? ICON_MINIMIZE : ICON_MAXIMIZE;
-        btn.setAttribute('title', isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình');
+        btn.setAttribute('aria-label', isFullscreen ? 'Thoát toàn màn hình (F)' : 'Toàn màn hình (F)');
+        btn.removeAttribute('title');
       }
     };
 
@@ -373,6 +374,34 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       gesture: false,
       theme: '#ff0033',
       lang: 'vi',
+      i18n: {
+        vi: {
+          Play: 'Phát (Space)',
+          Pause: 'Tạm dừng (Space)',
+          Volume: 'Âm lượng (M)',
+          Mute: 'Tắt tiếng (M)',
+          Reconnect: 'Kết nối lại',
+          'Show Setting': 'Cài đặt',
+          'Hide Setting': 'Ẩn cài đặt',
+          Screenshot: 'Chụp màn hình',
+          'Play Speed': 'Tốc độ phát',
+          'Aspect Ratio': 'Tỷ lệ khung hình',
+          Default: 'Mặc định',
+          Normal: 'Bình thường',
+          Open: 'Mở',
+          'Switch Video': 'Chuyển video',
+          'Switch Subtitle': 'Chuyển phụ đề',
+          Fullscreen: 'Toàn màn hình (F)',
+          'Exit Fullscreen': 'Thoát toàn màn hình (F)',
+          'Web Fullscreen': 'Toàn màn hình trình duyệt (F)',
+          'Exit Web Fullscreen': 'Thoát toàn màn hình trình duyệt (F)',
+          'Mini Player': 'Trình phát mini',
+          'PIP Mode': 'Hình trong nền (P)',
+          'Exit PIP Mode': 'Thoát hình trong nền (P)',
+          'PIP Not Supported': 'Không hỗ trợ hình trong nền',
+          'Fullscreen Not Supported': 'Không hỗ trợ toàn màn hình',
+        },
+      },
       hotkey: false,
       highlight: highlights,
 
@@ -447,7 +476,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'right',
           index: 35,
           html: ICON_SUBTITLES,
-          tooltip: hasConfiguredSubtitle ? 'Bật / Tắt phụ đề (C)' : 'Chưa có phụ đề',
+          tooltip: hasConfiguredSubtitle ? 'Phụ đề (C)' : 'Chưa có phụ đề',
           click: () => {
             if (isLockedRef.current) return;
             if (!hasConfiguredSubtitle || !art.subtitle) {
@@ -455,6 +484,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
               return;
             }
             art.subtitle.show = !art.subtitle.show;
+            const subBtn = containerRef.current?.querySelector('.art-control-subtitles-toggle') as HTMLElement | null;
+            if (subBtn) {
+              subBtn.setAttribute('aria-label', art.subtitle.show ? 'Tắt phụ đề (C)' : 'Bật phụ đề (C)');
+            }
             art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
           },
         },
@@ -570,6 +603,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
       const containerEl = containerRef.current;
       if (!containerEl) return;
+
+      // Xóa thuộc tính title mặc định của trình duyệt để tooltip CSS hoạt động sắc nét
+      const allCtrls = containerEl.querySelectorAll('.art-control');
+      allCtrls.forEach((ctrl) => ctrl.removeAttribute('title'));
 
       const playerEl = containerEl.querySelector('.art-video-player') as HTMLElement | null;
       const overlay = containerEl.querySelector('.art-yt-overlay') as HTMLElement | null;
@@ -774,7 +811,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           if (btnLock) {
             btnLock.innerHTML = ICON_LOCK;
             btnLock.style.background = 'rgba(255,0,51,0.85)';
-            btnLock.title = 'Mở khóa màn hình (L)';
+            btnLock.setAttribute('aria-label', 'Mở khóa màn hình (L)');
+            btnLock.removeAttribute('title');
           }
           art.notice.show = '🔒 Đã khóa màn hình (Nhấn L để mở)';
           hideUI();
@@ -784,7 +822,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           if (btnLock) {
             btnLock.innerHTML = ICON_UNLOCK;
             btnLock.style.background = 'rgba(0,0,0,0.65)';
-            btnLock.title = 'Khóa màn hình (L)';
+            btnLock.setAttribute('aria-label', 'Khóa màn hình (L)');
+            btnLock.removeAttribute('title');
           }
           if (lockContainer) {
             lockContainer.style.opacity = '1';
@@ -797,7 +836,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       toggleLockRef.current = toggleLock;
 
       if (btnLock && lockContainer) {
-        btnLock.title = 'Khóa màn hình (L)';
+        btnLock.setAttribute('aria-label', 'Khóa màn hình (L)');
+        btnLock.classList.add('hint--rounded', 'hint--bottom-left');
+        btnLock.removeAttribute('title');
         btnLock.onclick = (e) => {
           toggleLock(e);
         };
