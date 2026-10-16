@@ -181,19 +181,21 @@ export async function fetchVideos(): Promise<{
 export async function fetchVideoDetails(videoId: string): Promise<Partial<Video> | null> {
   if (!videoId) return null;
   try {
+    // Truy vấn các trường chi tiết cốt lõi (100% tương thích database Supabase)
     const { data, error } = await supabase
       .from('videos')
-      .select('id, video_url, description, subtitle_url, subtitles')
+      .select('id, video_url, description, subtitle_url')
       .eq('id', videoId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.warn(`Lỗi khi nạp chi tiết phim ${videoId}:`, error?.message);
+      return null;
+    }
 
-    // Chuẩn hóa danh sách phụ đề
+    // Chuẩn hóa danh sách phụ đề từ subtitle_url
     let normalizedSubtitles: SubtitleTrack[] = [];
-    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
-      normalizedSubtitles = data.subtitles as SubtitleTrack[];
-    } else if (data.subtitle_url) {
+    if (data.subtitle_url) {
       normalizedSubtitles = [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
     }
 
@@ -205,7 +207,7 @@ export async function fetchVideoDetails(videoId: string): Promise<Partial<Video>
       subtitles: normalizedSubtitles,
     };
   } catch (err: any) {
-    console.warn(`Lỗi khi tải chi tiết phim ${videoId}:`, err?.message);
+    console.warn(`Lỗi ngoại lệ khi tải chi tiết phim ${videoId}:`, err?.message);
     return null;
   }
 }
@@ -247,19 +249,12 @@ export async function fetchVideoSubtitles(videoId: string): Promise<SubtitleTrac
   try {
     const { data, error } = await supabase
       .from('videos')
-      .select('subtitles, subtitle_url')
+      .select('subtitle_url')
       .eq('id', videoId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) return [];
-
-    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
-      return data.subtitles as SubtitleTrack[];
-    }
-    if (data.subtitle_url) {
-      return [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
-    }
-    return [];
+    if (error || !data || !data.subtitle_url) return [];
+    return [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
   } catch {
     return [];
   }

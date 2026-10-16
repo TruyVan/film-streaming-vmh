@@ -411,7 +411,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
       subtitle: {
         url: defaultSub?.url || '',
-        type: defaultSub?.url?.endsWith('.vtt') ? 'vtt' : 'srt',
+        type: (defaultSub?.url?.includes('WEBVTT') || defaultSub?.url?.includes('text/vtt') || defaultSub?.url?.endsWith('.vtt')) ? 'vtt' : 'srt',
         escape: false,
         style: {
           color: '#ffffff',
@@ -483,7 +483,14 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           tooltip: hasConfiguredSubtitle ? 'Phụ đề (C)' : 'Chưa có phụ đề',
           click: () => {
             if (isLockedRef.current) return;
-            if (!hasConfiguredSubtitle || !art.subtitle) {
+            const subList: SubtitleTrack[] =
+              video.subtitles && video.subtitles.length > 0
+                ? video.subtitles
+                : video.subtitle_url
+                ? [{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]
+                : [];
+            const hasSub = subList.length > 0 || Boolean(art.subtitle?.url);
+            if (!hasSub || !art.subtitle) {
               art.notice.show = 'Video này chưa có phụ đề';
               return;
             }
@@ -1255,7 +1262,14 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         callbacksRef.current.onProgressUpdate?.(updated);
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        if (hasConfiguredSubtitle && art.subtitle) {
+        const subList: SubtitleTrack[] =
+          video.subtitles && video.subtitles.length > 0
+            ? video.subtitles
+            : video.subtitle_url
+            ? [{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]
+            : [];
+        const hasSub = subList.length > 0 || Boolean(art.subtitle?.url);
+        if (hasSub && art.subtitle) {
           art.subtitle.show = !art.subtitle.show;
           art.notice.show = art.subtitle.show ? 'Đã bật phụ đề' : 'Đã tắt phụ đề';
         } else {
@@ -1282,7 +1296,57 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         artInstanceRef.current = null;
       }
     };
-  }, [video.id, video.video_url]);
+  }, [
+    video.id,
+    video.video_url,
+    Boolean(video.subtitle_url || (video.subtitles && video.subtitles.length > 0)),
+  ]);
+
+  // CẬP NHẬT PHỤ ĐỀ ĐỘNG KHI TẢI VỀ XONG (KHÔNG CẦN DESTROY PLAYER)
+  // Khi phụ đề (subtitles/subtitle_url) được fetch về sau khi player đã khởi tạo,
+  // tự động nạp vào ArtPlayer và bật phụ đề lên mà không làm gián đoạn luồng phát video!
+  useEffect(() => {
+    const art = artInstanceRef.current;
+    if (!art) return;
+
+    const subList: SubtitleTrack[] =
+      video.subtitles && video.subtitles.length > 0
+        ? video.subtitles
+        : video.subtitle_url
+        ? [{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]
+        : [];
+
+    const defaultSub = subList.find((s) => s.default) || subList[0];
+
+    if (defaultSub?.url && art.subtitle) {
+      // 1. Chuyển phụ đề sang track vừa tải về
+      art.subtitle.switch(defaultSub.url, { name: defaultSub.name });
+      art.subtitle.show = true;
+
+      // 2. Cập nhật nút bấm trên thanh điều khiển
+      const subBtn = containerRef.current?.querySelector('.art-control-subtitles-toggle') as HTMLElement | null;
+      if (subBtn) {
+        subBtn.setAttribute('data-tooltip', 'Phụ đề (C)');
+        subBtn.setAttribute('aria-label', 'Tắt phụ đề (C)');
+        subBtn.removeAttribute('title');
+      }
+
+      // 3. Cập nhật danh sách phụ đề trong Cài đặt
+      try {
+        const settingSubItem = (art.setting as any)?.find?.('Phụ đề (Subtitles)');
+        if (settingSubItem) {
+          settingSubItem.selector = [
+            { html: 'Tắt phụ đề', url: '', default: false },
+            ...subList.map((s) => ({
+              html: s.name,
+              url: s.url,
+              default: s.url === defaultSub.url,
+            })),
+          ];
+        }
+      } catch {}
+    }
+  }, [video.id, video.subtitle_url, JSON.stringify(video.subtitles)]);
 
   return (
     <div className="relative w-full">

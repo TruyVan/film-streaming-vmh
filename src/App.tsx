@@ -259,6 +259,8 @@ export default function App() {
     };
   }, []);
 
+  const loadedDetailIdsRef = React.useRef<Set<string>>(new Set());
+
   // Khi đang xem một bộ phim, tải ngay phụ đề và chi tiết (video_url, description, subtitles) nếu chưa có
   useEffect(() => {
     if (currentPage !== 'watch' || !currentVideoId) return;
@@ -266,13 +268,11 @@ export default function App() {
     const current = videos.find((v) => v.id === currentVideoId);
     if (!current) return;
 
-    const needsDetails =
-      !current.video_url ||
-      !current.description ||
-      !current.subtitles ||
-      current.subtitles.length === 0;
+    const hasSubtitles = (current.subtitles && current.subtitles.length > 0) || Boolean(current.subtitle_url);
+    const isMissingData = !current.video_url || !current.description || !hasSubtitles;
 
-    if (needsDetails) {
+    if (isMissingData && !loadedDetailIdsRef.current.has(currentVideoId)) {
+      loadedDetailIdsRef.current.add(currentVideoId);
       fetchVideoDetails(currentVideoId).then((details) => {
         if (details) {
           setVideos((prev) =>
@@ -387,7 +387,9 @@ export default function App() {
       navigateTo(`/watch?v=${video.id}`);
 
       // Ngay khi bấm chọn phim, nếu phim chưa có video_url/mô tả/phụ đề thì tải ngay lập tức trong 30ms
-      if (!video.video_url || !video.description || !video.subtitles) {
+      const hasSubtitles = (video.subtitles && video.subtitles.length > 0) || Boolean(video.subtitle_url);
+      if (!video.video_url || !video.description || !hasSubtitles) {
+        loadedDetailIdsRef.current.add(video.id);
         fetchVideoDetails(video.id).then((details) => {
           if (details) {
             setVideos((prev) =>
