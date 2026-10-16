@@ -272,9 +272,9 @@ export default function App() {
     const isMissingData = !current.video_url || !current.description || !hasSubtitles;
 
     if (isMissingData && !loadedDetailIdsRef.current.has(currentVideoId)) {
-      loadedDetailIdsRef.current.add(currentVideoId);
       fetchVideoDetails(currentVideoId).then((details) => {
         if (details) {
+          loadedDetailIdsRef.current.add(currentVideoId);
           setVideos((prev) =>
             prev.map((v) => (v.id === currentVideoId ? { ...v, ...details } : v))
           );
@@ -389,9 +389,9 @@ export default function App() {
       // Ngay khi bấm chọn phim, nếu phim chưa có video_url/mô tả/phụ đề thì tải ngay lập tức trong 30ms
       const hasSubtitles = (video.subtitles && video.subtitles.length > 0) || Boolean(video.subtitle_url);
       if (!video.video_url || !video.description || !hasSubtitles) {
-        loadedDetailIdsRef.current.add(video.id);
         fetchVideoDetails(video.id).then((details) => {
           if (details) {
+            loadedDetailIdsRef.current.add(video.id);
             setVideos((prev) =>
               prev.map((v) => (v.id === video.id ? { ...v, ...details } : v))
             );
@@ -504,14 +504,18 @@ export default function App() {
     const currentIndex = seriesVideos.findIndex((v) => v.id === currentVideoId);
     if (currentIndex >= 0 && currentIndex < seriesVideos.length - 1) {
       const nextVideo = seriesVideos[currentIndex + 1];
-      if (nextVideo && (!nextVideo.video_url || !nextVideo.description || !nextVideo.subtitles)) {
-        fetchVideoDetails(nextVideo.id).then((details) => {
-          if (details) {
-            setVideos((prev) =>
-              prev.map((v) => (v.id === nextVideo.id ? { ...v, ...details } : v))
-            );
-          }
-        });
+      const nextHasSub = (nextVideo.subtitles && nextVideo.subtitles.length > 0) || Boolean(nextVideo.subtitle_url);
+      if (nextVideo && (!nextVideo.video_url || !nextVideo.description || !nextHasSub)) {
+        if (!loadedDetailIdsRef.current.has(nextVideo.id)) {
+          fetchVideoDetails(nextVideo.id).then((details) => {
+            if (details) {
+              loadedDetailIdsRef.current.add(nextVideo.id);
+              setVideos((prev) =>
+                prev.map((v) => (v.id === nextVideo.id ? { ...v, ...details } : v))
+              );
+            }
+          });
+        }
       }
     }
   }, [currentPage, currentVideoId, seriesVideos]);
