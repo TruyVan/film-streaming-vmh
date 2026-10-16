@@ -13,6 +13,7 @@ import {
   Info,
   Trash2,
   HardDrive,
+  Smartphone,
 } from 'lucide-react';
 import { ThemeMode, UITheme, Video } from '../../types/video';
 import { AdminDevPortal } from '../ui/AdminDevPortal';
@@ -60,6 +61,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>(
     initialSubTab === 'admin' ? 'admin' : 'general'
   );
+
+  const [isMobileDevice, setIsMobileDevice] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileDevice(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     setActiveSubTab(initialSubTab === 'admin' ? 'admin' : 'general');
@@ -155,10 +169,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="w-9" />
       </header>
 
-      {/* 2. SUB-NAVIGATION TABS: Tinh gọn chỉ còn 2 tab, bỏ mọi slug và badge */}
+      {/* 2. SUB-NAVIGATION TABS: Tinh gọn chỉ còn 2 tab, sửa lỗi hover biến mất chữ ở giao diện sáng */}
       <div
         className={`w-full px-4 sm:px-8 border-b flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 transition-colors ${
-          isLight ? 'bg-slate-50/80 border-slate-200' : 'bg-[#18181c] border-white/[0.06]'
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#18181c] border-white/[0.06]'
         }`}
       >
         <button
@@ -166,8 +180,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           onClick={() => handleTabClick('general')}
           className={`h-11 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeSubTab === 'general'
-              ? 'border-rose-600 text-rose-600 dark:text-rose-400'
-              : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              ? isLight
+                ? 'border-rose-600 text-rose-600'
+                : 'border-rose-500 text-rose-400'
+              : isLight
+              ? 'border-transparent text-slate-700 hover:text-slate-950 hover:bg-slate-200/60'
+              : 'border-transparent text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Sliders className="w-4 h-4" />
@@ -179,8 +197,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           onClick={() => handleTabClick('admin')}
           className={`h-11 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeSubTab === 'admin'
-              ? 'border-rose-600 text-rose-600 dark:text-rose-400'
-              : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              ? isLight
+                ? 'border-rose-600 text-rose-600'
+                : 'border-rose-500 text-rose-400'
+              : isLight
+              ? 'border-transparent text-slate-700 hover:text-slate-950 hover:bg-slate-200/60'
+              : 'border-transparent text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Key className="w-4 h-4 text-amber-500" />
@@ -209,16 +231,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </p>
               </div>
 
+              {/* Thông báo khóa theme trên Mobile */}
+              {isMobileDevice && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs flex items-center gap-2.5 ${
+                    isLight
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>
+                    Giao diện Canva và PowerPoint được thiết kế chuyên biệt cho máy tính / màn hình lớn. Trên thiết bị di động, hệ thống tự động khóa ở giao diện Mặc định để bạn xem phim tốt nhất.
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-3 pt-1">
                 {themes.map((t) => {
                   const isSelected = currentTheme === t.id;
                   const Icon = t.icon;
+                  const isLockedOnMobile = isMobileDevice && t.id !== 'default';
 
                   return (
                     <div
                       key={t.id}
-                      onClick={() => onChangeTheme(t.id)}
-                      className={`p-4 rounded-xl border transition-all cursor-pointer select-none flex items-center justify-between gap-4 ${
+                      onClick={() => {
+                        if (isLockedOnMobile) {
+                          toast.info('Giao diện này chỉ hỗ trợ trên máy tính/màn hình lớn.');
+                          return;
+                        }
+                        onChangeTheme(t.id);
+                      }}
+                      className={`p-4 rounded-xl border transition-all select-none flex items-center justify-between gap-4 ${
+                        isLockedOnMobile
+                          ? 'opacity-40 cursor-not-allowed bg-black/5 dark:bg-white/5 border-dashed'
+                          : 'cursor-pointer'
+                      } ${
                         isSelected
                           ? isLight
                             ? 'border-rose-500 bg-rose-50/60 shadow-xs ring-2 ring-rose-400/40'

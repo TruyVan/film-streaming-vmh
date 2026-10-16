@@ -14,7 +14,7 @@ import { StatusBar } from './StatusBar';
 import { CustomArtPlayer } from '../../player/CustomArtPlayer';
 import { RibbonTabId, FontState, ParagraphState, DrawingState } from './types';
 import { formatSeconds, formatVietnameseDate } from '../../../lib/progress';
-import { FileText, Clock, RotateCcw } from 'lucide-react';
+import { RotateCw, FileText } from 'lucide-react';
 
 interface PowerPointThemeEditorProps {
   video: Video;
@@ -51,16 +51,17 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<RibbonTabId>('home');
   const [ribbonCollapsed, setRibbonCollapsed] = useState<boolean>(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(75);
+  const [zoomLevel, setZoomLevel] = useState<number>(105);
   const [documentTitle, setDocumentTitle] = useState<string>(video.title);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [notesOpen, setNotesOpen] = useState<boolean>(false);
+  const [isSlideSelected, setIsSlideSelected] = useState<boolean>(true);
 
   // Formatting state for full Ribbon fidelity
   const [fontState, setFontState] = useState<FontState>({
     family: 'Aptos Display (Headings)',
-    size: 48,
-    bold: false,
+    size: 60,
+    bold: true,
     italic: false,
     underline: false,
     strikethrough: false,
@@ -117,7 +118,7 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
         isDark ? 'bg-[#202020] text-[#E1DFDD]' : 'bg-[#F3F2F1] text-[#323130]'
       }`}
     >
-      {/* 1. TOP TITLE BAR (Office PowerPoint 365) */}
+      {/* 1. TOP TITLE BAR matching Screenshot 1 */}
       <TitleBar
         theme={themeMode}
         onToggleTheme={onToggleThemeMode}
@@ -133,7 +134,7 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
         isCopied={copiedLink}
       />
 
-      {/* 2. RIBBON TABS BAR */}
+      {/* 2. RIBBON TABS BAR matching Screenshot 1 */}
       <RibbonTabs
         theme={themeMode}
         activeTab={activeTab}
@@ -146,7 +147,7 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
         onGoHome={onGoHome}
       />
 
-      {/* 3. RIBBON TOOLBAR AREA (Full fidelity Office Ribbon) */}
+      {/* 3. RIBBON TOOLBAR AREA (Full fidelity 10 groups matching Screenshot 1) */}
       {!ribbonCollapsed && (
         <div className="shrink-0 border-b border-current/15 shadow-2xs">
           {activeTab === 'home' ? (
@@ -158,18 +159,9 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
               onChangeParagraphState={(u) => setParagraphState((prev) => ({ ...prev, ...u }))}
               drawingState={drawingState}
               onChangeDrawingState={(u) => setDrawingState((prev) => ({ ...prev, ...u }))}
-              onPrevEpisode={() => {
-                if (hasPrev) onSelectVideo(seriesVideos[currentIndex - 1]);
-              }}
-              onNextEpisode={() => {
+              onAddNewSlide={() => {
                 if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
               }}
-              hasPrev={hasPrev}
-              hasNext={hasNext}
-              isFavorite={isFavorite}
-              onToggleFavorite={() => onToggleFavorite(video.id)}
-              onShare={handleCopyLink}
-              isCopied={copiedLink}
             />
           ) : (
             <RibbonOtherTabs
@@ -186,49 +178,84 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
 
       {/* 4. MAIN WORKSPACE (SLIDE THUMBNAILS PANEL + CENTER SLIDE CANVAS) */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left SlideThumbnails Panel (Danh sách tập phim) */}
+        {/* Left SlideThumbnails Panel matching Screenshot 1: Trang chiếu (Slides) + */}
         <SlideThumbnails
           theme={themeMode}
           seriesVideos={seriesVideos}
           activeVideoId={video.id}
           onSelectVideo={onSelectVideo}
+          onAddNewSlide={() => {
+            if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
+          }}
         />
 
         {/* Center Slide Canvas Viewport with Scaled Video Player */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <main
-            className={`flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-auto relative select-none transition-colors ${
-              isDark ? 'bg-[#292929]' : 'bg-[#E5E5E5]'
+            className={`flex-1 flex flex-col items-center justify-center p-4 sm:p-8 overflow-auto relative select-none transition-colors ${
+              isDark ? 'bg-[#202020]' : 'bg-[#E5E5E5]'
             }`}
           >
-            {/* 16:9 SLIDE CANVAS CONTAINER */}
+            {/* 16:9 SLIDE CANVAS CONTAINER matching Screenshot 1 */}
             <div
               style={{
                 transform: `scale(${scale})`,
                 transformOrigin: 'center center',
                 transition: 'transform 0.15s ease-out',
               }}
-              className="relative w-[1000px] h-[562px] shrink-0 shadow-2xl rounded-xs overflow-hidden bg-black border border-black/40"
+              className="relative w-[960px] h-[540px] shrink-0 shadow-2xl rounded-xs overflow-hidden bg-white border border-slate-300 dark:border-black/50"
             >
-              <CustomArtPlayer
-                video={video}
-                themeMode={themeMode}
-                timestampBookmarks={timestampBookmarks}
-                onProgressUpdate={onProgressUpdate}
-                onQuickBookmarkTime={onQuickBookmarkTime}
-                externalSeekTime={externalSeekTime}
-                hasPrev={hasPrev}
-                hasNext={hasNext}
-                onPrevVideo={() => {
-                  if (hasPrev) onSelectVideo(seriesVideos[currentIndex - 1]);
-                }}
-                onNextVideo={() => {
-                  if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
-                }}
-                onEndedNext={() => {
-                  if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
-                }}
-              />
+              {/* Slide Object with Selection Bounding Handles (Matching Screenshot 1) */}
+              <div
+                onClick={() => setIsSlideSelected(true)}
+                className="w-full h-full p-4 relative flex flex-col items-center justify-between bg-white text-black"
+              >
+                {/* Embedded Video Player inside the Slide Canvas */}
+                <div className="w-full h-full relative rounded-xs overflow-hidden bg-black flex items-center justify-center shadow-md">
+                  <CustomArtPlayer
+                    video={video}
+                    themeMode={themeMode}
+                    timestampBookmarks={timestampBookmarks}
+                    onProgressUpdate={onProgressUpdate}
+                    onQuickBookmarkTime={onQuickBookmarkTime}
+                    externalSeekTime={externalSeekTime}
+                    hasPrev={hasPrev}
+                    hasNext={hasNext}
+                    onPrevVideo={() => {
+                      if (hasPrev) onSelectVideo(seriesVideos[currentIndex - 1]);
+                    }}
+                    onNextVideo={() => {
+                      if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
+                    }}
+                    onEndedNext={() => {
+                      if (hasNext) onSelectVideo(seriesVideos[currentIndex + 1]);
+                    }}
+                  />
+                </div>
+
+                {/* PowerPoint Selection Bounding Box & 8 Handles (Matching Screenshot 1) */}
+                {isSlideSelected && (
+                  <div className="absolute inset-2 border border-dashed border-[#555555] pointer-events-none z-20">
+                    {/* Top Rotation Handle matching Screenshot 1 */}
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto cursor-grab">
+                      <div className="w-5 h-5 rounded-full bg-white border border-slate-700 shadow-sm flex items-center justify-center hover:bg-slate-100">
+                        <RotateCw className="w-3 h-3 text-slate-800" />
+                      </div>
+                      <div className="w-px h-2 bg-slate-700" />
+                    </div>
+
+                    {/* 8 Resize Handles */}
+                    <div className="absolute -top-1.5 -left-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                    <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full bg-white border border-slate-700 shadow-2xs" />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Slide Notes Drawer below slide */}
@@ -241,7 +268,7 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
                 <div className="flex items-center justify-between pb-1 border-b border-current/10">
                   <span className="font-bold flex items-center gap-1.5 text-orange-500">
                     <FileText className="w-3.5 h-3.5" />
-                    <span>Slide Notes & Mô Tả Bộ Phim</span>
+                    <span>Ghi chú của người thuyết trình (Notes)</span>
                   </span>
                   <button
                     type="button"
@@ -260,14 +287,14 @@ export const PowerPointThemeEditor: React.FC<PowerPointThemeEditorProps> = ({
         </div>
       </div>
 
-      {/* 5. BOTTOM STATUS BAR */}
+      {/* 5. BOTTOM STATUS BAR matching Screenshot 1 */}
       <StatusBar
         theme={themeMode}
         currentSlideIndex={currentIndex}
         totalSlides={seriesVideos.length}
         zoomLevel={zoomLevel}
         onChangeZoom={setZoomLevel}
-        onResetZoom={() => setZoomLevel(75)}
+        onResetZoom={() => setZoomLevel(105)}
         onStartSlideShow={() => {
           const el = document.querySelector('.art-video-player');
           if (el) (el as any).requestFullscreen?.();

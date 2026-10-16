@@ -4,7 +4,6 @@ import {
   CloudCheck,
   Undo2,
   Redo2,
-  Settings,
   Sun,
   Moon,
   ChevronDown,
@@ -12,6 +11,9 @@ import {
   Sparkles,
   Share2,
   Check,
+  MessageSquare,
+  Crown,
+  Settings,
 } from 'lucide-react';
 import { ThemeMode } from '../../../types/video';
 
@@ -21,7 +23,7 @@ interface CanvaTopNavProps {
   title: string;
   onTitleChange: (newTitle: string) => void;
   onNavigateHome: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
   onShare?: () => void;
   isCopied?: boolean;
 }
@@ -36,15 +38,8 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
   onShare,
   isCopied,
 }) => {
-  const [activeButton, setActiveButton] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
-
-  const triggerClickFeedback = (id: string, cb?: () => void) => {
-    setActiveButton(id);
-    setTimeout(() => setActiveButton(null), 180);
-    if (cb) cb();
-  };
 
   const handleTitleSubmit = () => {
     setIsEditingTitle(false);
@@ -55,21 +50,21 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
     }
   };
 
+  const isDark = theme === 'dark';
+
   return (
     <header className="h-[48px] bg-gradient-to-r from-[#00c4cc] via-[#2f6ced] to-[#7d2ae8] text-white flex items-center justify-between px-3 shrink-0 select-none shadow-sm z-30 transition-all duration-200">
-      {/* Zone 1: Brand & Document controls */}
+      {/* Zone 1 matching Screenshot 2: Home icon, Tệp, Đổi cỡ, Sửa, Cloud, Undo, Redo */}
       <div className="flex items-center gap-1.5">
-        {/* Home Button */}
+        {/* Home Button (Cyan circle / home icon) */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('home', onNavigateHome)}
-          className={`p-1.5 rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center justify-center cursor-pointer ${
-            activeButton === 'home' ? 'scale-90 bg-white/30' : ''
-          }`}
+          onClick={onNavigateHome}
+          className="w-8 h-8 rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-900 flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
           aria-label="Trang chủ"
           title="Về trang chủ Canva"
         >
-          <Home className="w-4 h-4 stroke-[2.2]" />
+          <Home className="w-4 h-4 stroke-[2.4]" />
         </button>
 
         <div className="h-4 w-px bg-white/25 mx-0.5" />
@@ -77,33 +72,25 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
         {/* Tệp (File) */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('tep', onNavigateHome)}
-          className={`px-2.5 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center gap-1 cursor-pointer ${
-            activeButton === 'tep' ? 'scale-95 bg-white/30' : ''
-          }`}
+          onClick={onNavigateHome}
+          className="px-2.5 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all cursor-pointer"
         >
           Tệp
         </button>
 
-        {/* Đổi cỡ (Resize) */}
+        {/* Đổi cỡ (Resize with Crown) */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('doico')}
-          className={`px-2.5 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center gap-1.5 cursor-pointer ${
-            activeButton === 'doico' ? 'scale-95 bg-white/30' : ''
-          }`}
+          className="px-2.5 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all flex items-center gap-1.5 cursor-pointer"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <Crown className="w-3.5 h-3.5 text-amber-300 fill-current" />
           <span>Đổi cỡ</span>
         </button>
 
-        {/* Sửa (Edit) */}
+        {/* Sửa (Edit with Pencil) */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('sua')}
-          className={`px-2 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center gap-1 cursor-pointer ${
-            activeButton === 'sua' ? 'scale-95 bg-white/30' : ''
-          }`}
+          className="px-2 py-1 text-xs font-semibold rounded-md hover:bg-white/15 active:bg-white/30 transition-all flex items-center gap-1 cursor-pointer"
         >
           <Pencil className="w-3.5 h-3.5" />
           <span>Sửa</span>
@@ -112,15 +99,11 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
 
         <div className="h-4 w-px bg-white/25 mx-0.5" />
 
-        {/* Cloud Status */}
+        {/* Cloud Saved Status */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('cloud')}
-          className={`p-1.5 rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center justify-center cursor-pointer ${
-            activeButton === 'cloud' ? 'scale-90 bg-white/30' : ''
-          }`}
-          aria-label="Đã lưu tất cả thay đổi"
-          title="Đã lưu thay đổi"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-all cursor-pointer"
+          title="Đã lưu tất cả thay đổi trên Canva Cloud"
         >
           <CloudCheck className="w-4 h-4 text-white" />
         </button>
@@ -128,30 +111,22 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
         {/* Undo / Redo */}
         <button
           type="button"
-          onClick={() => triggerClickFeedback('undo')}
-          className={`p-1.5 rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center justify-center cursor-pointer ${
-            activeButton === 'undo' ? 'scale-90 bg-white/30' : ''
-          }`}
-          aria-label="Hoàn tác"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-all cursor-pointer"
           title="Hoàn tác"
         >
           <Undo2 className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
-          onClick={() => triggerClickFeedback('redo')}
-          className={`p-1.5 rounded-md hover:bg-white/15 active:bg-white/30 transition-all duration-150 flex items-center justify-center cursor-pointer ${
-            activeButton === 'redo' ? 'scale-90 bg-white/30' : ''
-          }`}
-          aria-label="Làm lại"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-all cursor-pointer"
           title="Làm lại"
         >
           <Redo2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Zone 2: Title in Center */}
-      <div className="flex-1 max-w-[500px] mx-4 flex items-center justify-center">
+      {/* Zone 2 matching Screenshot 2: Document Title */}
+      <div className="flex-1 max-w-[540px] mx-4 flex items-center justify-center">
         {isEditingTitle ? (
           <input
             type="text"
@@ -166,47 +141,80 @@ export const CanvaTopNav: React.FC<CanvaTopNavProps> = ({
           <div
             onClick={() => setIsEditingTitle(true)}
             className="px-3 py-1 rounded-md hover:bg-white/15 text-xs font-bold cursor-text truncate max-w-full tracking-wide transition-all duration-150"
-            title="Bấm để sửa tiêu đề hiển thị"
+            title="Bấm để đổi tên bài thuyết trình"
           >
-            {title}
+            {title || 'Blue and White Modern Business Proposal Presentation'}
           </div>
         )}
       </div>
 
-      {/* Zone 3: Settings, Theme toggle & Share */}
-      <div className="flex items-center gap-1.5">
-        {/* Nút Cài đặt hệ thống (chuyển sang /settings) */}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="px-2.5 py-1 text-xs font-bold rounded-md bg-white/15 hover:bg-white/25 active:bg-white/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-          title="Cài đặt hệ thống & Đổi giao diện"
-        >
-          <Settings className="w-3.5 h-3.5 text-rose-300" />
-          <span className="hidden sm:inline">Cài Đặt</span>
-        </button>
-
-        {/* Theme Mode Toggle (Sun/Moon) */}
+      {/* Zone 3 matching Screenshot 2: Theme switch, Avatar HV, Comments, Chia sẻ, Gửi đến giáo viên */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Theme Mode Toggle (☀️ Giao diện Sáng / 🌙 Giao diện Tối) */}
         <button
           type="button"
           onClick={onToggleTheme}
-          className="p-1.5 rounded-md hover:bg-white/15 active:bg-white/30 transition-all flex items-center justify-center cursor-pointer"
+          className="px-2.5 py-1 text-xs font-semibold rounded-md bg-white/15 hover:bg-white/25 active:bg-white/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
           title={theme === 'dark' ? 'Chuyển sang giao diện Sáng' : 'Chuyển sang giao diện Tối'}
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-indigo-200" />}
+          {theme === 'dark' ? (
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-300" />
+              <span className="hidden md:inline">Giao diện Sáng</span>
+            </>
+          ) : (
+            <>
+              <Moon className="w-3.5 h-3.5 text-indigo-200" />
+              <span className="hidden md:inline">Giao diện Tối</span>
+            </>
+          )}
         </button>
 
-        {/* Share Button */}
+        {/* Nút Cài đặt (nếu có) */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="p-1.5 rounded-md hover:bg-white/15 transition-all cursor-pointer"
+            title="Cài đặt hệ thống"
+          >
+            <Settings className="w-4 h-4 text-white" />
+          </button>
+        )}
+
+        {/* User Avatar HV matching Screenshot 2 (Green circle) */}
+        <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-pointer">
+          HV
+        </div>
+
+        {/* Comment Bubble Icon */}
+        <button
+          type="button"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-all cursor-pointer"
+          title="Bình luận"
+        >
+          <MessageSquare className="w-4 h-4 text-white" />
+        </button>
+
+        {/* Chia sẻ Button (Purple button #7d2ae8 matching Screenshot 2) */}
         {onShare && (
           <button
             type="button"
             onClick={onShare}
-            className="px-3 py-1 text-xs font-bold rounded-md bg-white text-slate-900 hover:bg-white/90 active:scale-95 transition-all flex items-center gap-1 shadow-xs cursor-pointer ml-1"
+            className="px-3.5 py-1.5 text-xs font-bold rounded-md bg-[#7d2ae8] hover:bg-[#6e22cf] active:scale-95 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
-            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isCopied ? 'Đã chép' : 'Chia sẻ'}</span>
+            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5" />}
+            <span>{isCopied ? 'Đã chép' : 'Chia sẻ'}</span>
           </button>
         )}
+
+        {/* Gửi đến giáo viên Button (White button matching Screenshot 2) */}
+        <button
+          type="button"
+          className="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-900 hover:bg-neutral-100 active:scale-95 transition-all shadow-xs cursor-pointer hidden sm:inline-block"
+        >
+          Gửi đến giáo viên
+        </button>
       </div>
     </header>
   );

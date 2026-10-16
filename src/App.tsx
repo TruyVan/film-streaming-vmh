@@ -86,6 +86,22 @@ export default function App() {
 
   const [isSwitchingTheme, setIsSwitchingTheme] = useState<boolean>(false);
 
+  // Tự động chuyển về giao diện Mặc định nếu người dùng truy cập bằng thiết bị di động (Mobile)
+  useEffect(() => {
+    const handleCheckMobile = () => {
+      if (typeof window === 'undefined') return;
+      if (window.innerWidth < 768 && uiTheme !== 'default') {
+        setUiTheme('default');
+        try {
+          window.localStorage.setItem(UI_THEME_STORAGE_KEY, 'default');
+        } catch {}
+      }
+    };
+    handleCheckMobile();
+    window.addEventListener('resize', handleCheckMobile);
+    return () => window.removeEventListener('resize', handleCheckMobile);
+  }, [uiTheme]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
