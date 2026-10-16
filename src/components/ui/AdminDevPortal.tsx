@@ -24,6 +24,7 @@ import {
   FolderTree,
   RefreshCw,
   FolderPlus,
+  Search,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { NewVideoInput, SubtitleTrack, ThemeMode, UpdateVideoInput, Video } from '../../types/video';
@@ -41,6 +42,7 @@ interface AdminDevPortalProps {
   videos: Video[];
   customTopics: string[];
   isLoading?: boolean;
+  hideHeader?: boolean;
   onVideoAdded: (video: Video) => void;
   onVideoUpdated: (video: Video) => void;
   onAddTopic?: (topic: string) => Promise<void> | void;
@@ -121,6 +123,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   videos,
   customTopics,
   isLoading = false,
+  hideHeader = false,
   onVideoAdded,
   onVideoUpdated,
   onAddTopic,
@@ -137,6 +140,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit' | 'categories'>('list');
   const [listFilter, setListFilter] = useState<'active' | 'trash'>('active');
+  const [adminSearchQuery, setAdminSearchQuery] = useState<string>('');
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -1104,40 +1108,42 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
   return (
     <div
-      className={`w-full min-h-[calc(100vh-3.5rem)] flex flex-col transition-colors duration-150 ${
+      className={`min-h-screen w-full flex flex-col font-sans transition-colors duration-150 ${
         isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      {/* Top Header */}
-      <div
-        className={`w-full px-4 sm:px-8 py-4 border-b flex items-center justify-between transition-colors ${
-          isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/[0.08]'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onGoHome}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
-            }`}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Về rạp phim</span>
-          </button>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center">
-              <Film className="w-4 h-4" />
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold">Quản Trị Rạp Phim (Dev Portal)</h1>
-              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                Tải phim, cấu hình đa phụ đề Tiếng Việt / Tiếng Anh, ảnh bìa & thùng rác
-              </p>
+      {/* Top Header (Chỉ hiện khi không bị ẩn bởi hideHeader) */}
+      {!hideHeader && (
+        <div
+          className={`w-full px-4 sm:px-8 py-3.5 border-b flex items-center justify-between transition-colors ${
+            isLight ? 'bg-white border-slate-200' : 'bg-[#141418] border-white/10'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onGoHome}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/15 text-zinc-200'
+              }`}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Về rạp phim</span>
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center">
+                <Film className="w-4 h-4" />
+              </div>
+              <div>
+                <h1 className="text-base sm:text-lg font-bold">Quản Trị Rạp Phim (Dev Portal)</h1>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                  Tải phim, cấu hình đa phụ đề Tiếng Việt / Tiếng Anh, ảnh bìa & thùng rác
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Container */}
       <div className="w-full flex-1 px-4 sm:px-8 py-6">
@@ -1267,12 +1273,20 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               )}
             </div>
 
-            {/* TAB 1: DANH SÁCH PHIM (CÓ PHÂN TRANG LOCAL 5-10-25-50) */}
+            {/* TAB 1: DANH SÁCH PHIM (CÓ TÌM KIẾM & PHÂN TRANG LOCAL) */}
             {activeTab === 'list' && (() => {
-              const totalListItems = currentDisplayList.length;
+              const searchedList = currentDisplayList.filter((v) => {
+                const q = adminSearchQuery.trim().toLowerCase();
+                if (!q) return true;
+                const inTitle = v.title.toLowerCase().includes(q);
+                const inTags = (v.tags || []).some((t) => t.toLowerCase().includes(q));
+                return inTitle || inTags;
+              });
+
+              const totalListItems = searchedList.length;
               const totalListPages = Math.max(1, Math.ceil(totalListItems / listPageSize));
               const safeListPage = Math.min(Math.max(1, listCurrentPage), totalListPages);
-              const paginatedDisplayList = currentDisplayList.slice(
+              const paginatedDisplayList = searchedList.slice(
                 (safeListPage - 1) * listPageSize,
                 safeListPage * listPageSize
               );
@@ -1286,7 +1300,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b ${
                     isLight ? 'border-slate-200' : 'border-white/10'
                   }`}>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -1322,7 +1336,38 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         Thùng rác ({trashedVideos.length})
                       </button>
 
-                      {/* Nút tự động quét và sửa các ảnh bìa bị đen */}
+                      {/* Ô Tìm Kiếm Phim Trong Danh Sách */}
+                      <div className="relative flex-1 min-w-[160px] max-w-xs">
+                        <input
+                          type="text"
+                          value={adminSearchQuery}
+                          onChange={(e) => {
+                            setAdminSearchQuery(e.target.value);
+                            setListCurrentPage(1);
+                          }}
+                          placeholder="Tìm phim theo tên hoặc phân loại..."
+                          className={`w-full pl-8 pr-7 py-1.5 rounded-xl border text-xs focus:outline-none transition-colors ${
+                            isLight
+                              ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                              : 'bg-[#18181c] border-white/15 text-white focus:border-rose-500'
+                          }`}
+                        />
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                        {adminSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdminSearchQuery('');
+                              setListCurrentPage(1);
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Nút sửa ảnh bìa tối giản */}
                       <button
                         type="button"
                         disabled={isAutoFixingThumbnails}
@@ -1331,7 +1376,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         title="Tự động kết nối VPS chụp ảnh bìa cho các phim chưa có ảnh hoặc bị đen"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isAutoFixingThumbnails ? 'animate-spin' : ''}`} />
-                        <span>{isAutoFixingThumbnails ? fixProgressText || 'Đang quét...' : '⚡ Sửa Thumbnail Bị Đen'}</span>
+                        <span>{isAutoFixingThumbnails ? fixProgressText || 'Đang quét...' : 'Sửa ảnh bìa'}</span>
                       </button>
                     </div>
 
@@ -1961,7 +2006,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         ? 'Đang lưu vào Supabase...'
                         : !addVideoUrl.trim()
                         ? 'Chờ tải phim xong...'
-                        : 'Lưu & Đăng Lên Rạp Phim'}
+                        : 'Lưu phim'}
                     </button>
                   </div>
                 </form>
@@ -2180,7 +2225,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                       disabled={isSubmitting}
                       className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-50"
                     >
-                      {isSubmitting ? 'Đang lưu thay đổi...' : 'Lưu Thay Đổi Phim'}
+                      {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
                     </button>
                   </div>
                 </form>
@@ -2388,7 +2433,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           title="Tự động xếp theo ngày phát hành từ cũ nhất ở trên xuống mới nhất ở dưới"
                         >
                           <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
-                          <span>Xếp Tự Động: Cũ → Mới</span>
+                          <span>Xếp Cũ → Mới</span>
                         </button>
 
                         <button
@@ -2398,7 +2443,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                           className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer shadow-md disabled:opacity-40"
                         >
                           <Check className="w-4 h-4" />
-                          <span>{isSavingOrder ? 'Đang lưu...' : 'Lưu Thứ Tự Phim'}</span>
+                          <span>{isSavingOrder ? 'Đang lưu...' : 'Lưu thứ tự'}</span>
                         </button>
                       </div>
                     </div>
@@ -2505,18 +2550,6 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                         ))}
                       </div>
                     )}
-
-                    {/* SQL instruction tip */}
-                    <div className={`p-4 rounded-xl border text-xs leading-relaxed ${
-                      isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
-                    }`}>
-                      <div className="font-bold mb-1 flex items-center gap-1.5">
-                        <span>💡 Lệnh SQL trên Supabase (nếu bảng videos chưa có cột sort_order):</span>
-                      </div>
-                      <code className="block p-2 rounded bg-black/10 dark:bg-black/40 font-mono text-[11px] select-all">
-                        ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS sort_order integer DEFAULT 0;
-                      </code>
-                    </div>
                   </div>
                 </div>
               </div>

@@ -5,6 +5,8 @@ import {
   Bookmark,
   History,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   PlaylistTab,
@@ -124,55 +126,52 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
   onRemoveHistoryItem,
   onClearAllHistory,
   onClearFilters,
-  onGoHome,
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const isLight = themeMode === 'light';
   const hasActiveFilter = Boolean(
     searchQuery.trim() || activeCategory !== 'ALL'
   );
 
   return (
-    <aside className="w-full flex flex-col space-y-3">
-      {/* Header Danh sách phát cùng Phân Loại */}
+    <aside className="w-full flex flex-col space-y-2">
+      {/* Header Danh sách phát cùng Phân Loại (Bấm vào để thu gọn / mở rộng) */}
       <div
-        className={`p-3 rounded-2xl border transition-colors ${
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className={`p-3 rounded-2xl border transition-all cursor-pointer select-none flex items-center justify-between gap-2 ${
           isLight
-            ? 'bg-white border-slate-200/80 shadow-xs'
-            : 'bg-[#18181c] border-white/10'
+            ? 'bg-white hover:bg-slate-50 border-slate-200/80 shadow-xs'
+            : 'bg-[#18181c] hover:bg-white/[0.04] border-white/10'
         }`}
+        title={isCollapsed ? 'Mở rộng danh sách tập phim' : 'Thu gọn danh sách tập phim'}
       >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Film className="w-4 h-4 text-rose-500 shrink-0" />
-            <div className="min-w-0">
-              <h2 className="font-display text-xs sm:text-sm font-bold tracking-tight truncate">
-                {categoryName ? `Bộ: ${categoryName}` : 'Danh sách phát'}
-              </h2>
-              <p className="text-[11px] opacity-65 truncate">
-                {videos.length} tập phim liên mạch
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Film className="w-4 h-4 text-rose-500 shrink-0" />
+          <div className="min-w-0">
+            <h2 className="font-display text-xs sm:text-sm font-bold tracking-tight truncate">
+              {categoryName ? `Bộ: ${categoryName}` : 'Danh sách phát'}
+            </h2>
+            <p className="text-[11px] opacity-65 truncate font-mono">
+              {videos.length} tập phim
+            </p>
           </div>
-
-          {onGoHome && (
-            <button
-              type="button"
-              onClick={onGoHome}
-              className={`h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 cursor-pointer transition-colors shrink-0 ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  : 'bg-white/10 hover:bg-white/15 text-zinc-200'
-              }`}
-              title="Quay lại trang chủ để chọn phim hoặc bộ khác"
-            >
-              <span>Về trang chủ</span>
-            </button>
-          )}
         </div>
+
+        <button
+          type="button"
+          aria-label={isCollapsed ? 'Mở rộng danh sách' : 'Thu gọn danh sách'}
+          className="p-1 rounded-lg text-zinc-400 hover:text-white"
+        >
+          {isCollapsed ? (
+            <ChevronDown className="w-4 h-4" />
+          ) : (
+            <ChevronUp className="w-4 h-4" />
+          )}
+        </button>
       </div>
 
-      {/* SKELETON LOADING (Chờ API) */}
-      {isLoading ? (
+      {!isCollapsed && (
+        isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, idx) => (
             <div key={idx} className="flex items-start gap-2.5 p-1.5">
@@ -287,11 +286,6 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
                     <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-500/15 text-rose-500 font-mono">
                       Tập {videos.findIndex((v) => v.id === item.id) + 1}
                     </span>
-                    {item.tags?.[0] && (
-                      <span className="text-[10px] text-zinc-400 font-medium truncate">
-                        {item.tags[0]}
-                      </span>
-                    )}
                   </div>
 
                   <h3
@@ -311,7 +305,6 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
                       isLight ? 'text-slate-600' : 'text-zinc-400'
                     }`}
                   >
-                    <div className="truncate">{item.tags?.[0] || 'Phim Tuyển Chọn'}</div>
                     <div className="font-mono mt-0.5">
                       {formatVietnameseDate(item.event_date)}
                     </div>
@@ -348,6 +341,7 @@ export const PlaylistSidebar: React.FC<PlaylistSidebarProps> = ({
             );
           })}
         </div>
+        )
       )}
     </aside>
   );

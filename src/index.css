@@ -495,3 +495,37 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(242, 167, 202, 0.75);
 }
+
+/* ==============================================================
+ * FIX TOOLTIPS BỊ CHE KHUẤT / CẮT CỤT Ở SÁT 2 MÉP TRÌNH PHÁT ARTPLAYER
+ * ============================================================== */
+.art-video-player .art-controls-right .art-control:last-child::after,
+.art-video-player .art-control-fullscreen-toggle::after {
+  left: auto !important;
+  right: -4px !important;
+  transform: none !important;
+  white-space: nowrap !important;
+}
+
+.art-video-player .art-controls-right .art-control:last-child::before,
+.art-video-player .art-control-fullscreen-toggle::before {
+  left: auto !important;
+  right: 14px !important;
+  transform: none !important;
+}
+
+.art-video-player .art-controls-left .art-control:first-child::after,
+.art-video-player .art-control-rewind-10s::after {
+  left: -4px !important;
+  right: auto !important;
+  transform: none !important;
+  white-space: nowrap !important;
+}
+
+.art-video-player .art-controls-left .art-control:first-child::before,
+.art-video-player .art-control-rewind-10s::before {
+  left: 14px !important;
+  right: auto !important;
+  transform: none !important;
+}
+

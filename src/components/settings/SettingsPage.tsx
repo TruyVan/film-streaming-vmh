@@ -10,23 +10,18 @@ import {
   Monitor,
   Presentation,
   Check,
-  Sparkles,
   Info,
-  ShieldCheck,
-  RefreshCw,
   Trash2,
   HardDrive,
-  Globe,
-  Film,
 } from 'lucide-react';
 import { ThemeMode, UITheme, Video } from '../../types/video';
 import { AdminDevPortal } from '../ui/AdminDevPortal';
 import { toast } from 'react-toastify';
 
-export type SettingsSubTab = 'general' | 'theme' | 'admin';
+export type SettingsSubTab = 'general' | 'admin';
 
 interface SettingsPageProps {
-  initialSubTab?: SettingsSubTab;
+  initialSubTab?: 'general' | 'theme' | 'admin';
   currentTheme: UITheme;
   onChangeTheme: (theme: UITheme) => void;
   themeMode: ThemeMode;
@@ -62,10 +57,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onGoHome,
   onNavigateSubTab,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>(initialSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>(
+    initialSubTab === 'admin' ? 'admin' : 'general'
+  );
 
   useEffect(() => {
-    setActiveSubTab(initialSubTab);
+    setActiveSubTab(initialSubTab === 'admin' ? 'admin' : 'general');
   }, [initialSubTab]);
 
   const isLight = themeMode === 'light';
@@ -83,22 +80,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     icon: React.ComponentType<{ className?: string }>;
     accentColor: string;
     previewBg: string;
-    features: string[];
   }[] = [
     {
       id: 'default',
       name: 'Mặc định (YouTube Style)',
-      badge: 'Chuẩn YouTube',
+      badge: 'Chuẩn',
       description:
         'Lưới video Bento Grid trang chủ, danh sách phát Up-Next bên phải và trình phát video YouTube sắc nét.',
       icon: Monitor,
       accentColor: 'from-rose-500 to-red-600',
       previewBg: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
-      features: [
-        'Lưới Bento Grid & Compact History Rows',
-        'Cột Up-Next Danh sách phát bên phải',
-        'Player YouTube với vạch đỏ Zero-Lag Scrubbing',
-      ],
     },
     {
       id: 'canva',
@@ -109,26 +100,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       icon: Palette,
       accentColor: 'from-[#00c4cc] to-[#7d2ae8]',
       previewBg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-      features: [
-        'Canva TopNav gradient tím-xanh & thanh công cụ CanvaToolbar',
-        'Khung Player nằm vừa vặn bên trong Slide Canvas 16:9',
-        'Filmstrip chân trang hiển thị chuỗi tập phim cùng phân loại',
-      ],
     },
     {
       id: 'powerpoint',
       name: 'Microsoft PowerPoint Web',
       badge: 'Office 365',
       description:
-        'Giao diện trình chiếu PowerPoint Web hoàn chỉnh với thanh tiêu đề đỏ/cam (#D83B01), dải lệnh Ribbon (Home, Insert, Slide Show...), danh sách slide thumbnails bên trái và khung slide player.',
+        'Giao diện trình chiếu PowerPoint Web hoàn chỉnh với thanh tiêu đề đỏ/cam (#D83B01), dải lệnh Ribbon, danh sách slide thumbnails bên trái và khung slide player.',
       icon: Presentation,
       accentColor: 'from-[#D83B01] to-[#EA6100]',
       previewBg: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
-      features: [
-        'Dải lệnh Ribbon Office 365 (Home, Insert, Slide Show...)',
-        'Cột SlideThumbnails bên trái hiển thị danh sách tập phim',
-        'Khung Player đặt vừa khít trong Slide Canvas và ngăn Notes bên dưới',
-      ],
     },
   ];
 
@@ -138,7 +119,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         isLight ? 'bg-[#FAF7F9] text-slate-900' : 'bg-[#0f0f0f] text-zinc-100'
       }`}
     >
-      {/* 1. TOP HEADER OF SETTINGS PAGE */}
+      {/* 1. TOP HEADER: Tinh giản, chỉ icon quay về và tiêu đề Cài Đặt Hệ Thống */}
       <header
         className={`sticky top-0 z-40 w-full h-14 px-4 sm:px-8 border-b flex items-center justify-between transition-colors backdrop-blur-md ${
           isLight
@@ -147,64 +128,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         }`}
       >
         <div className="flex items-center gap-3">
+          {/* Nút Về rạp phim: Chỉ hiển thị icon tròn gọn gàng */}
           <button
             type="button"
             onClick={onGoHome}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+            aria-label="Về rạp phim"
+            title="Về rạp phim"
+            className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
               isLight
                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 : 'bg-white/10 hover:bg-white/15 text-zinc-200'
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Về rạp phim</span>
           </button>
 
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
               <Settings className="w-4 h-4" />
             </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-bold flex items-center gap-2">
-                <span>Cài Đặt Hệ Thống</span>
-                <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-rose-500/15 text-rose-500 font-bold uppercase">
-                  {activeSubTab === 'admin'
-                    ? 'Admin Dev Portal'
-                    : activeSubTab === 'theme'
-                    ? 'Giao diện'
-                    : 'Chung'}
-                </span>
-              </h1>
-            </div>
+            <h1 className="text-sm sm:text-base font-bold">Cài Đặt Hệ Thống</h1>
           </div>
         </div>
 
-        {/* Quick theme mode toggle on top */}
-        <button
-          type="button"
-          onClick={onToggleThemeMode}
-          className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold border transition-colors cursor-pointer ${
-            isLight
-              ? 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'
-              : 'bg-white/5 border-white/10 text-zinc-200 hover:bg-white/10'
-          }`}
-          title={isLight ? 'Chuyển sang giao diện Tối' : 'Chuyển sang giao diện Sáng'}
-        >
-          {isLight ? (
-            <>
-              <Sun className="w-3.5 h-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Giao diện Sáng</span>
-            </>
-          ) : (
-            <>
-              <Moon className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">Giao diện Tối</span>
-            </>
-          )}
-        </button>
+        {/* Header phải để trống tối giản */}
+        <div className="w-9" />
       </header>
 
-      {/* 2. SUB-NAVIGATION TABS (SLUG BAR: /settings/general, /settings/theme, /settings/admin) */}
+      {/* 2. SUB-NAVIGATION TABS: Tinh gọn chỉ còn 2 tab, bỏ mọi slug và badge */}
       <div
         className={`w-full px-4 sm:px-8 border-b flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 transition-colors ${
           isLight ? 'bg-slate-50/80 border-slate-200' : 'bg-[#18181c] border-white/[0.06]'
@@ -220,23 +171,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           }`}
         >
           <Sliders className="w-4 h-4" />
-          <span>Cài Đặt Chung (/settings/general)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleTabClick('theme')}
-          className={`h-11 px-4 text-xs font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeSubTab === 'theme'
-              ? 'border-rose-600 text-rose-600 dark:text-rose-400'
-              : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Palette className="w-4 h-4" />
-          <span>Đổi Giao Diện (/settings/theme)</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-500 font-mono">
-            3 Theme
-          </span>
+          <span>Cài Đặt Chung</span>
         </button>
 
         <button
@@ -249,16 +184,102 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           }`}
         >
           <Key className="w-4 h-4 text-amber-500" />
-          <span>Quản Trị Phim (/settings/admin)</span>
+          <span>Quản Trị Phim</span>
         </button>
       </div>
 
-      {/* 3. CONTENT AREA ACCORDING TO ACTIVE SUB-TAB */}
+      {/* 3. CONTENT AREA */}
       <div className="flex-1 w-full">
-        {/* TAB 1: CÀI ĐẶT CHUNG (/settings/general) */}
+        {/* TAB 1: CÀI ĐẶT CHUNG (Bao gồm Đổi Theme, Sáng/Tối, Cache, Stats) */}
         {activeSubTab === 'general' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-8 animate-in fade-in duration-150">
-            {/* Chế độ màu Sáng / Tối */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-6 animate-in fade-in duration-150">
+            {/* 1. Lựa chọn Giao Diện Hiển Thị */}
+            <div
+              className={`p-6 rounded-2xl border space-y-4 transition-colors ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
+              }`}
+            >
+              <div>
+                <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-rose-500" />
+                  <span>Giao Diện Hiển Thị</span>
+                </h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                  Lựa chọn 1 trong 3 phong cách hiển thị độc quyền.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 pt-1">
+                {themes.map((t) => {
+                  const isSelected = currentTheme === t.id;
+                  const Icon = t.icon;
+
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => onChangeTheme(t.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer select-none flex items-center justify-between gap-4 ${
+                        isSelected
+                          ? isLight
+                            ? 'border-rose-500 bg-rose-50/60 shadow-xs ring-2 ring-rose-400/40'
+                            : 'border-rose-500 bg-rose-500/10 shadow-xs ring-2 ring-rose-500/40'
+                          : isLight
+                          ? 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'
+                          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                            isSelected
+                              ? `bg-gradient-to-br ${t.accentColor} text-white border-transparent shadow-sm`
+                              : t.previewBg
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </div>
+
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold truncate">{t.name}</span>
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-bold shrink-0 ${
+                                isSelected
+                                  ? 'bg-rose-600 text-white'
+                                  : isLight
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-white/10 text-zinc-300'
+                              }`}
+                            >
+                              {t.badge}
+                            </span>
+                          </div>
+                          <p className={`text-xs truncate ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                            {t.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                            isSelected
+                              ? 'bg-rose-600 border-rose-600 text-white'
+                              : isLight
+                              ? 'border-slate-300 bg-white'
+                              : 'border-white/20 bg-transparent'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Chế độ màu Sáng / Tối */}
             <div
               className={`p-6 rounded-2xl border space-y-4 transition-colors ${
                 isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
@@ -267,35 +288,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <div>
                 <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
                   <Sun className="w-4 h-4 text-amber-500" />
-                  <span>Chế Độ Màu Giao Diện (Theme Mode)</span>
+                  <span>Chế Độ Màu (Theme Mode)</span>
                 </h3>
                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                  Lựa chọn tông màu hiển thị phù hợp với môi trường ánh sáng của bạn.
+                  Lựa chọn tông màu sáng hoặc tối theo sở thích.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     if (!isLight) onToggleThemeMode();
                   }}
-                  className={`p-4 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                     isLight
                       ? 'border-amber-500 bg-amber-500/10 text-amber-900 ring-2 ring-amber-400/40 shadow-xs'
                       : 'border-white/10 bg-white/[0.02] text-zinc-400 hover:bg-white/[0.05]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
-                      <Sun className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                      <Sun className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <div className="font-bold text-sm">Giao diện Sáng (Light)</div>
-                      <div className="text-[11px] opacity-75">Tông màu dịu mắt ban ngày</div>
+                      <div className="font-bold text-xs sm:text-sm">Giao diện Sáng (Light)</div>
                     </div>
                   </div>
-                  {isLight && <Check className="w-5 h-5 text-amber-600 stroke-[3]" />}
+                  {isLight && <Check className="w-4 h-4 text-amber-600 stroke-[3]" />}
                 </button>
 
                 <button
@@ -303,50 +323,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onClick={() => {
                     if (isLight) onToggleThemeMode();
                   }}
-                  className={`p-4 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                     !isLight
                       ? 'border-purple-500 bg-purple-500/15 text-purple-300 ring-2 ring-purple-500/40 shadow-xs'
                       : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                      <Moon className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                      <Moon className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <div className="font-bold text-sm">Giao diện Tối (Dark)</div>
-                      <div className="text-[11px] opacity-75">Độ tương phản cao cho ban đêm</div>
+                      <div className="font-bold text-xs sm:text-sm">Giao diện Tối (Dark)</div>
                     </div>
                   </div>
-                  {!isLight && <Check className="w-5 h-5 text-purple-400 stroke-[3]" />}
+                  {!isLight && <Check className="w-4 h-4 text-purple-400 stroke-[3]" />}
                 </button>
               </div>
             </div>
 
-            {/* Dọn dẹp bộ nhớ đệm */}
+            {/* 3. Dọn dẹp bộ nhớ đệm */}
             <div
-              className={`p-6 rounded-2xl border space-y-4 transition-colors ${
+              className={`p-6 rounded-2xl border space-y-3 transition-colors ${
                 isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#141418] border-white/10'
               }`}
             >
-              <div>
-                <h3 className="text-sm sm:text-base font-bold flex items-center gap-2">
-                  <HardDrive className="w-4 h-4 text-rose-500" />
-                  <span>Bộ Nhớ Đệm Trình Duyệt (LocalStorage)</span>
-                </h3>
-                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                  Xóa lịch sử xem phim và tiến trình xem tạm thời trên trình duyệt này nếu cần giải phóng.
-                </p>
-              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-rose-500" />
+                    <span>Bộ Nhớ Đệm Trình Duyệt</span>
+                  </h3>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                    Xóa sạch tiến trình xem phim tạm thời trên trình duyệt máy này.
+                  </p>
+                </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-zinc-400">
-                  Dữ liệu phim chính thức trên Supabase sẽ không bị ảnh hưởng.
-                </span>
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('Bạn có chắc muốn xóa sạch bộ nhớ tạm tiến trình xem phim trên máy này?')) {
+                    if (window.confirm('Bạn có chắc muốn xóa sạch tiến trình xem tạm thời trên máy này?')) {
                       try {
                         const toRemove: string[] = [];
                         for (let i = 0; i < localStorage.length; i++) {
@@ -356,27 +372,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                           }
                         }
                         toRemove.forEach((k) => localStorage.removeItem(k));
-                        toast.success('Đã xóa sạch bộ nhớ tạm tiến trình xem!');
+                        toast.success('Đã xóa sạch tiến trình xem!');
                       } catch {}
                     }
                   }}
-                  className="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Dọn dẹp tiến trình xem</span>
+                  <span>Dọn dẹp</span>
                 </button>
               </div>
             </div>
 
-            {/* Thông tin hệ thống */}
+            {/* 4. Thông tin hệ thống */}
             <div
-              className={`p-6 rounded-2xl border space-y-3 transition-colors ${
+              className={`p-6 rounded-2xl border space-y-2 transition-colors ${
                 isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#141418] border-white/10 text-zinc-300'
               }`}
             >
               <div className="flex items-center gap-2 text-xs font-bold">
                 <Info className="w-4 h-4 text-blue-500" />
-                <span>Thông Tin Nền Tảng Film Streaming</span>
+                <span>Thông Tin Nền Tảng</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
                 <div>
@@ -400,111 +416,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         )}
 
-        {/* TAB 2: ĐỔI GIAO DIỆN HIỂN THỊ (/settings/theme) */}
-        {activeSubTab === 'theme' && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 space-y-6 animate-in fade-in duration-150">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                <Palette className="w-5 h-5 text-rose-500" />
-                <span>Lựa Chọn Giao Diện Hiển Thị</span>
-              </h2>
-              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                Trải nghiệm 3 phong cách hiển thị độc quyền. Bấm vào bất kỳ giao diện nào để áp dụng tức thì.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {themes.map((t) => {
-                const isSelected = currentTheme === t.id;
-                const Icon = t.icon;
-
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => onChangeTheme(t.id)}
-                    className={`p-5 rounded-2xl border transition-all cursor-pointer select-none flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      isSelected
-                        ? isLight
-                          ? 'border-rose-500 bg-rose-50/60 shadow-md ring-2 ring-rose-400/50'
-                          : 'border-rose-500 bg-rose-500/10 shadow-md ring-2 ring-rose-500/50'
-                        : isLight
-                        ? 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
-                        : 'border-white/10 bg-[#141418] hover:border-white/20 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
-                          isSelected
-                            ? `bg-gradient-to-br ${t.accentColor} text-white border-transparent shadow-md`
-                            : t.previewBg
-                        }`}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm sm:text-base font-bold">{t.name}</h3>
-                          <span
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
-                              isSelected
-                                ? 'bg-rose-600 text-white'
-                                : isLight
-                                ? 'bg-slate-200 text-slate-700'
-                                : 'bg-white/10 text-zinc-300'
-                            }`}
-                          >
-                            {t.badge}
-                          </span>
-                        </div>
-                        <p className={`text-xs leading-relaxed max-w-xl ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                          {t.description}
-                        </p>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {t.features.map((feat, fi) => (
-                            <span
-                              key={fi}
-                              className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${
-                                isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/5 text-zinc-400'
-                              }`}
-                            >
-                              ✓ {feat}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      <button
-                        type="button"
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-rose-600 text-white shadow-xs'
-                            : isLight
-                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                            : 'bg-white/10 hover:bg-white/15 text-white'
-                        }`}
-                      >
-                        {isSelected ? (
-                          <>
-                            <Check className="w-4 h-4 stroke-[3]" />
-                            <span>Đang kích hoạt</span>
-                          </>
-                        ) : (
-                          <span>Áp dụng</span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: QUẢN TRỊ DEV PORTAL (/settings/admin) */}
+        {/* TAB 2: QUẢN TRỊ DEV PORTAL */}
         {activeSubTab === 'admin' && (
           <div className="w-full">
             <AdminDevPortal
@@ -512,6 +424,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               videos={videos}
               customTopics={customTopics}
               isLoading={isLoading}
+              hideHeader={true}
               onVideoAdded={onVideoAdded}
               onVideoUpdated={onVideoUpdated}
               onAddTopic={onAddTopic}

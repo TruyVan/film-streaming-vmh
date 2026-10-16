@@ -113,11 +113,7 @@ export default function App() {
       setCurrentPage('settings');
       setSettingsSubTab('admin');
       setIsSidebarOpen(false);
-    } else if (pathname === '/settings/theme') {
-      setCurrentPage('settings');
-      setSettingsSubTab('theme');
-      setIsSidebarOpen(false);
-    } else if (pathname === '/settings' || pathname === '/settings/general') {
+    } else if (pathname === '/settings' || pathname === '/settings/general' || pathname === '/settings/theme') {
       setCurrentPage('settings');
       setSettingsSubTab('general');
       setIsSidebarOpen(false);
@@ -667,7 +663,6 @@ export default function App() {
             onSelectCategory={(cat) => {
               navigateTo(`/tags/${slugify(cat)}`);
             }}
-            onOpenSettings={() => navigateTo('/settings/general')}
           />
 
           <div className="flex-1 flex w-full">

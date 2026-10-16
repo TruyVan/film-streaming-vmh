@@ -130,6 +130,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
   const artInstanceRef = useRef<Artplayer | null>(null);
   const isScrubbingRef = useRef<boolean>(false);
   const isLockedRef = useRef<boolean>(false);
+  const toggleLockRef = useRef<() => void>(() => {});
 
   const callbacksRef = useRef({
     onProgressUpdate,
@@ -416,7 +417,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'left',
           index: 10,
           html: ICON_REWIND_10,
-          tooltip: 'Tua lùi 10 giây',
+          tooltip: 'Tua lùi 10 giây (←)',
           click: () => seekRelative(-10),
         },
         {
@@ -424,7 +425,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'left',
           index: 11,
           html: ICON_FORWARD_10,
-          tooltip: 'Tua tới 10 giây',
+          tooltip: 'Tua tới 10 giây (→)',
           click: () => seekRelative(10),
         },
         {
@@ -446,7 +447,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'right',
           index: 35,
           html: ICON_SUBTITLES,
-          tooltip: hasConfiguredSubtitle ? 'Bật / Tắt Phụ đề' : 'Chưa có phụ đề',
+          tooltip: hasConfiguredSubtitle ? 'Bật / Tắt phụ đề (C)' : 'Chưa có phụ đề',
           click: () => {
             if (isLockedRef.current) return;
             if (!hasConfiguredSubtitle || !art.subtitle) {
@@ -462,7 +463,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'right',
           index: 45,
           html: ICON_PIP,
-          tooltip: 'Hình trong nền',
+          tooltip: 'Hình trong nền (P)',
           click: async () => await togglePip(),
         },
         {
@@ -470,7 +471,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
           position: 'right',
           index: 55,
           html: ICON_MAXIMIZE,
-          tooltip: 'Toàn màn hình',
+          tooltip: 'Toàn màn hình (F)',
           click: async () => await toggleFullscreen(),
         },
       ],
@@ -764,27 +765,41 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         };
       }
 
-      if (btnLock && lockContainer) {
-        btnLock.onclick = (e) => {
-          e.stopPropagation();
-          isLockedRef.current = !isLockedRef.current;
+      const toggleLock = (e?: Event) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        isLockedRef.current = !isLockedRef.current;
 
-          if (isLockedRef.current) {
-            playerEl?.classList.add('art-is-locked');
+        if (isLockedRef.current) {
+          playerEl?.classList.add('art-is-locked');
+          if (btnLock) {
             btnLock.innerHTML = ICON_LOCK;
             btnLock.style.background = 'rgba(255,0,51,0.85)';
-            art.notice.show = '🔒 Đã khóa màn hình';
-            hideUI();
-            pingLockBtn();
-          } else {
-            playerEl?.classList.remove('art-is-locked');
+            btnLock.title = 'Mở khóa màn hình (L)';
+          }
+          art.notice.show = '🔒 Đã khóa màn hình (Nhấn L để mở)';
+          hideUI();
+          pingLockBtn();
+        } else {
+          playerEl?.classList.remove('art-is-locked');
+          if (btnLock) {
             btnLock.innerHTML = ICON_UNLOCK;
             btnLock.style.background = 'rgba(0,0,0,0.65)';
+            btnLock.title = 'Khóa màn hình (L)';
+          }
+          if (lockContainer) {
             lockContainer.style.opacity = '1';
             lockContainer.style.pointerEvents = 'auto';
-            art.notice.show = '🔓 Đã mở khóa';
-            showUI();
           }
+          art.notice.show = '🔓 Đã mở khóa';
+          showUI();
+        }
+      };
+      toggleLockRef.current = toggleLock;
+
+      if (btnLock && lockContainer) {
+        btnLock.title = 'Khóa màn hình (L)';
+        btnLock.onclick = (e) => {
+          toggleLock(e);
         };
       }
 
@@ -1116,10 +1131,9 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     });
 
     // ==========================================
-    // KEYBOARD SHORTCUTS
+    // PHÍM TẮT ĐIỀU KHIỂN VIDEO (KEYBOARD SHORTCUTS)
     // ==========================================
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLockedRef.current) return;
       const activeEl = document.activeElement;
       const isInput =
         activeEl &&
@@ -1130,9 +1144,19 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
       if (isInput || e.ctrlKey || e.metaKey || e.altKey) return;
 
+      // Phím L: Khóa / Mở khóa player (kể cả khi đang bị khóa)
+      if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleLockRef.current();
+        return;
+      }
+
+      if (isLockedRef.current) return;
+
       const isSpace = e.code === 'Space' || e.key === ' ';
 
-      if (isSpace || e.key === 'k' || e.key === 'K') {
+      if (isSpace) {
         e.preventDefault();
         e.stopPropagation();
         if (activeEl && typeof (activeEl as HTMLElement).blur === 'function') {
@@ -1145,12 +1169,6 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         seekRelative(5);
-      } else if (e.key === 'j' || e.key === 'J') {
-        e.preventDefault();
-        seekRelative(-10);
-      } else if (e.key === 'l' || e.key === 'L') {
-        e.preventDefault();
-        seekRelative(10);
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
         if (art.muted) art.muted = false;

@@ -4,19 +4,17 @@ import {
   Bookmark,
   History,
   X,
-  Key,
   SlidersHorizontal,
   FolderHeart,
   Settings,
 } from 'lucide-react';
 import { PlaylistTab, ThemeMode } from '../../types/video';
-import { ThemeSwitch } from './ThemeSwitch';
 
 interface YouTubeSidebarProps {
   isOpen: boolean;
   currentPage: 'home' | 'watch' | 'admin' | 'settings';
   themeMode: ThemeMode;
-  onToggleThemeMode: () => void;
+  onToggleThemeMode?: () => void;
   playlistTab: PlaylistTab;
   activeCategory: string;
   favoritesCount: number;
@@ -24,7 +22,7 @@ interface YouTubeSidebarProps {
   customTopics?: string[];
   onSelectHomeTab: (tab: PlaylistTab, category?: string) => void;
   onCloseMobile: () => void;
-  onOpenDevManage: () => void;
+  onOpenDevManage?: () => void;
   onOpenSettings?: () => void;
 }
 
@@ -155,7 +153,7 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
         </div>
       </div>
 
-      {/* FOOTER: Cài đặt hệ thống, Theme Switch & Nút Admin Dev Portal (/admin) */}
+      {/* FOOTER: Cài đặt hệ thống (Toàn bộ theme, sáng/tối & dev nằm tại đây) */}
       <div className="pt-4 mt-4 border-t border-black/10 dark:border-white/10 space-y-2">
         {onOpenSettings && (
           <button
@@ -178,54 +176,6 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
             </div>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => onToggleThemeMode()}
-          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer select-none text-left ${
-            isLight
-              ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-              : 'bg-white/5 hover:bg-white/10 text-zinc-200'
-          }`}
-          title="Bấm để đổi giao diện Sáng / Tối"
-        >
-          <div className="flex flex-col pointer-events-none">
-            <span className="text-xs font-semibold">Giao diện</span>
-            <span className="text-[11px] opacity-65">
-              {isLight ? 'Đang bật Sáng' : 'Đang bật Tối'}
-            </span>
-          </div>
-        
-          <div className="pointer-events-none">
-            <ThemeSwitch
-              id={onItemClick ? 'themeToggleMobile' : 'themeToggleDesktop'}
-              checked={isLight}
-              onChange={() => {}}
-            />
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            onOpenDevManage();
-            onItemClick?.();
-          }}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-            currentPage === 'admin'
-              ? 'bg-rose-600 text-white shadow-md'
-              : isLight
-              ? 'bg-amber-500/10 hover:bg-amber-500/15 text-amber-900 border border-amber-500/20'
-              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20'
-          }`}
-          title="Khu vực quản trị phim & máy chủ VPS"
-        >
-          <Key className="w-4 h-4 text-amber-500 shrink-0" />
-          <div className="flex-1 text-left">
-            <div>Quản Trị Rạp Phim (Dev)</div>
-            <div className="text-[10px] font-normal opacity-75">Tải phim, Xóa tạm & Cấu hình</div>
-          </div>
-        </button>
       </div>
     </div>
   );
@@ -350,20 +300,18 @@ export const YouTubeSidebar: React.FC<YouTubeSidebarProps> = ({
                 </button>
               </div>
 
-              <div className="flex flex-col items-center space-y-2 pt-2 border-t border-black/10 dark:border-white/10 w-full">
-                <div title="Đổi giao diện Sáng / Tối">
-                  <ThemeSwitch id="themeToggleMiniRail" checked={isLight} onChange={() => onToggleThemeMode()} />
+              {onOpenSettings && (
+                <div className="flex flex-col items-center pt-2 border-t border-black/10 dark:border-white/10 w-full">
+                  <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-500/15 transition-colors cursor-pointer"
+                    title="Cài Đặt Hệ Thống"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={onOpenDevManage}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-amber-500 hover:bg-amber-500/15 transition-colors cursor-pointer"
-                  title="Kỹ thuật & Cấu hình (Dev)"
-                >
-                  <Key className="w-4 h-4" />
-                </button>
-              </div>
+              )}
             </div>
           )}
         </aside>
