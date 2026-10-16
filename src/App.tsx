@@ -12,6 +12,8 @@ import {
 } from './types/video';
 import {
   fetchVideos,
+  fetchVideoSubtitles,
+  getCachedVideos,
   fetchTopicsDb,
   addTopicDb,
   removeTopicDb,
@@ -58,8 +60,9 @@ export const slugify = (text: string) =>
     .replace(/[^a-z0-9-]/g, '');
 
 export default function App() {
-  // Dữ liệu Video từ Supabase (Không mock)
-  const [videos, setVideos] = useState<Video[]>([]);
+  // Đọc danh sách phim từ Local Cache (Stale-While-Revalidate) để hiển thị trong 0ms
+  const initialCachedVideos = useMemo(() => getCachedVideos(), []);
+  const [videos, setVideos] = useState<Video[]>(initialCachedVideos);
   const [currentPage, setCurrentPage] = useState<'home' | 'watch' | 'settings'>('home');
   const [settingsSubTab, setSettingsSubTab] = useState<SettingsSubTab>('general');
   const currentWatchSessionIdRef = React.useRef<string | null>(null);
@@ -106,7 +109,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [playlistTab, setPlaylistTab] = useState<PlaylistTab>('all');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => initialCachedVideos.length === 0);
 
   // Dữ liệu đồng bộ trực tiếp từ Supabase
   const [customTopics, setCustomTopics] = useState<string[]>([]);
@@ -182,10 +185,13 @@ export default function App() {
 
   // ==========================================
   // TẢI TOÀN BỘ DỮ LIỆU TỪ SUPABASE (PROMISE.ALL)
+  // Tối ưu hóa: Nếu đã có cache thì cập nhật ngầm, không block UI
   // ==========================================
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
+    if (videos.length === 0) {
+      setIsLoading(true);
+    }
 
     Promise.all([
       fetchVideos(),
@@ -209,7 +215,7 @@ export default function App() {
           if (requestedId && loadedVideos.some((v) => v.id === requestedId)) {
             setCurrentVideoId(requestedId);
             setCurrentPage('watch');
-          } else if (loadedVideos.length > 0) {
+          } else if (loadedVideos.length > 0 && !currentVideoId) {
             setCurrentVideoId(loadedVideos[0].id);
           }
         }
@@ -223,6 +229,22 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  // Khi đang xem một bộ phim, tải riêng phụ đề của phim đó nếu chưa có
+  useEffect(() => {
+    if (currentPage !== 'watch' || !currentVideoId) return;
+
+    const current = videos.find((v) => v.id === currentVideoId);
+    if (current && (!current.subtitles || current.subtitles.length === 0)) {
+      fetchVideoSubtitles(currentVideoId).then((subs) => {
+        if (subs && subs.length > 0) {
+          setVideos((prev) =>
+            prev.map((v) => (v.id === currentVideoId ? { ...v, subtitles: subs } : v))
+          );
+        }
+      });
+    }
+  }, [currentPage, currentVideoId, videos]);
 
   useEffect(() => {
     const ids = videos.map((v) => v.id);

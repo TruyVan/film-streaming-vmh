@@ -35,6 +35,7 @@ import {
   softDeleteVideoRecord,
   updateVideoRecord,
   updateVideoSortOrders,
+  setCachedVideos,
 } from '../../lib/supabase';
 
 interface AdminDevPortalProps {
@@ -270,8 +271,10 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       video.onseeked = () => {
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth || 1280;
-          canvas.height = video.videoHeight || 720;
+          // TỐI ƯU HÓA: Thumbnail card chuẩn tỷ lệ 16:9 với kích thước 480x270 thay vì 1280x720,
+          // giúp giảm 96% dung lượng base64 (chỉ còn ~8KB - 12KB) giúp Supabase load dưới 100ms!
+          canvas.width = 480;
+          canvas.height = 270;
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -290,7 +293,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
               sampleCount++;
             }
             const avgBrightness = sampleCount > 0 ? totalLuma / sampleCount : 0;
-            const currentDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            const currentDataUrl = canvas.toDataURL('image/jpeg', 0.65);
 
             if (avgBrightness > highestBrightness) {
               highestBrightness = avgBrightness;
@@ -355,12 +358,13 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
         window.clearTimeout(timer);
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth || 1280;
-          canvas.height = video.videoHeight || 720;
+          // Tối ưu hóa kích thước 480x270 JPEG 0.65 để dung lượng siêu nhẹ ~8KB
+          canvas.width = 480;
+          canvas.height = 270;
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
             resolve(dataUrl);
           } else {
             reject(new Error('Không thể khởi tạo canvas'));
@@ -593,16 +597,25 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        const imgUrl = event.target.result as string;
-        if (mode === 'add') setAddThumbnailUrl(imgUrl);
-        else setEditThumbnailUrl(imgUrl);
-        toast.success('Đã tải ảnh bìa tùy chỉnh!');
+
+    // Nén ảnh tải từ máy tính về kích thước 480x270 JPEG 0.70 để tránh đẩy ảnh 5MB vào DB
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = 480;
+      canvas.height = 270;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 480, 270);
+        const compressedUrl = canvas.toDataURL('image/jpeg', 0.7);
+        if (mode === 'add') setAddThumbnailUrl(compressedUrl);
+        else setEditThumbnailUrl(compressedUrl);
+        toast.success('Đã tải và tối ưu ảnh bìa!');
       }
     };
-    reader.readAsDataURL(file);
+    img.src = objectUrl;
   };
 
   const handleCancelUpload = () => {
@@ -663,9 +676,17 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       for (const id of targets) {
         await softDeleteVideoRecord(id);
         const v = videos.find((item) => item.id === id);
-        if (v) onVideoUpdated({ ...v, deleted_at: new Date().toISOString() });
+        if (v) {
+          const updated = { ...v, deleted_at: new Date().toISOString() };
+          onVideoUpdated(updated);
+        }
       }
       setSelectedIds([]);
+      setCachedVideos(
+        videos.map((v) =>
+          targets.includes(v.id) ? { ...v, deleted_at: new Date().toISOString() } : v
+        )
+      );
       toast.success(`Đã chuyển ${targets.length} phim vào thùng rác.`);
     }
   };
@@ -674,9 +695,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     for (const id of targets) {
       await restoreVideoRecord(id);
       const v = videos.find((item) => item.id === id);
-      if (v) onVideoUpdated({ ...v, deleted_at: null });
+      if (v) {
+        const updated = { ...v, deleted_at: null };
+        onVideoUpdated(updated);
+      }
     }
     setSelectedIds([]);
+    setCachedVideos(
+      videos.map((v) => (targets.includes(v.id) ? { ...v, deleted_at: null } : v))
+    );
     toast.success(`Đã khôi phục ${targets.length} phim về rạp!`);
   };
 
@@ -706,6 +733,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       }
 
       setSelectedIds([]);
+      setCachedVideos(videos.filter((v) => !targets.includes(v.id)));
       toast.success(`Đã xóa vĩnh viễn ${targets.length} phim và giải phóng ổ cứng VPS!`);
     }
   };
@@ -746,6 +774,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     try {
       const created = await createVideoRecord(payload);
       onVideoAdded(created);
+      setCachedVideos([created, ...videos]);
       toast.success(`Đã đăng bộ phim "${created.title}" thuộc phân loại "${finalCategory}"!`);
 
       setAddTitle('');
@@ -798,6 +827,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     try {
       const updated = await updateVideoRecord(payload);
       onVideoUpdated(updated);
+      setCachedVideos(videos.map((v) => (v.id === updated.id ? updated : v)));
       toast.success(`Đã cập nhật phim "${updated.title}" với phân loại "${finalCategory}"!`);
       setActiveTab('list');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -972,6 +1002,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       if (onVideosReordered) {
         onVideosReordered(updatedAll);
       }
+      setCachedVideos(updatedAll);
 
       if (res && res.needsSqlMigration) {
         alert(

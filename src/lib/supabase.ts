@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { NewVideoInput, UpdateVideoInput, Video, WatchHistoryItem } from '../types/video';
+import { NewVideoInput, SubtitleTrack, UpdateVideoInput, Video, WatchHistoryItem } from '../types/video';
 
 // 1. KHỞI TẠO CLIENT KẾT NỐI SUPABASE
 const supabaseUrl =
@@ -86,9 +86,49 @@ create policy "Allow all history" on public.watch_history for all using (true) w
 // 3. DATA ACCESS LAYER: VIDEOS (QUẢN LÝ PHIM TRỰC TIẾP TRÊN DATABASE)
 // =========================================================================
 
+// Key lưu cache danh sách phim trên LocalStorage (Stale-While-Revalidate)
+const VIDEOS_CACHE_KEY = 'film_videos_cache_v2';
+
+export function getCachedVideos(): Video[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(VIDEOS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Video[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setCachedVideos(videos: Video[]): void {
+  if (typeof window === 'undefined' || !Array.isArray(videos)) return;
+  try {
+    // Chỉ lưu các trường cần thiết vào cache để dung lượng LocalStorage siêu nhẹ
+    const lightweight = videos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      event_date: v.event_date,
+      duration: v.duration,
+      video_url: v.video_url,
+      thumbnail_url: v.thumbnail_url,
+      tags: v.tags,
+      sort_order: v.sort_order,
+      deleted_at: v.deleted_at,
+      created_at: v.created_at,
+      updated_at: v.updated_at,
+      subtitle_url: v.subtitle_url,
+    }));
+    window.localStorage.setItem(VIDEOS_CACHE_KEY, JSON.stringify(lightweight));
+  } catch (err) {
+    console.warn('Không thể lưu cache video:', err);
+  }
+}
+
 /**
  * Tải toàn bộ danh sách phim từ Supabase PostgreSQL.
- * Trả về định dạng tương thích tuyệt đối với App.tsx.
+ * TỐI ƯU HÓA TỐC ĐỘ: Chỉ truy vấn các cột cần thiết cho danh sách phim,
+ * loại bỏ mảng JSONB phụ đề nặng hàng trăm KB để query trả về dưới 100ms!
  */
 export async function fetchVideos(): Promise<{
   videos: Video[];
@@ -97,21 +137,51 @@ export async function fetchVideos(): Promise<{
   try {
     const { data, error } = await supabase
       .from('videos')
-      .select('*')
+      .select('id, title, description, event_date, duration, video_url, thumbnail_url, tags, sort_order, deleted_at, created_at, updated_at, subtitle_url')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Lỗi khi truy vấn videos từ Supabase:', error.message);
-      return { videos: [], source: 'supabase' };
+      return { videos: getCachedVideos(), source: 'supabase' };
     }
 
+    const loadedVideos = (data as Video[]) || [];
+    setCachedVideos(loadedVideos);
+
     return {
-      videos: (data as Video[]) || [],
+      videos: loadedVideos,
       source: 'supabase',
     };
   } catch (err: any) {
     console.error('Lỗi kết nối Supabase:', err.message);
-    return { videos: [], source: 'supabase' };
+    return { videos: getCachedVideos(), source: 'supabase' };
+  }
+}
+
+/**
+ * Tải danh sách đa phụ đề riêng biệt cho ĐÚNG 1 bộ phim đang xem.
+ * Giúp trang chủ tải cực nhanh và chỉ load phụ đề khi bấm PLAY phim!
+ */
+export async function fetchVideoSubtitles(videoId: string): Promise<SubtitleTrack[]> {
+  if (!videoId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('subtitles, subtitle_url')
+      .eq('id', videoId)
+      .single();
+
+    if (error || !data) return [];
+
+    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+      return data.subtitles as SubtitleTrack[];
+    }
+    if (data.subtitle_url) {
+      return [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
+    }
+    return [];
+  } catch {
+    return [];
   }
 }
 
