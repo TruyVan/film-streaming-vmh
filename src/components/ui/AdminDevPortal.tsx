@@ -36,6 +36,7 @@ import {
   updateVideoRecord,
   updateVideoSortOrders,
   setCachedVideos,
+  fetchVideoDetails,
 } from '../../lib/supabase';
 
 interface AdminDevPortalProps {
@@ -382,8 +383,9 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   };
 
   const handleAutoFixAllBlackThumbnails = async () => {
+    // Nếu có phim chưa tải video_url, đảm bảo nạp đủ
     const candidates = videos.filter(
-      (v) => !v.deleted_at && v.video_url && (!v.thumbnail_url || v.thumbnail_url.length < 500)
+      (v) => !v.deleted_at && (!v.thumbnail_url || v.thumbnail_url.length < 500)
     );
 
     if (candidates.length === 0) {
@@ -403,9 +405,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     let successCount = 0;
 
     for (let i = 0; i < candidates.length; i++) {
-      const v = candidates[i];
+      let v = candidates[i];
       setFixProgressText(`Đang sửa ${i + 1}/${candidates.length}: ${v.title}...`);
       try {
+        if (!v.video_url) {
+          const details = await fetchVideoDetails(v.id);
+          if (details) v = { ...v, ...details };
+        }
+        if (!v.video_url) continue;
+
         const newThumb = await extractThumbnailFromVideoUrl(v.video_url, 35);
         if (newThumb) {
           const updated = await updateVideoRecord({
@@ -632,27 +640,39 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
   };
 
   // Mở Form SỬA PHIM: Tự động chuyển đổi phụ đề đơn cũ sang mảng đa phụ đề
-  const handleStartEdit = (video: Video) => {
-    setEditingVideoId(video.id);
-    setEditTitle(video.title);
-    setEditVideoUrl(video.video_url);
-    setEditThumbnailUrl(video.thumbnail_url || '');
-    setEditEventDate(video.event_date);
-    setEditDuration(video.duration || '00:00:00');
+  const handleStartEdit = async (video: Video) => {
+    let currentVideo = video;
+    if (!currentVideo.video_url || !currentVideo.description || !currentVideo.subtitles || currentVideo.subtitles.length === 0) {
+      try {
+        const details = await fetchVideoDetails(video.id);
+        if (details) {
+          currentVideo = { ...video, ...details };
+        }
+      } catch (err) {
+        console.warn('Không thể nạp chi tiết phim để sửa:', err);
+      }
+    }
+
+    setEditingVideoId(currentVideo.id);
+    setEditTitle(currentVideo.title);
+    setEditVideoUrl(currentVideo.video_url || '');
+    setEditThumbnailUrl(currentVideo.thumbnail_url || '');
+    setEditEventDate(currentVideo.event_date);
+    setEditDuration(currentVideo.duration || '00:00:00');
 
     // Chuyển đổi phụ đề sang mảng đa phụ đề chuẩn
-    if (video.subtitles && video.subtitles.length > 0) {
-      setEditSubtitles(video.subtitles);
-    } else if (video.subtitle_url) {
-      setEditSubtitles([{ name: 'Tiếng Việt', url: video.subtitle_url, default: true }]);
+    if (currentVideo.subtitles && currentVideo.subtitles.length > 0) {
+      setEditSubtitles(currentVideo.subtitles);
+    } else if (currentVideo.subtitle_url) {
+      setEditSubtitles([{ name: 'Tiếng Việt', url: currentVideo.subtitle_url, default: true }]);
     } else {
       setEditSubtitles([]);
     }
 
-    const currentCat = (video.tags && video.tags.length > 0) ? video.tags[0] : '';
+    const currentCat = (currentVideo.tags && currentVideo.tags.length > 0) ? currentVideo.tags[0] : '';
     setEditCategory(currentCat);
 
-    setEditDescription(video.description || '');
+    setEditDescription(currentVideo.description || '');
     setActiveTab('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -715,7 +735,15 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       )
     ) {
       for (const id of targets) {
-        const v = videos.find((item) => item.id === id);
+        let v = videos.find((item) => item.id === id);
+
+        // Nếu video chưa có video_url (chưa nạp đầy đủ), fetch nhanh để lấy link xóa file VPS
+        if (v && !v.video_url) {
+          try {
+            const details = await fetchVideoDetails(id);
+            if (details) v = { ...v, ...details };
+          } catch {}
+        }
 
         // 1. GỬI LỆNH XÓA FILE VẬT LÝ TRÊN Ổ CỨNG VPS ORACLE QUA WEBDAV
         if (v && v.video_url && (v.video_url.includes('sslip.io') || v.video_url.includes(VOD_BASE_URL))) {

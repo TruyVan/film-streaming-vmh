@@ -11,7 +11,7 @@ export interface Video {
   description?: string | null;
   event_date: string;
   duration?: string;
-  video_url: string;
+  video_url?: string;
   thumbnail_url?: string | null;
   subtitle_url?: string | null;
   subtitles?: SubtitleTrack[]; // <-- Danh sách đa phụ đề

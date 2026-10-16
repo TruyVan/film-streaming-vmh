@@ -345,6 +345,10 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     // ==============================================================
     // KHỞI TẠO ARTPLAYER
     // ==============================================================
+    if (!video.video_url) {
+      return;
+    }
+
     const art = new Artplayer({
       container: containerRef.current,
       url: video.video_url,
@@ -1284,6 +1288,13 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
     <div className="relative w-full">
       <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg isolate">
         <div ref={containerRef} className="w-full h-full" />
+
+        {!video.video_url && (
+          <div className="absolute inset-0 bg-black flex flex-col items-center justify-center text-white space-y-3 z-10 select-none">
+            <div className="w-9 h-9 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-mono text-zinc-300">Đang chuẩn bị luồng phát...</span>
+          </div>
+        )}
 
         {resumeBanner !== null && (
           <div className="pointer-events-none absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/85 backdrop-blur-md border border-white/15 px-3.5 py-1.5 rounded-lg text-xs text-zinc-100">

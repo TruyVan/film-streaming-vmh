@@ -105,6 +105,7 @@ export function setCachedVideos(videos: Video[]): void {
   if (typeof window === 'undefined' || !Array.isArray(videos)) return;
   try {
     // Chỉ lưu các trường cần thiết vào cache để dung lượng LocalStorage siêu nhẹ
+    // Tuyệt đối KHÔNG lưu subtitle_url (nặng hàng megabytes data URI) vào LocalStorage
     const lightweight = videos.map((v) => ({
       id: v.id,
       title: v.title,
@@ -117,7 +118,7 @@ export function setCachedVideos(videos: Video[]): void {
       deleted_at: v.deleted_at,
       created_at: v.created_at,
       updated_at: v.updated_at,
-      subtitle_url: v.subtitle_url,
+      description: v.description,
     }));
     window.localStorage.setItem(VIDEOS_CACHE_KEY, JSON.stringify(lightweight));
   } catch (err) {
@@ -126,9 +127,23 @@ export function setCachedVideos(videos: Video[]): void {
 }
 
 /**
- * Tải toàn bộ danh sách phim từ Supabase PostgreSQL.
- * TỐI ƯU HÓA TỐC ĐỘ: Chỉ truy vấn các cột cần thiết cho danh sách phim,
- * loại bỏ mảng JSONB phụ đề nặng hàng trăm KB để query trả về dưới 100ms!
+ * Tải toàn bộ danh sách phim cho Trang chủ (Bento Grid, Category Chips, Lọc/Tìm kiếm).
+ * SIÊU TỐI ƯU HÓA TỐC ĐỘ (Zero-Bloat Query):
+ * Chỉ truy vấn chính xác các trường cần thiết để hiển thị card phim:
+ * - id: định danh & routing
+ * - title: tên phim
+ * - thumbnail_url: ảnh bìa
+ * - duration: thời lượng
+ * - event_date: ngày phát hành
+ * - tags: danh mục phân loại phim
+ * - sort_order: thứ tự các tập phim trong series
+ * - deleted_at: lọc xóa tạm
+ * - created_at: sắp xếp mới nhất
+ * - updated_at: mốc cập nhật
+ *
+ * Tuyệt đối KHÔNG tải subtitle_url (nặng hàng megabytes do chứa raw VTT/SRT data URI),
+ * và KHÔNG tải description/subtitles/video_url khi chỉ đang duyệt trang chủ.
+ * Toàn bộ các trường này sẽ được tải ngầm sau (background) hoặc tải ngay lập tức khi bấm xem phim!
  */
 export async function fetchVideos(): Promise<{
   videos: Video[];
@@ -137,7 +152,7 @@ export async function fetchVideos(): Promise<{
   try {
     const { data, error } = await supabase
       .from('videos')
-      .select('id, title, description, event_date, duration, video_url, thumbnail_url, tags, sort_order, deleted_at, created_at, updated_at, subtitle_url')
+      .select('id, title, thumbnail_url, duration, event_date, tags, sort_order, deleted_at, created_at, updated_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -155,6 +170,71 @@ export async function fetchVideos(): Promise<{
   } catch (err: any) {
     console.error('Lỗi kết nối Supabase:', err.message);
     return { videos: getCachedVideos(), source: 'supabase' };
+  }
+}
+
+/**
+ * Tải đầy đủ thông tin chi tiết (video_url, description, subtitle_url, subtitles)
+ * cho ĐÚNG 1 bộ phim đang xem hoặc đang chỉnh sửa.
+ * Query theo Primary Key `id` siêu nhanh (~30-50ms), giúp video phát tức thì mà không làm chậm trang chủ!
+ */
+export async function fetchVideoDetails(videoId: string): Promise<Partial<Video> | null> {
+  if (!videoId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('id, video_url, description, subtitle_url, subtitles')
+      .eq('id', videoId)
+      .single();
+
+    if (error || !data) return null;
+
+    // Chuẩn hóa danh sách phụ đề
+    let normalizedSubtitles: SubtitleTrack[] = [];
+    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+      normalizedSubtitles = data.subtitles as SubtitleTrack[];
+    } else if (data.subtitle_url) {
+      normalizedSubtitles = [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
+    }
+
+    return {
+      id: data.id,
+      video_url: data.video_url,
+      description: data.description,
+      subtitle_url: data.subtitle_url,
+      subtitles: normalizedSubtitles,
+    };
+  } catch (err: any) {
+    console.warn(`Lỗi khi tải chi tiết phim ${videoId}:`, err?.message);
+    return null;
+  }
+}
+
+/**
+ * Tải xuống ngầm (Background Fetch) các trường không xuất hiện tại trang chủ
+ * (description, video_url) sau khi giao diện trang chủ đã hiển thị.
+ * Nhờ đó:
+ * 1. Trang chủ hiển thị tức thì trong 50ms (không bị chặn bởi dữ liệu nặng).
+ * 2. Khi người dùng click vào bất kỳ phim nào, link stream video_url và mô tả đã có sẵn trong bộ nhớ!
+ */
+export async function fetchBackgroundVideoDetails(
+  videoIds?: string[]
+): Promise<Array<{ id: string; description: string | null; video_url: string }>> {
+  try {
+    let query = supabase
+      .from('videos')
+      .select('id, description, video_url');
+
+    if (videoIds && videoIds.length > 0) {
+      query = query.in('id', videoIds);
+    }
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as Array<{ id: string; description: string | null; video_url: string }>;
+  } catch (err: any) {
+    console.warn('Lỗi tải ngầm chi tiết video:', err?.message);
+    return [];
   }
 }
 

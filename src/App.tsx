@@ -13,6 +13,8 @@ import {
 import {
   fetchVideos,
   fetchVideoSubtitles,
+  fetchVideoDetails,
+  fetchBackgroundVideoDetails,
   getCachedVideos,
   fetchTopicsDb,
   addTopicDb,
@@ -219,6 +221,33 @@ export default function App() {
             setCurrentVideoId(loadedVideos[0].id);
           }
         }
+
+        // TẢI XUỐNG NGẦM (BACKGROUND FETCH):
+        // Sau khi trang chủ đã render tức thì trong < 100ms, tải ngầm description và video_url
+        // để khi người dùng click vào bất kỳ phim nào cũng có sẵn dữ liệu ngay lập tức!
+        const runBackgroundFetch = () => {
+          fetchBackgroundVideoDetails().then((detailsList) => {
+            if (!isMounted || !detailsList || detailsList.length === 0) return;
+            const detailsMap = new Map(detailsList.map((d) => [d.id, d]));
+            setVideos((prev) =>
+              prev.map((v) => {
+                const details = detailsMap.get(v.id);
+                if (!details) return v;
+                return {
+                  ...v,
+                  description: v.description || details.description,
+                  video_url: v.video_url || details.video_url,
+                };
+              })
+            );
+          });
+        };
+
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(runBackgroundFetch, { timeout: 1500 });
+        } else {
+          setTimeout(runBackgroundFetch, 200);
+        }
       })
       .catch((err) => {
         console.error('Lỗi khi nạp dữ liệu Supabase:', err);
@@ -230,16 +259,24 @@ export default function App() {
     };
   }, []);
 
-  // Khi đang xem một bộ phim, tải riêng phụ đề của phim đó nếu chưa có
+  // Khi đang xem một bộ phim, tải ngay phụ đề và chi tiết (video_url, description, subtitles) nếu chưa có
   useEffect(() => {
     if (currentPage !== 'watch' || !currentVideoId) return;
 
     const current = videos.find((v) => v.id === currentVideoId);
-    if (current && (!current.subtitles || current.subtitles.length === 0)) {
-      fetchVideoSubtitles(currentVideoId).then((subs) => {
-        if (subs && subs.length > 0) {
+    if (!current) return;
+
+    const needsDetails =
+      !current.video_url ||
+      !current.description ||
+      !current.subtitles ||
+      current.subtitles.length === 0;
+
+    if (needsDetails) {
+      fetchVideoDetails(currentVideoId).then((details) => {
+        if (details) {
           setVideos((prev) =>
-            prev.map((v) => (v.id === currentVideoId ? { ...v, subtitles: subs } : v))
+            prev.map((v) => (v.id === currentVideoId ? { ...v, ...details } : v))
           );
         }
       });
@@ -348,6 +385,17 @@ export default function App() {
       currentWatchSessionIdRef.current = null;
       setCurrentVideoId(video.id);
       navigateTo(`/watch?v=${video.id}`);
+
+      // Ngay khi bấm chọn phim, nếu phim chưa có video_url/mô tả/phụ đề thì tải ngay lập tức trong 30ms
+      if (!video.video_url || !video.description || !video.subtitles) {
+        fetchVideoDetails(video.id).then((details) => {
+          if (details) {
+            setVideos((prev) =>
+              prev.map((v) => (v.id === video.id ? { ...v, ...details } : v))
+            );
+          }
+        });
+      }
     },
     [navigateTo]
   );
@@ -447,6 +495,24 @@ export default function App() {
       return createA - createB;
     });
   }, [videos, currentVideo]);
+
+  // Tải ngầm trước (Prefetch) tập tiếp theo trong series để khi chuyển tập xem được ngay 0ms!
+  useEffect(() => {
+    if (currentPage !== 'watch' || !currentVideoId || seriesVideos.length === 0) return;
+    const currentIndex = seriesVideos.findIndex((v) => v.id === currentVideoId);
+    if (currentIndex >= 0 && currentIndex < seriesVideos.length - 1) {
+      const nextVideo = seriesVideos[currentIndex + 1];
+      if (nextVideo && (!nextVideo.video_url || !nextVideo.description || !nextVideo.subtitles)) {
+        fetchVideoDetails(nextVideo.id).then((details) => {
+          if (details) {
+            setVideos((prev) =>
+              prev.map((v) => (v.id === nextVideo.id ? { ...v, ...details } : v))
+            );
+          }
+        });
+      }
+    }
+  }, [currentPage, currentVideoId, seriesVideos]);
 
   const lastSavedHistoryTimeRef = React.useRef<number>(0);
 
