@@ -25,6 +25,8 @@ import {
   RefreshCw,
   FolderPlus,
   Search,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { NewVideoInput, SubtitleTrack, ThemeMode, UpdateVideoInput, Video } from '../../types/video';
@@ -37,6 +39,7 @@ import {
   updateVideoSortOrders,
   setCachedVideos,
   fetchVideoDetails,
+  fetchAdminVideoSubtitles,
 } from '../../lib/supabase';
 
 interface AdminDevPortalProps {
@@ -138,6 +141,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [passcode, setPasscode] = useState<string>('');
+  const [showPasscode, setShowPasscode] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>('');
 
   const [activeTab, setActiveTab] = useState<'list' | 'add' | 'edit' | 'categories'>('list');
@@ -228,6 +232,33 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
       toast.error('Mã PIN không chính xác!');
     }
   };
+
+  // Tự động nạp thông tin phụ đề đầy đủ cho danh sách phim Admin khi mở khóa
+  // Nhờ đó bảng danh sách phim hiển thị chuẩn xác 100% số lượng phụ đề (ví dụ "2 phụ đề", "3 phụ đề")
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchAdminVideoSubtitles().then((subList) => {
+      if (!subList || subList.length === 0) return;
+      const subMap = new Map(subList.map((item) => [item.id, item]));
+      const updated = videos.map((v) => {
+        const match = subMap.get(v.id);
+        if (!match) return v;
+        const nextSubs = match.subtitles && match.subtitles.length > 0 ? match.subtitles : v.subtitles;
+        return {
+          ...v,
+          subtitles: nextSubs,
+          subtitle_url: match.subtitle_url || v.subtitle_url,
+        };
+      });
+      const hasChanges = updated.some(
+        (v, idx) => (v.subtitles?.length || 0) !== (videos[idx]?.subtitles?.length || 0)
+      );
+      if (hasChanges) {
+        setCachedVideos(updated);
+        onVideosReordered?.(updated);
+      }
+    });
+  }, [isAuthenticated]);
 
   // ==============================================================
   // THUẬT TOÁN TRÍCH XUẤT ẢNH BÌA THÔNG MINH (CHỐNG MÀN HÌNH ĐEN)
@@ -673,6 +704,7 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
     setEditCategory(currentCat);
 
     setEditDescription(currentVideo.description || '');
+    onVideoUpdated(currentVideo);
     setActiveTab('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1231,21 +1263,40 @@ export const AdminDevPortal: React.FC<AdminDevPortalProps> = ({
                   <KeyRound className="w-3.5 h-3.5 text-rose-500" />
                   <span>Mã PIN:</span>
                 </label>
-                <input
-                  type="password"
-                  value={passcode}
-                  onChange={(e) => {
-                    setPasscode(e.target.value);
-                    setAuthError('');
-                  }}
-                  placeholder="Nhập mã PIN..."
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
-                      : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
-                  }`}
-                  autoFocus
-                />
+                <div className="relative">
+                  <input
+                    type={showPasscode ? 'text' : 'password'}
+                    value={passcode}
+                    onChange={(e) => {
+                      setPasscode(e.target.value);
+                      setAuthError('');
+                    }}
+                    placeholder="Nhập mã PIN..."
+                    className={`w-full pl-4 pr-11 py-2.5 rounded-xl border text-sm focus:outline-none transition-colors ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-rose-500'
+                        : 'bg-[#1a1a20] border-white/15 text-white focus:border-rose-500'
+                    }`}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasscode((prev) => !prev)}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors cursor-pointer ${
+                      isLight
+                        ? 'text-slate-400 hover:text-slate-700'
+                        : 'text-zinc-400 hover:text-zinc-100'
+                    }`}
+                    aria-label={showPasscode ? 'Ẩn mã PIN' : 'Xem mã PIN'}
+                    title={showPasscode ? 'Ẩn mã PIN' : 'Xem mã PIN'}
+                  >
+                    {showPasscode ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 {authError && <p className="text-xs text-rose-500 pt-1">{authError}</p>}
               </div>
 

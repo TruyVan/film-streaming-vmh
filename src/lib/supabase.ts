@@ -181,21 +181,34 @@ export async function fetchVideos(): Promise<{
 export async function fetchVideoDetails(videoId: string): Promise<Partial<Video> | null> {
   if (!videoId) return null;
   try {
-    // Truy vấn các trường chi tiết cốt lõi (100% tương thích database Supabase)
-    const { data, error } = await supabase
+    // 1. Truy vấn đầy đủ gồm cả mảng đa phụ đề `subtitles` (JSONB) lẫn `subtitle_url`
+    let { data, error } = await supabase
       .from('videos')
-      .select('id, video_url, description, subtitle_url')
+      .select('id, video_url, description, subtitle_url, subtitles')
       .eq('id', videoId)
       .maybeSingle();
+
+    // 2. Fallback an toàn nếu DB chưa có cột subtitles
+    if (error && (error.code === '42703' || String(error.message).includes('subtitles'))) {
+      const fallback = await supabase
+        .from('videos')
+        .select('id, video_url, description, subtitle_url')
+        .eq('id', videoId)
+        .maybeSingle();
+      data = fallback.data as any;
+      error = fallback.error;
+    }
 
     if (error || !data) {
       console.warn(`Lỗi khi nạp chi tiết phim ${videoId}:`, error?.message);
       return null;
     }
 
-    // Chuẩn hóa danh sách phụ đề từ subtitle_url
+    // Chuẩn hóa danh sách phụ đề: Ưu tiên mảng đa phụ đề subtitles (Tiếng Việt, English,...)
     let normalizedSubtitles: SubtitleTrack[] = [];
-    if (data.subtitle_url) {
+    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+      normalizedSubtitles = data.subtitles as SubtitleTrack[];
+    } else if (data.subtitle_url) {
       normalizedSubtitles = [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
     }
 
@@ -247,15 +260,70 @@ export async function fetchBackgroundVideoDetails(
 export async function fetchVideoSubtitles(videoId: string): Promise<SubtitleTrack[]> {
   if (!videoId) return [];
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('videos')
-      .select('subtitle_url')
+      .select('subtitles, subtitle_url')
       .eq('id', videoId)
       .maybeSingle();
 
-    if (error || !data || !data.subtitle_url) return [];
-    return [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
+    if (error && (error.code === '42703' || String(error.message).includes('subtitles'))) {
+      const fallback = await supabase
+        .from('videos')
+        .select('subtitle_url')
+        .eq('id', videoId)
+        .maybeSingle();
+      data = fallback.data as any;
+      error = fallback.error;
+    }
+
+    if (error || !data) return [];
+
+    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+      return data.subtitles as SubtitleTrack[];
+    }
+    if (data.subtitle_url) {
+      return [{ name: 'Tiếng Việt', url: data.subtitle_url, default: true }];
+    }
+    return [];
   } catch {
+    return [];
+  }
+}
+
+/**
+ * Tải danh sách phụ đề (subtitles JSONB và subtitle_url) cho toàn bộ danh sách phim trong Admin Dev Portal.
+ * Giúp Admin kiểm tra chính xác 100% số lượng phụ đề của từng phim mà không ảnh hưởng tốc độ trang chủ!
+ */
+export async function fetchAdminVideoSubtitles(): Promise<Array<{ id: string; subtitles?: SubtitleTrack[]; subtitle_url?: string }>> {
+  try {
+    let { data, error } = await supabase
+      .from('videos')
+      .select('id, subtitles, subtitle_url');
+
+    if (error && (error.code === '42703' || String(error.message).includes('subtitles'))) {
+      const fallback = await supabase
+        .from('videos')
+        .select('id, subtitle_url');
+      data = fallback.data as any;
+      error = fallback.error;
+    }
+
+    if (error || !data) return [];
+    return data.map((item: any) => {
+      let subs: SubtitleTrack[] = [];
+      if (Array.isArray(item.subtitles) && item.subtitles.length > 0) {
+        subs = item.subtitles;
+      } else if (item.subtitle_url) {
+        subs = [{ name: 'Tiếng Việt', url: item.subtitle_url, default: true }];
+      }
+      return {
+        id: item.id,
+        subtitles: subs,
+        subtitle_url: item.subtitle_url,
+      };
+    });
+  } catch (err: any) {
+    console.warn('Lỗi khi nạp phụ đề cho Admin:', err?.message);
     return [];
   }
 }

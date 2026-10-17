@@ -539,33 +539,31 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
             return val + '%';
           },
         },
-        ...(subList.length > 0
-          ? [
-              {
-                html: 'Phụ đề (Subtitles)',
-                width: 250,
-                tooltip: defaultSub?.name || 'Tắt',
-                selector: [
-                  { html: 'Tắt phụ đề', url: '', default: !hasConfiguredSubtitle },
-                  ...subList.map((s) => ({
-                    html: s.name,
-                    url: s.url,
-                    default: s.url === defaultSub?.url,
-                  })),
-                ],
-                onSelect: (item: any) => {
-                  if (!art.subtitle) return 'Chưa có';
-                  if (!item.url) {
-                    art.subtitle.show = false;
-                    return 'Đã tắt';
-                  }
-                  art.subtitle.show = true;
-                  art.subtitle.switch(item.url, { name: item.html });
-                  return item.html;
-                },
-              },
-            ]
-          : []),
+        {
+          name: 'subtitles',
+          html: 'Phụ đề (Subtitles)',
+          width: 250,
+          tooltip: defaultSub?.name || (subList.length > 0 ? 'Bật' : 'Tắt'),
+          selector: [
+            { html: 'Tắt phụ đề', url: '', default: !hasConfiguredSubtitle },
+            ...subList.map((s) => ({
+              html: s.name,
+              url: s.url,
+              default: s.url === defaultSub?.url,
+            })),
+          ],
+          onSelect: (item: any) => {
+            if (!art.subtitle) return 'Chưa có';
+            if (!item.url) {
+              art.subtitle.show = false;
+              return 'Đã tắt';
+            }
+            const itemType = (item.url.includes('WEBVTT') || item.url.includes('text/vtt') || item.url.endsWith('.vtt')) ? 'vtt' : 'srt';
+            art.subtitle.show = true;
+            art.subtitle.switch(item.url, { name: item.html, type: itemType });
+            return item.html;
+          },
+        },
       ],
     });
 
@@ -1296,11 +1294,7 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         artInstanceRef.current = null;
       }
     };
-  }, [
-    video.id,
-    video.video_url,
-    Boolean(video.subtitle_url || (video.subtitles && video.subtitles.length > 0)),
-  ]);
+  }, [video.id, video.video_url]);
 
   // CẬP NHẬT PHỤ ĐỀ ĐỘNG KHI TẢI VỀ XONG (KHÔNG CẦN DESTROY PLAYER)
   // Khi phụ đề (subtitles/subtitle_url) được fetch về sau khi player đã khởi tạo,
@@ -1320,7 +1314,8 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
 
     if (defaultSub?.url && art.subtitle) {
       // 1. Chuyển phụ đề sang track vừa tải về
-      art.subtitle.switch(defaultSub.url, { name: defaultSub.name });
+      const subType = (defaultSub.url.includes('WEBVTT') || defaultSub.url.includes('text/vtt') || defaultSub.url.endsWith('.vtt')) ? 'vtt' : 'srt';
+      art.subtitle.switch(defaultSub.url, { name: defaultSub.name, type: subType });
       art.subtitle.show = true;
 
       // 2. Cập nhật nút bấm trên thanh điều khiển
@@ -1331,20 +1326,42 @@ export const CustomArtPlayer: React.FC<CustomArtPlayerProps> = ({
         subBtn.removeAttribute('title');
       }
 
-      // 3. Cập nhật danh sách phụ đề trong Cài đặt
+      // 3. Cập nhật danh sách đa phụ đề trong Cài đặt (hỗ trợ chuyển đổi giữa Tiếng Việt, Tiếng Anh,...)
       try {
-        const settingSubItem = (art.setting as any)?.find?.('Phụ đề (Subtitles)');
-        if (settingSubItem) {
-          settingSubItem.selector = [
+        const subSettingOption = {
+          name: 'subtitles',
+          html: 'Phụ đề (Subtitles)',
+          width: 250,
+          tooltip: defaultSub.name,
+          selector: [
             { html: 'Tắt phụ đề', url: '', default: false },
             ...subList.map((s) => ({
               html: s.name,
               url: s.url,
               default: s.url === defaultSub.url,
             })),
-          ];
+          ],
+          onSelect: (item: any) => {
+            if (!art.subtitle) return 'Chưa có';
+            if (!item.url) {
+              art.subtitle.show = false;
+              return 'Đã tắt';
+            }
+            const itemType = (item.url.includes('WEBVTT') || item.url.includes('text/vtt') || item.url.endsWith('.vtt')) ? 'vtt' : 'srt';
+            art.subtitle.show = true;
+            art.subtitle.switch(item.url, { name: item.html, type: itemType });
+            return item.html;
+          },
+        };
+
+        if (typeof (art.setting as any)?.update === 'function') {
+          (art.setting as any).update(subSettingOption);
+        } else if (typeof (art.setting as any)?.add === 'function') {
+          (art.setting as any).add(subSettingOption);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Lỗi cập nhật setting phụ đề:', err);
+      }
     }
   }, [video.id, video.subtitle_url, JSON.stringify(video.subtitles)]);
 
