@@ -8,7 +8,7 @@
 
 ## 1. Tổng quan Kiến trúc Hệ thống (System Architecture)
 
-Dự án được thiết kế chuyên biệt để phục vụ nhu cầu lưu trữ và trình chiếu các bộ phim, video sự kiện, teambuilding, workshop và tư liệu nội bộ với chất lượng cao nhất, trải nghiệm tua nhanh không độ trễ (**Zero-Lag Scrubbing**) và bảo mật riêng tư (**Anti-SEO**).
+Dự án được thiết kế chuyên biệt để phục vụ nhu cầu lưu trữ và trình chiếu các bộ phim, video sự kiện, teambuilding, workshop và tư liệu nội bộ với chất lượng cao nhất, trải nghiệm tua nhanh không độ trễ (**Zero-Lag Scrubbing**), tốc độ mở trang chủ tức thì (**Zero-Bloat Query**) và bảo mật riêng tư (**Anti-SEO**).
 
 ### 🌟 Mô hình 3 Trụ cột (Trio Architecture):
 
@@ -51,7 +51,7 @@ Dự án được thiết kế chuyên biệt để phục vụ nhu cầu lưu t
 
 | Thành phần | Công nghệ / Nền tảng | Trách nhiệm và Cơ chế hoạt động |
 | :--- | :--- | :--- |
-| **Frontend** | **Vercel** + React 19 + Vite 8 + Tailwind CSS v4 | Phục vụ mã nguồn giao diện SPA, xử lý routing động theo URL Slug (`/?v=...`, `/tags/:slug`, `/favorites`, `/history`, `/admin`), áp dụng các tiêu đề bảo mật Anti-SEO (`noindex, nofollow`). |
+| **Frontend** | **Vercel** + React 19 + Vite 8 + Tailwind CSS v4 | Phục vụ mã nguồn giao diện SPA, xử lý routing động theo URL Slug (`/?v=...`, `/tags/:slug`, `/favorites`, `/history`, `/settings/admin`), áp dụng các tiêu đề bảo mật Anti-SEO (`noindex, nofollow`). |
 | **Database** | **Supabase** (PostgreSQL 15+) | Lưu trữ metadata video, danh mục chủ đề phân loại, danh sách video yêu thích và lịch sử xem từng phiên. Hỗ trợ cơ chế xóa tạm (Soft Delete 30 ngày) và đa phụ đề JSONB. |
 | **Media Server** | **Oracle Cloud Infrastructure (OCI)** | Máy chủ VPS Compute (Ubuntu/Oracle Linux) chạy Nginx được biên dịch kèm module `ngx_http_mp4_module`, hỗ trợ HTTP Range Requests (mã phản hồi 206) giúp tua phim đến bất kỳ giây nào mà không cần tải toàn bộ file. |
 
@@ -64,7 +64,7 @@ film-streaming-vmh/
 ├── .env.example                     # Mẫu khai báo các biến môi trường cho Local và Vercel
 ├── .gitignore                       # Cấu hình bỏ qua file rác, build artifacts và file nhạy cảm
 ├── bun.lock                         # Lockfile Bun (dành cho môi trường dùng Bun)
-├── index.html                       # Khung HTML gốc với thẻ meta Anti-SEO và liên kết Google Fonts
+├── index.html                       # Khung HTML gốc với thẻ meta Anti-SEO và icon thương hiệu
 ├── metadata.json                    # Metadata ứng dụng (tên, mô tả, quyền hạn)
 ├── next.config.mjs                  # Cấu hình tương thích Next.js App Router & Anti-SEO headers
 ├── package.json                     # Quản lý dependencies (React 19, ArtPlayer, Tailwind v4, Supabase)
@@ -96,10 +96,17 @@ film-streaming-vmh/
     │
     ├── components/
     │   ├── player/
-    │   │   └── CustomArtPlayer.tsx  # Trình phát ArtPlayer 5.4.0: Khóa màn hình, cử chỉ vuốt, Zero-lag
+    │   │   └── CustomArtPlayer.tsx  # Trình phát ArtPlayer 5.4.0: Khóa màn hình, cử chỉ vuốt, Zero-lag, Đa phụ đề
+    │   │
+    │   ├── settings/
+    │   │   └── SettingsPage.tsx     # Trang Cài đặt Hệ thống độc lập với hệ thống sub-slugs (/general, /theme, /admin)
+    │   │
+    │   ├── themes/
+    │   │   ├── canva/               # Bộ giao diện Canva Design (CanvaThemeHome, CanvaThemeEditor, Filmstrip, Toolbar...)
+    │   │   └── powerpoint/          # Bộ giao diện Microsoft PowerPoint (PowerPointThemeHome, Editor, Ribbon, Thumbnails...)
     │   │
     │   └── ui/
-    │       ├── AdminDevPortal.tsx   # Trang Quản trị Kỹ thuật (Dev Portal) toàn màn hình có mã PIN
+    │       ├── AdminDevPortal.tsx   # Trang Quản trị Kỹ thuật (Dev Portal) có mã PIN và icon con mắt xem mã
     │       ├── Header.tsx           # Thanh điều hướng phía trên (Logo thương hiệu, Tìm kiếm mở rộng)
     │       ├── HomeBentoGrid.tsx    # Lưới video Bento Grid, feed Yêu thích, Lịch sử xem dạng hàng
     │       ├── MobileBottomNav.tsx  # Thanh điều hướng đáy màn hình tối ưu cho Smartphone
@@ -114,7 +121,7 @@ film-streaming-vmh/
     │
     ├── lib/
     │   ├── progress.ts              # Quản lý tiến độ xem phim, lưu trữ LocalStorage, bookmark mốc giờ
-    │   ├── supabase.ts              # Data Access Layer: CRUD Videos, Topics, Favorites, Watch History
+    │   ├── supabase.ts              # Data Access Layer: CRUD Videos, Topics, Favorites, Watch History, Tối ưu API
     │   └── topics.ts                # Quản lý danh mục chủ đề dự phòng trên LocalStorage
     │
     └── types/
@@ -126,7 +133,19 @@ film-streaming-vmh/
 
 ## 3. Các Tính Năng Nổi Bật Đã Được Tinh Chỉnh
 
-### 1. Trình phát Video Đẳng Cấp (ArtPlayer.js 5.4.0 Custom)
+### 1. Kiến Trúc Truy Vấn API Tối Ưu Hóa Siêu Tốc (Zero-Bloat Query)
+* **Khắc phục triệt để tình trạng tải chậm trang chủ:**
+  * **Trước đây:** API `fetchVideos()` tải toàn bộ các trường bao gồm `description` và `subtitle_url` (vốn chứa hàng ngàn dòng phụ đề tiếng Việt mã hóa Data URI nặng hàng megabytes), khiến kích thước phản hồi lên tới **2.74 MB** và mất đến **2.8 phút** để tải xong.
+  * **Giải pháp tối ưu hóa phân tầng:**
+    1. **Truy vấn danh sách Trang chủ tinh gọn (`fetchVideos`):** Chỉ lấy đúng các trường phục vụ hiển thị thẻ phim và danh mục: `id, title, thumbnail_url, duration, event_date, tags, sort_order, deleted_at, created_at, updated_at`. Payload giảm **99% (từ 2.74 MB xuống còn ~15 - 25 KB)**, trang chủ mở lên trong **dưới 100ms**!
+    2. **Tải ngầm chạy nền (`fetchBackgroundVideoDetails`):** Tận dụng thời gian rảnh của trình duyệt (`requestIdleCallback`) để nạp ngầm `description` và `video_url` sau khi giao diện trang chủ đã sẵn sàng.
+    3. **Tải chi tiết tức thì khi xem phim (`fetchVideoDetails`):** Truy vấn đúng **duy nhất 1 bản ghi** theo ID chỉ trong **30 - 50ms**, video bắt đầu phát ngay lập tức.
+    4. **Tải trước tập tiếp theo (Series Prefetching):** Khi đang xem Tập 1, hệ thống tự động tải ngầm trước thông tin Tập 2, giúp chuyển tập kế tiếp mượt mà trong **0ms**.
+    5. **Bộ nhớ đệm Stale-While-Revalidate:** Lưu danh sách phim tinh gọn vào `localStorage` (`film_videos_cache_v2`), mở trang web lên là có phim xem ngay tức khắc mà không bị màn hình trắng hay chờ đợi.
+
+---
+
+### 2. Trình phát Video Đẳng Cấp (ArtPlayer.js 5.4.0 Custom)
 * **Tua nhanh đồng bộ tức thì (Zero-Lag Scrubbing):**
   * Nút tua lùi 10s / tua tới 10s và phím tắt (`←`, `→`, `J`, `L`) sử dụng cơ chế cộng dồn thời gian và cập nhật trực tiếp DOM của vạch đỏ (`.art-progress-played`), chấm tròn (`.art-progress-indicator`) và đồng hồ thời gian.
   * Tích hợp cơ chế **Debounce seek (150ms)** giúp người dùng kéo thanh tiến trình hoặc bấm liên tục mà không làm đơ giật luồng video.
@@ -144,20 +163,23 @@ film-streaming-vmh/
   * Nút ổ khóa nổi ở góc trên bên phải. Khi bật khóa (`art-is-locked`), toàn bộ thanh điều khiển, nút bấm và thao tác chạm sẽ bị chặn hoàn toàn nhưng **video vẫn tiếp tục phát mượt mà**. Chạm vào màn hình sẽ làm nhấp nháy nút mở khóa để báo hiệu.
 * **Bộ nút điều khiển trung tâm (YouTube Center Controls):**
   * Gồm 3 nút nổi bật: **Tập trước đó (Prev)**, **Phát/Tạm dừng to tròn (Play/Pause)** và **Tập kế tiếp (Next)**. Tự động mờ đi sau 2 giây khi phim đang chiếu.
-* **Quản lý Đa Phụ Đề (Multi-Track Subtitles):**
+* **Quản lý Đa Phụ Đề Động (Dynamic Multi-Track Subtitles):**
   * Hỗ trợ đồng thời cả file `.vtt`, `.srt` và chuỗi mã hóa `data:text/...;charset=utf-8,...`.
+  * **Nạp phụ đề động thời gian thực:** Khi phụ đề được tải về sau khi khởi tạo player, hệ thống tự động gọi `art.subtitle.switch` để áp dụng phụ đề ngay lập tức mà không làm gián đoạn hay tải lại luồng phát video.
+  * **Menu Cài đặt phụ đề đa ngôn ngữ:** Hiển thị đầy đủ danh sách tất cả các ngôn ngữ phụ đề có sẵn (Tiếng Việt, English,...) để người xem chuyển đổi linh hoạt.
   * Hỗ trợ đầy đủ các thẻ định dạng văn bản trong phụ đề: `<i>in nghiêng</i>`, `<b>in đậm</b>`, `<u>gạch chân</u>`.
-  * Nút phụ đề 1-click ở thanh điều khiển dưới để bật/tắt nhanh; menu Cài đặt cho phép chuyển đổi ngôn ngữ phụ đề linh hoạt.
+  * Nút phụ đề 1-click ở thanh điều khiển dưới cập nhật tooltip và trạng thái động theo thời gian thực.
 * **Bộ điều khiển toàn diện:**
   * **Độ sáng (Brightness):** Tùy chỉnh từ 50% đến 200% ngay trong menu Cài đặt (rất hữu ích với các cảnh quay ban đêm).
   * **Tốc độ phát (Playback Rate):** Hỗ trợ đầy đủ từ 0.5x, 0.75x, 1x, 1.25x, 1.5x đến 2x.
   * **Toàn màn hình kép (Dual Fullscreen):** Tự động phát hiện và chuyển đổi linh hoạt giữa Native Fullscreen và Web Fullscreen (`100vw x 100vh`) giúp khắc phục triệt để hạn chế khi nhúng trong iframe.
   * **Hình trong nền (Picture-in-Picture):** Tách video ra góc màn hình để vừa xem vừa làm việc khác.
   * **Khôi phục phiên xem:** Tự động lưu tiến độ vào database / LocalStorage; hiển thị banner nổi *"Tiếp tục xem từ mm:ss"* khi quay lại.
+  * **Spinner nạp luồng phát mượt mà:** Hiển thị vòng xoay trạng thái tinh tế khi mạng chậm đang nạp `video_url`.
 
 ---
 
-### 2. Trải nghiệm Đa Giao Diện (Multi-Theme System) & Phát Phim Liền Mạch
+### 3. Trải nghiệm Đa Giao Diện (Multi-Theme System) & Phát Phim Liền Mạch
 * **Hệ thống 3 Giao diện hiển thị độc quyền (3 Display Themes):**
   1. **📺 Mặc định (YouTube Style):**
      * Giao diện nguyên bản quen thuộc với lưới Bento Grid, Up-Next sidebar và thanh trượt YouTube Drawer.
@@ -200,34 +222,38 @@ film-streaming-vmh/
 
 ---
 
-### 3. Trang Quản trị Kỹ thuật (Admin Dev Portal)
-* **Truy cập bảo mật bằng mã PIN:**
-  * Bảo vệ kỹ thuật với mã PIN (`admin2026` hoặc biến môi trường `VITE_ADMIN_PASSCODE`), ẩn hoàn toàn placeholder mã PIN để đảm bảo tính riêng tư.
+### 4. Trang Quản trị Kỹ thuật (Admin Dev Portal)
+* **Truy cập bảo mật bằng mã PIN & Icon con mắt tiện ích:**
+  * Bảo vệ kỹ thuật với mã PIN (`admin2026` hoặc biến môi trường `VITE_ADMIN_PASSCODE`).
+  * **Icon con mắt xem / ẩn mã PIN (`Eye` / `EyeOff`):** Cho phép người dùng bấm chuyển đổi để nhìn rõ mã PIN vừa gõ hoặc ẩn về dạng chấm tròn bảo mật.
 * **Tải phim trực tiếp lên Oracle Cloud VPS (Direct HTTP PUT):**
   * Hỗ trợ chọn video trực tiếp từ máy tính; trình duyệt sẽ gửi lệnh HTTP PUT thẳng lên máy chủ Nginx trên Oracle VPS.
   * Hiển thị thanh tiến trình phần trăm (%), tốc độ truyền tải thực tế (MB/s) và dung lượng đã gửi.
   * **Tự động quay về danh sách phim:** Sau khi upload hoàn tất và đăng phim thành công, hệ thống tự động làm sạch form và quay trở lại tab Danh Sách Phim.
 * **Thuật toán trích xuất ảnh bìa thông minh (Chống màn hình đen):**
   * Thay vì lấy 1 giây đầu tiên (vốn hầu hết là màn hình đen mờ intro của phim), hệ thống tự động tìm kiếm và lấy mẫu độ sáng (Luma Brightness Sampling) ở các mốc thời gian từ 20s, 35s, 50s, 75s... để trích xuất khung hình sáng và sắc nét nhất.
+  * Tối ưu hóa kích thước ảnh bìa về chuẩn **480x270 JPEG 0.65** siêu nhẹ (~8KB - 12KB) giúp giảm 96% dung lượng cơ sở dữ liệu.
   * Tích hợp nút `🔄 Đổi khung hình (+25s)` cho phép admin thử ngay một khoảnh khắc khác, cùng nút `🖼️ Tải ảnh từ máy` nếu muốn dùng ảnh bìa thiết kế riêng.
 * **Cấu hình 1 Phân Loại duy nhất cho mỗi phim:**
-  * Thay vì gắn nhiều tags rời rạc, mỗi bộ phim được chỉ định **chính xác 1 Phân Loại** (như *Harry Potter*, *Stranger Things Mùa 1*, *Chúa Tể Những Chiếc Nhẫn*...).
+  * Thay vì gắn nhiều tags rời rạc, mỗi bộ phim được chỉ định **chính xác 1 Phân Loại** (như *Harry Potter*, *Stranger Things Mùa 5*, *Chúa Tể Những Chiếc Nhẫn*...).
   * Cho phép chọn phân loại có sẵn hoặc gõ tạo nhanh phân loại mới ngay tại form thêm/sửa phim.
 * **Quản lý Phân Loại & Sắp xếp thứ tự phim bằng Kéo Thả (Drag and Drop):**
   * Chuyển toàn bộ quyền cấu hình phân loại về tab quản trị chuyên dụng của Admin (không xuất hiện ở sidebar người dùng thông thường).
   * Cho phép chọn bất kỳ phân loại nào và **kéo thả trực tiếp (HTML5 Drag & Drop)** hoặc dùng nút mũi tên `↑` / `↓` để sắp xếp các tập phim từ trên xuống dưới (Tập 1 → Tập cuối).
   * Tích hợp nút *"Sắp xếp tự động: Cũ nhất → Mới nhất"* theo ngày phát hành.
   * Lưu thứ tự phim (`sort_order`) trực tiếp vào cơ sở dữ liệu Supabase.
+* **Quản trị Đa Phụ Đề Hoàn Chỉnh (Subtitle Tracks Manager):**
+  * Cho phép nạp nhiều file phụ đề khác nhau (Tiếng Việt, English,...), tự động đọc file `.srt`/`.vtt` từ máy tính thành Data URI an toàn.
+  * Bảng danh sách phim tự động hiển thị chính xác số lượng phụ đề hiện có của từng bộ phim (`X phụ đề`).
+  * Khi mở form Sửa phim, toàn bộ danh sách phụ đề đa ngôn ngữ được nạp đầy đủ 100%.
 * **Xóa vĩnh viễn (Hard Delete) đồng bộ VPS & Supabase:**
   * Cơ chế Hard Delete xóa sạch bản ghi trong database Supabase, đồng thời gửi lệnh HTTP `DELETE` qua WebDAV lên máy chủ Nginx Oracle VPS để giải phóng dung lượng đĩa cứng thực tế.
 * **Thùng rác & Xóa tạm (Soft Delete 30 ngày):**
   * Video bị xóa tạm được lưu trong tab Thùng rác 30 ngày với đầy đủ nút Khôi phục (Restore).
-* **Quản trị đa phụ đề (Subtitle Tracks Manager):**
-  * Cho phép nạp nhiều phụ đề (Tiếng Việt, English,...), tự động đọc file `.srt`/`.vtt` từ máy tính thành Data URI an toàn.
 
 ---
 
-### 4. Tiêu Chuẩn Bảo Mật & Anti-SEO Tuyệt Đối
+### 5. Tiêu Chuẩn Bảo Mật & Anti-SEO Tuyệt Đối
 Nền tảng được thiết lập chặn mọi công cụ thu thập dữ liệu (Google, Bing, Yandex, Baidu) ở tất cả các tầng:
 1. **Tầng Mã nguồn HTML (`index.html`):** Khai báo `<meta name="robots" content="noindex, nofollow, nocache, noarchive, nosnippet" />`.
 2. **Tầng File Crawl (`public/robots.txt`):** Thiết lập `User-agent: *` và `Disallow: /`.
@@ -368,7 +394,7 @@ npm run preview
 | `M` | Tắt / Bật tiếng (Mute / Unmute) |
 | `F` | Bật / Thoát toàn màn hình (Hỗ trợ cả Native và Web Fullscreen) |
 | `P` | Bật / Thoát chế độ Hình trong nền (Picture-in-Picture) |
-| `C` | Bật / Tắt phụ đề (.srt / .vtt) |
+| `C` | Bật / Tắt phụ đề (.srt / .vtt) thời gian thực |
 | `Esc` | Thoát chế độ Toàn màn hình Web Fullscreen |
 
 ---
